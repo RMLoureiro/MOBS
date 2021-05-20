@@ -1,0 +1,3 @@
+(test
+ (name event_queue_test)
+ (libraries simulator))
