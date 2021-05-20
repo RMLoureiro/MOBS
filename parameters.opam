@@ -1,0 +1,11 @@
+opam-version: "2.0.5"
+version: "1.0"
+maintainer: "mce.alves@campus.fct.unl.pt"
+authors: ["Miguel Alves"]
+homepage: ""
+bug-reports: ""
+dev-repo: ""
+license: ""
+build: [
+    ["dune" "build" "-p" name "-j" jobs]
+]
