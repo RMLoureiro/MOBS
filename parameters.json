@@ -1,4 +1,5 @@
 {
     "num-nodes":50,
-    "end-block-height":10
+    "end-block-height":10,
+    "seed":12345
 }
