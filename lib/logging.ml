@@ -29,17 +29,19 @@ let log_json data =
 (*** operations that return the JSON for a specific event ***)
 
 let message_json node_id_from node_id_to timestamp msg =
-  String.concat "" ["{\"kind\":\"flow-message\"},\"content\":{\"transmission-timestamp\":";string_of_int (Clock.get_timestamp ());",\"reception-timestamp\":";string_of_int timestamp;"\"begin-node-id\":";string_of_int node_id_from;"\"end-node-id\":";string_of_int node_id_to;"\"msg-data\":";Messages.msg_to_json msg;"}},"]
+  String.concat "" ["{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":";string_of_int (Clock.get_timestamp ());",\"reception-timestamp\":";string_of_int timestamp;",\"begin-node-id\":";string_of_int node_id_from;",\"end-node-id\":";string_of_int node_id_to;",\"msg-data\":";Messages.msg_to_json msg;"}}"]
 
 let addnode_json node_id region_id =
-  String.concat "" ["{\"kind\":\"add-node\"},\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"region-id\":";string_of_int region_id;"}},"]
+  String.concat "" ["{\"kind\":\"add-node\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"region-id\":";string_of_int region_id;"}}"]
 
 let addlink_json begin_node_id end_node_id =
-  String.concat "" ["{\"kind\":\"add-link\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}},"]
+  String.concat "" ["{\"kind\":\"add-link\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}}"]
 
 let removelink_json begin_node_id end_node_id =
-  String.concat "" ["{\"kind\":\"remove-link\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}},"]
+  String.concat "" ["{\"kind\":\"remove-link\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}}"]
 
+let timeout_json node_id = 
+  String.concat "" ["{\"kind\":\"timeout\",\"content\":{\"timestamp\":";string_of_int (Clock.get_timestamp ());",\"«node-id\":"; string_of_int node_id; "}}"]
 (*** ---------------------------------------------------- ***)
 
 (* given an event, produces the JSON object that represents that event *)
@@ -49,7 +51,7 @@ let log_event (event: Events.event) =
   | AddNode(node_id, region_id) -> addnode_json node_id region_id
   | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
   | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id
-  | Timeout(_, _, _) -> ""
+  | Timeout(node_id, _, _) -> timeout_json node_id
   in log_json event_json
 
 

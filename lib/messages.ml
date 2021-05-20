@@ -7,4 +7,4 @@ type message =
 
 let msg_to_json (msg:message) =
   match msg with
-  | _ -> "{}"
+  | Message(s) -> String.concat "" ["{\"string\":\"";s;"\"}"]
