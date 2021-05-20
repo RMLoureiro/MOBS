@@ -1,1 +1,1 @@
-let () = print_endline Simulator.Events.message
+let () = print_endline "MOBS : MOdular Blockchain Simulator"
