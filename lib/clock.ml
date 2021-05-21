@@ -1,13 +1,14 @@
-(* type that represents the timestamp *)
-type t_timestamp = int
+type t = int
 
-(* the current timestamp of the simulation clock *)
-let timestamp = ref 0
+(** the current timestamp of the simulation clock *)
+let (timestamp:t ref) = ref 0
 
-(* update the timestamp of the simulation clock *)
 let set_timestamp ts =
   timestamp := ts
 
-(* get the current timestamp of the simulation clock *)
 let get_timestamp () =
   !timestamp
+
+let zero = 0
+
+let to_string ts = string_of_int ts
