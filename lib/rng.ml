@@ -2,9 +2,9 @@
 
 (* regardless of the arbitrary number of args in <seed_args>, all numbers generated will follow the global seed *)
 let get_int (seed_args:int array) = 
-  let global_seed = Array.make 1 !Parameters.Sim_parameters.seed in
+  let global_seed = Array.make 1 !Parameters.General.seed in
   Random.full_init (Array.append global_seed seed_args);
-  Random.int !Parameters.Sim_parameters.num_nodes
+  Random.int !Parameters.General.num_nodes
 
 (* TODO : in OCaml we cannot have multiple instances of Random using different seeds
     since calling Random.init changes the seed, when going back to the previous seed the 

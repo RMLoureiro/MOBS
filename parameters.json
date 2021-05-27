@@ -1,5 +1,11 @@
 {
-    "num-nodes":50,
-    "end-block-height":10,
-    "seed":12345
+    "general": {
+        "num-nodes":10,
+        "end-block-height":10,
+        "seed":12345
+    },
+    "network": {
+        "num-regions":6,
+        "num-links":5
+    }
 }
