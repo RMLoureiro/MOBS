@@ -1,0 +1,3 @@
+(test
+ (name network_test)
+ (libraries abstractions simulator))
