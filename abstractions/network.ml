@@ -1,5 +1,7 @@
-type links = int list list
-type regions = int list
+type links         = int list
+type network_links = links list
+type region        = int
+type regions       = int list
 
 (***** Auxiliary Functions *****)
 

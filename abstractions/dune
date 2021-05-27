@@ -1,3 +1,6 @@
 (library
  (name abstractions)
  (libraries parameters simulator))
+(env
+ (dev
+   (flags (:standard -warn-error -A))))
