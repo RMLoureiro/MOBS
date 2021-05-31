@@ -3,6 +3,7 @@ type network_links = links list
 type region        = int
 type regions       = int list
 
+
 (***** Auxiliary Functions *****)
 
 (* shuffle a list by tagging each element with random bits, and then using the sort function *)
@@ -52,6 +53,7 @@ let can_add_neighbor id nid outbound_links inbound_links :bool =
   let valid_nodes      = (id >= 0) && (id < num_nodes) && (nid >= 0) && (nid < num_nodes) in
   (not same_node) && (not already_outbound) && (not already_inbound) && (not outbound_limit) && (not inbound_limit) && valid_nodes
 
+(** select neighbors for node with id = <id>, taking the link limitations in consideration *)
 let select_neighbors id nodes inbound_links outbound_links =
   let num_links = !Parameters.General.num_links in
   let candidates = shuffle_list nodes in 
@@ -78,18 +80,39 @@ let node_links : int list list =
   done;
   List.map (fun x -> List.map (fun y -> y+1) x) !outbound_links (* node id's start at 1 *)
 
+(*******************************)
 
-(***** Latency Calculation Operations *****)
+module type Network = sig
+  type msg
 
-(* from SimBlock -> latency according to 20% variance pallet distribution *)
-(* https://dsg-titech.github.io/simblock/ *)
-(* TODO : is this an appropriate way of calculating the latency ? *)
-let get_latency sender receiver = 
-  let region_list     = node_regions in (* TODO : not efficient (have a state hidden by a .mli) *)
-  let region_sender   = List.nth region_list (sender-1) in     (* id's start at 1 *)
-  let region_receiver = List.nth region_list (receiver - 1) in (* id's start at 1 *)
-  let mean_latency    = List.nth (List.nth !Parameters.General.latency_table region_sender) region_receiver in
-  let shape           = 0.2 *. (float_of_int mean_latency)  in
-  let scale           = float_of_int (mean_latency - 5) in
-  int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
+  (** send a message to another node *)
+  val send : int -> int -> msg -> unit
+end
 
+module Make(Events: Simulator.Events.Event) 
+          (Queue: Simulator.Events.EventQueue with type ev = Events.t) : Network =
+struct
+
+  type msg = Events.msg
+
+  (***** Latency Calculation Operations *****)
+
+  (* from SimBlock -> latency according to 20% variance pallet distribution *)
+  (* https://dsg-titech.github.io/simblock/ *)
+  (* TODO : validate if this is an appropriate way of calculating the latency *)
+  let get_latency sender receiver = 
+    let region_list     = node_regions in (* TODO : not efficient (have a state hidden by a .mli) *)
+    let region_sender   = List.nth region_list (sender-1) in     (* id's start at 1 *)
+    let region_receiver = List.nth region_list (receiver - 1) in (* id's start at 1 *)
+    let mean_latency    = List.nth (List.nth !Parameters.General.latency_table region_sender) region_receiver in
+    let shape           = 0.2 *. (float_of_int mean_latency)  in
+    let scale           = float_of_int (mean_latency - 5) in
+    int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
+
+  let send sender receiver msg =
+    let latency = get_latency sender receiver in
+    let arrival_time = (Simulator.Clock.get_timestamp ()) + latency in
+    let msg_event = Events.Message(sender,receiver,arrival_time,msg) in
+    Queue.add_event msg_event
+
+end

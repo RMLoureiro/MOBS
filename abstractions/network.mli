@@ -1,12 +1,7 @@
-type links = int list
-type region = int
-
-(** a list of integer lists, where index <i> contains a list with the ids of nodes 
-    that <i> can send messages to (possesses outbound links to) *)
+type links         = int list
 type network_links = links list
-
-(** a list of integers, where index <i> contains the region for node with id <i> *)
-type regions = region list
+type region        = int
+type regions       = int list
 
 (** returns the region assigned to each node for the current simulation *)
 val node_regions : regions
@@ -14,6 +9,11 @@ val node_regions : regions
 (** returns the links between nodes for the current simulation *)
 val node_links : network_links
 
-(** given the sender id and receiver id, returns the latency for a message *)
-val get_latency : int -> int -> int
+module type Network = sig
+type msg
 
+(** send a message to another node *)
+val send : int -> int -> msg -> unit
+end
+
+module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t) -> Network

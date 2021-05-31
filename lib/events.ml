@@ -1,18 +1,47 @@
-type nodeID        = int    (* type that identifies a node *)
-type regionID      = int    (* type that identifies a region *)
-type timeout_label = string (* type that identifies the kind of a timeout *)
+type timeout_label = string  (* type that identifies the kind of a timeout *)
+exception NotFound of string
 
-(** the type of the events processed during the simulation *)
-type event =
-  Message of nodeID * nodeID * Clock.t * Messages.message
-  | AddNode of nodeID * regionID
-  | AddLink of nodeID * nodeID
-  | RemoveLink of nodeID * nodeID
-  | Timeout of nodeID * Clock.t * timeout_label
+module type Message = sig
+  (** the type of a message *)
+  type t
 
+  (** convert a message to JSON string *)
+  val to_json : t -> string
+end
 
-(** given an event, returns the timestamp when it should be executed *)
-let get_timestamp_from_event (e:event) =
+module type Event = sig
+  (** the type of the message contents *)
+  type msg
+
+  (** the type of the events processed during the simulation *)
+  type t = 
+  Message of int * int * Clock.t * msg       (* nodeID, nodeID, timestamp, msg *)
+  | AddNode of int * int                     (* nodeID, regionID *)
+  | AddLink of int * int                     (* nodeID, nodeID *)
+  | RemoveLink of int * int                  (* nodeID, nodeID *)
+  | Timeout of int * Clock.t * timeout_label (* nodeID, timestamp, label *)
+
+  (** given an event, returns the timestamp when it should be executed *)
+  val timestamp : t -> Clock.t
+
+  (** given an event, return the node that should process the event *)
+  val target : t -> int option
+
+  (** given the sender, receiver, timestamp and message contents, create a message event *)
+  val create_message : int -> int -> Clock.t -> msg -> t
+end
+
+module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
+  type msg = Msg.t
+
+  type t =
+  Message of int * int * Clock.t * msg
+  | AddNode of int * int
+  | AddLink of int * int
+  | RemoveLink of int * int
+  | Timeout of int * Clock.t * timeout_label
+
+  let timestamp (e:t) : Clock.t =
   match e with
   | Message(_,_,timestamp,_) -> timestamp
   | AddNode(_,_) -> Clock.zero
@@ -20,3 +49,64 @@ let get_timestamp_from_event (e:event) =
   | RemoveLink(_,_) -> Clock.zero
   | Timeout(_,timestamp,_) -> timestamp
 
+  let target (e:t) : int option =
+  match e with
+  | Message(_,receiver,_,_) -> Some receiver
+  | AddNode(_,_) -> None
+  | AddLink(_,_) -> None
+  | RemoveLink(_,_) -> None
+  | Timeout(node,_,_) -> Some node
+
+  let create_message (sender:int) (receiver:int) (timestamp:Clock.t) (m:msg) =
+    Message(sender, receiver, timestamp, m)
+
+end
+
+
+module type EventQueue = sig
+  type ev
+  
+  (* the type of the elements stored in the event queue *)
+  (* it is a tuple with the timestamp and the event *)
+  (* the timestamp is the key over which elements will be ordered *)
+  type elem = (Clock.t * ev)
+
+  (** returns the next event in the queue (throws exception if the queue is empty) *)
+  val get_event : unit -> elem
+
+  (** add an event to the queue, maintaining the timestamp ordering *)
+  val add_event : ev -> unit
+
+  (** returns whether or not there are pending events in the queue *)
+  val has_event : unit -> bool
+end
+
+module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
+  type ev = Event.t
+  type elem = (Clock.t * ev)
+
+  (* the queue of events *)
+  let event_queue:elem list ref = ref []
+
+  let get_event () =
+    match !event_queue with
+    | x::l -> event_queue := l; x
+    | [] -> raise (NotFound "Event queue is empty.")
+
+  let add_event e =
+    let e_timestamp = Event.timestamp e in
+    let element = (e_timestamp, e) in
+    let rec rec_add queue = 
+      match queue with
+      | [] -> element::[]
+      | x::l -> 
+        match x with
+        | (ts, _) -> if ts > e_timestamp then element::x::l else x::(rec_add l)
+    in
+    event_queue := rec_add !event_queue
+
+  let has_event () =
+    match !event_queue with
+    | [] -> false
+    | _::_ -> true
+end
