@@ -16,6 +16,9 @@ module type Node = sig
 
   (** compares two nodes *)
   val compare : t -> t -> int
+
+  (** obtain the height of the chain stored in the node *)
+  val chain_height : t -> int
 end
 
 
@@ -60,8 +63,8 @@ module Make(Event : Simulator.Events.Event)
         ) links
     in
     let num_nodes = !Parameters.General.num_nodes in
-    let regions   = Abstractions.Network.node_regions in
-    let links     = Abstractions.Network.node_links in
+    let regions   = Abstractions.Network.node_regions () in
+    let links     = Abstractions.Network.node_links () in
     let nodes     = Hashtbl.create num_nodes in
     for i = 1 to num_nodes do
       let node_links = List.nth links (i-1) in
@@ -87,12 +90,17 @@ module Make(Event : Simulator.Events.Event)
         let ev = Queue.get_event () in
         match ev with
         | (ts, e) -> 
+          Logger.log_event e;
           Simulator.Clock.set_timestamp ts;
           let index = Event.target e in
           match index with
           | None -> ()
           | Some i -> 
             let new_state = Node.handle (Hashtbl.find nodes i) e in
+              begin 
+                if Node.chain_height new_state > !max_height then 
+                  max_height := Node.chain_height new_state
+              end;
               Hashtbl.replace nodes i new_state
       done;
       Logger.terminate ()
