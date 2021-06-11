@@ -15,10 +15,11 @@ module type Event = sig
 
   (** the type of the events processed during the simulation *)
   type t = 
-  Message of int * int * Clock.t * msg       (* nodeID, nodeID, timestamp, msg *)
+  Message of int * int * Clock.t * msg       (* nodeID(sender), nodeID(receiver), timestamp, msg *)
   | AddNode of int * int                     (* nodeID, regionID *)
   | AddLink of int * int                     (* nodeID, nodeID *)
   | RemoveLink of int * int                  (* nodeID, nodeID *)
+  | MintBlock of int * Clock.t               (* nodeID, timestamp *)
   | Timeout of int * Clock.t * timeout_label (* nodeID, timestamp, label *)
 
   (** given an event, returns the timestamp when it should be executed *)
@@ -29,6 +30,9 @@ module type Event = sig
 
   (** given the sender, receiver, timestamp and message contents, create a message event *)
   val create_message : int -> int -> Clock.t -> msg -> t
+
+  (** given the minter, timestamp and block, create a minting event *)
+  val create_mint : int -> Clock.t -> t
 end
 
 module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
@@ -39,6 +43,7 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
   | AddNode of int * int
   | AddLink of int * int
   | RemoveLink of int * int
+  | MintBlock of int * Clock.t
   | Timeout of int * Clock.t * timeout_label
 
   let timestamp (e:t) : Clock.t =
@@ -47,6 +52,7 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
   | AddNode(_,_) -> Clock.zero
   | AddLink(_,_) -> Clock.zero
   | RemoveLink(_,_) -> Clock.zero
+  | MintBlock(_,timestamp) -> timestamp
   | Timeout(_,timestamp,_) -> timestamp
 
   let target (e:t) : int option =
@@ -55,10 +61,14 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
   | AddNode(_,_) -> None
   | AddLink(_,_) -> None
   | RemoveLink(_,_) -> None
+  | MintBlock(node,_) -> Some node
   | Timeout(node,_,_) -> Some node
 
   let create_message (sender:int) (receiver:int) (timestamp:Clock.t) (m:msg) =
     Message(sender, receiver, timestamp, m)
+
+  let create_mint minter timestamp =
+    MintBlock(minter, timestamp)
 
 end
 
@@ -79,6 +89,9 @@ module type EventQueue = sig
 
   (** returns whether or not there are pending events in the queue *)
   val has_event : unit -> bool
+
+  (** cancels a scheduled minting event *)
+  val cancel_minting : int -> unit
 end
 
 module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
@@ -109,4 +122,16 @@ module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
     match !event_queue with
     | [] -> false
     | _::_ -> true
+
+  let rec remove_minting_task (nodeID:int) (list:elem list) : elem list =
+    match list with
+    | [] -> list
+    | x::xs -> 
+      match x with
+      | (_, Event.MintBlock(id,_)) -> if id = nodeID then xs else x::remove_minting_task nodeID xs
+      | _ -> x::remove_minting_task nodeID xs
+
+  let cancel_minting nodeID = 
+    event_queue := remove_minting_task nodeID !event_queue
+
 end

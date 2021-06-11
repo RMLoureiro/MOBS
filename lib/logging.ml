@@ -3,6 +3,8 @@ module type Logger = sig
   val init : unit -> unit
   val terminate : unit -> unit
   val log_event : ev -> unit
+  val print_in_committee : int -> int -> unit
+  val print_is_proposer : int -> int -> unit
 end
 
 module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t) : (Logger with type ev = Event.t) = struct
@@ -31,6 +33,14 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     Printf.fprintf out_chan "%s," data;
     close_out out_chan
 
+  let print_in_committee node_id round =
+    let data = String.concat "" ["{\"kind\":\"node-committee\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
+    log_json data
+
+  let print_is_proposer node_id round =
+    let data = String.concat "" ["{\"kind\":\"node-proposer\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
+    log_json data
+
   (*** operations that return the JSON for a specific event ***)
   let message_json node_id_from node_id_to timestamp msg =
     String.concat "" ["{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"reception-timestamp\":";Clock.to_string timestamp;",\"begin-node-id\":";string_of_int node_id_from;",\"end-node-id\":";string_of_int node_id_to;",\"msg-data\":";Message.to_json msg;"}}"]
@@ -47,12 +57,16 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let timeout_json node_id = 
     String.concat "" ["{\"kind\":\"timeout\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":"; string_of_int node_id; "}}"]
 
+  let mint_json node_id ts =
+    String.concat "" ["{\"kind\":\"mint\",\"content\":{\"timestamp\":";string_of_int ts;",\"minter\":";string_of_int node_id;"}}"]
+
   let log_event (event: ev) =
     let event_json = match event with
     | Message(node_id_from, node_id_to, timestamp, msg) -> message_json node_id_from node_id_to timestamp msg
     | AddNode(node_id, region_id) -> addnode_json node_id region_id
     | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
     | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id
+    | MintBlock(node_id,ts) -> mint_json node_id ts
     | Timeout(node_id, _, _) -> timeout_json node_id
     in log_json event_json
 
