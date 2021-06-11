@@ -1,6 +1,6 @@
 let () = 
-  let regions = Abstractions.Network.node_regions in
-  let links   = Abstractions.Network.node_links in
+  let regions = Abstractions.Network.node_regions () in
+  let links   = Abstractions.Network.node_links () in
   print_string "Node Regions Assigned: [";
   List.iter (fun x -> print_int x; print_string ", ") regions;
   print_endline "]";

@@ -21,6 +21,9 @@ let e9  = TestEvent.Message (1, 2, 16, "Hi3")
 let e10 = TestEvent.Message (2, 0, 23, "Hi4")
 let e11 = TestEvent.Timeout (1, 26, "Label1")
 let e12 = TestEvent.Timeout (2, 37, "Label2")
+let e13 = TestEvent.MintBlock(0, 41)
+let e14 = TestEvent.MintBlock(1, 44)
+let e15 = TestEvent.MintBlock(2, 64)
 
 let () = 
   TestQueue.add_event(e1);
@@ -35,6 +38,10 @@ let () =
   TestQueue.add_event(e10);
   TestQueue.add_event(e11);
   TestQueue.add_event(e12);
+  TestQueue.add_event(e13);
+  TestQueue.add_event(e14);
+  TestQueue.cancel_minting 1;
+  TestQueue.add_event(e15);
   let (_,ev1)  = TestQueue.get_event () in assert(ev1  = e1);
   let (_,ev2)  = TestQueue.get_event () in assert(ev2  = e2);
   let (_,ev3)  = TestQueue.get_event () in assert(ev3  = e3);
@@ -47,4 +54,7 @@ let () =
   let (_,ev10) = TestQueue.get_event () in assert(ev10 = e11);
   let (_,ev11) = TestQueue.get_event () in assert(ev11 = e8);
   let (_,ev12) = TestQueue.get_event () in assert(ev12 = e12);
+  let (_,ev13) = TestQueue.get_event () in assert(ev13 = e13);
+  let (_,ev14) = TestQueue.get_event () in assert(ev14 = e15);
+  assert(TestQueue.has_event () = false);
   print_endline "ALL ASSERTIONS PASSED!"
