@@ -1,4 +1,4 @@
 (executable
  (name main)
- (libraries simulator parameters abstractions)
+ (libraries simulator parameters abstractions implementation)
  (modes byte exe))

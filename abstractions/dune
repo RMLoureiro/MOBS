@@ -1,6 +1,6 @@
 (library
  (name abstractions)
- (libraries parameters simulator))
+ (libraries parameters simulator yojson))
 (env
  (dev
    (flags (:standard -warn-error -A))))
