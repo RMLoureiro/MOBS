@@ -29,7 +29,7 @@ let rec node_regions_step l i acc =
     l
 
 (** uses the network parameters to return a list of integers, representing the region each node is assigned to *)
-let node_regions : int list =
+let node_regions () : int list =
   shuffle_list (node_regions_step [] 0 0.0)
 
 
@@ -70,7 +70,7 @@ let select_neighbors id nodes inbound_links outbound_links =
   done
 
 (** uses the network parameters to return a list of int lists, representing the links each node has *)
-let node_links : int list list =
+let node_links () : int list list =
   let num_nodes = !Parameters.General.num_nodes in
   let nodes = List.init num_nodes (fun c -> c) in
   let inbound_links = ref (List.init num_nodes (fun _ -> [])) in
@@ -90,10 +90,13 @@ module type Network = sig
 end
 
 module Make(Events: Simulator.Events.Event) 
-          (Queue: Simulator.Events.EventQueue with type ev = Events.t) : Network =
+          (Queue: Simulator.Events.EventQueue with type ev = Events.t) : (Network with type msg=Events.msg) =
 struct
 
   type msg = Events.msg
+
+
+  let region_list = ref (node_regions ())
 
   (***** Latency Calculation Operations *****)
 
@@ -101,9 +104,8 @@ struct
   (* https://dsg-titech.github.io/simblock/ *)
   (* TODO : validate if this is an appropriate way of calculating the latency *)
   let get_latency sender receiver = 
-    let region_list     = node_regions in (* TODO : not efficient (have a state hidden by a .mli) *)
-    let region_sender   = List.nth region_list (sender-1) in     (* id's start at 1 *)
-    let region_receiver = List.nth region_list (receiver - 1) in (* id's start at 1 *)
+    let region_sender   = List.nth !region_list (sender-1) in     (* id's start at 1 *)
+    let region_receiver = List.nth !region_list (receiver - 1) in (* id's start at 1 *)
     let mean_latency    = List.nth (List.nth !Parameters.General.latency_table region_sender) region_receiver in
     let shape           = 0.2 *. (float_of_int mean_latency)  in
     let scale           = float_of_int (mean_latency - 5) in

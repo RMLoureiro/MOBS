@@ -4,10 +4,10 @@ type region        = int
 type regions       = int list
 
 (** returns the region assigned to each node for the current simulation *)
-val node_regions : regions
+val node_regions : unit -> regions
 
 (** returns the links between nodes for the current simulation *)
-val node_links : network_links
+val node_links : unit -> network_links
 
 module type Network = sig
 type msg
@@ -16,4 +16,4 @@ type msg
 val send : int -> int -> msg -> unit
 end
 
-module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t) -> Network
+module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t) -> (Network with type msg=Events.msg)
