@@ -120,9 +120,8 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     in
     get_blk node.received_blocks
 
-  (* TODO : this first line needs to add an ID of -1 for votes to the empty block *)
   let most_voted node list =
-    let vote_counts = ref (List.init (List.length node.received_blocks) (fun i -> (Simulator.Block.id (List.nth node.received_blocks i), 0))) in
+    let vote_counts = ref ((List.init (List.length node.received_blocks) (fun i -> (Simulator.Block.id (List.nth node.received_blocks i), 0)))@[(-1,0)]) in
     let most_voted  = ref None in
     let max_votes   = ref 0 in
     let f = fun m -> 
