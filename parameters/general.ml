@@ -25,8 +25,8 @@ let region_distribution = ref [0.3316; 0.4998; 0.0090; 0.1177; 0.0224; 0.0195]
 let degree_distribution = ref [0.025; 0.050; 0.075; 0.10; 0.20; 0.30; 0.40; 0.50; 0.60; 0.70; 0.80; 0.85; 0.90; 0.95; 0.97; 0.97; 0.98; 0.99; 0.995; 1.0]
 
 (* pos parameters *)
-let avg_coins   = ref 4000
-let stdev_coins = ref 2000
+let avg_coins   = ref 4000.0
+let stdev_coins = ref 2000.0
 let reward      = ref 0.01
 
 (* pow parameters *)
@@ -67,16 +67,9 @@ let () =
   avg_mining_power := get_pow_param json "avg_mining_power" |> to_int;
   stdev_mining_power := get_pow_param json "stdev_mining_power" |> to_int;
   reward := get_pos_param json "reward" |> to_float;
-  avg_coins := get_pos_param json "avg_coins" |> to_int;
-  stdev_coins := get_pos_param json "stdev_coins" |> to_int
+  avg_coins := get_pos_param json "avg_coins" |> to_float;
+  stdev_coins := get_pos_param json "stdev_coins" |> to_float
 
-
-
-
-
-
-
-  
   (*
   TODO : parse arrays from JSON
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;

@@ -15,7 +15,16 @@ type t =
 
 let latest_id = ref 0
 
-(** TODO : compute block rewards and update balances *)
+(* TODO : change BLOCK into a functor, adding the ability to quickly hotswap how nodes are rewarded *)
+let reward minter balances =
+  let gets_reward (id,bal) =
+    if id = minter then
+      (id, bal +. (bal *. !Parameters.General.reward))
+    else
+      (id, bal)
+    in
+  List.map gets_reward balances
+
 let create minter parent =
   latest_id := !latest_id + 1;
   {
@@ -24,7 +33,7 @@ let create minter parent =
     minter     = minter;
     parent     = Some parent;
     difficulty = parent.difficulty;
-    balances   = [];
+    balances   = reward minter parent.balances;
     timestamp  = Clock.get_timestamp ()
   }
 
@@ -37,6 +46,14 @@ let minter block = block.minter
 let id block = block.id
 
 let balances block = block.balances
+
+let gen_balances =
+  let gen_bal id =
+    let r = Random.float 1.0 in
+    let coins = max (r *. !Parameters.General.stdev_coins +. !Parameters.General.avg_coins) 0.0 in
+    (id, coins)
+  in 
+  List.init !Parameters.General.num_nodes gen_bal
 
 let total_coins block = 
   let rec total bal sum =
@@ -65,7 +82,7 @@ let genesis_pow minter_id difficulty =
     minter     = minter_id;
     parent     = None;
     difficulty = difficulty * !Parameters.General.interval;
-    balances   = []; (* TODO : balances *)
+    balances   = gen_balances;
     timestamp  = 0
   }
 
@@ -76,7 +93,7 @@ let genesis_pos minter_id =
     minter     = minter_id;
     parent     = None;
     difficulty = 10000;
-    balances   = []; (* TODO : balances *)
+    balances   = gen_balances; 
     timestamp  = 0
   }
 
