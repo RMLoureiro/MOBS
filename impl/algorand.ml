@@ -28,6 +28,7 @@ end
 
 module AlgorandEvent   = Simulator.Events.MakeEvent(AlgorandMsg);;
 module AlgorandQueue   = Simulator.Events.MakeQueue(AlgorandEvent);;
+module AlgorandTimer   = Abstractions.Timer.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger);;
@@ -99,10 +100,12 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     | NextVote(_,_,_,_,_) -> 
       if contains_msg node.nextvotes msg then (node, true) else begin node.nextvotes <- node.nextvotes @ [msg]; (node, false) end
 
-  (* TODO : only register if the block hasn't been registered before *)
   let register_block node blk =
     match blk with
-    | Some(b) -> node.received_blocks <- node.received_blocks @ [b]; node
+    | Some(b) -> 
+      if not (List.exists (fun x -> x = b) node.received_blocks) then
+        node.received_blocks <- node.received_blocks @ [b];
+      node
     | None -> node
 
   let get_block_id msg =
@@ -184,8 +187,8 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     node.softvotes <- [];
     node.certvotes <- [];
     node.starting_value <- get_block node starting_id;
+    AlgorandTimer.set node.id lambda "step";
     node
-    (* TODO : timer? *)
   
   let advance_round node =
     node.round <- node.round + 1;
@@ -199,13 +202,13 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     node.starting_value <- None;
     node.cert_voted <- None;
     node.received_blocks <- [];
+    AlgorandTimer.set node.id lambda "step";
     node
-    (* TODO : timer? *)
 
   let inc_step node =
     node.step <- node.step +1;
+    AlgorandTimer.set node.id lambda "step";
     node
-    (* TODO : timer? *)
 
   let halting_condition node =
     let (most_next_voted, got_majority) = most_voted node node.certvotes in

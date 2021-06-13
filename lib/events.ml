@@ -33,6 +33,9 @@ module type Event = sig
 
   (** given the minter, timestamp and block, create a minting event *)
   val create_mint : int -> Clock.t -> t
+
+  (** given a node's id and a delay, creates a timeout event *)
+  val create_timeout : int -> Clock.t -> timeout_label -> t
 end
 
 module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
@@ -69,6 +72,9 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
 
   let create_mint minter timestamp =
     MintBlock(minter, timestamp)
+
+  let create_timeout nodeID delay label =
+    Timeout(nodeID, (Clock.get_timestamp ()) + delay, label)
 
 end
 
