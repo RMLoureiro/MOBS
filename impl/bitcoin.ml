@@ -72,6 +72,9 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id = in
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
 
+  let chain_head n =
+    n.chain
+
   let chain_height node = 
     match node.chain with
     | None -> 0

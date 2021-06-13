@@ -19,6 +19,10 @@ module type Node = sig
 
   (** obtain the height of the chain stored in the node *)
   val chain_height : t -> int
+
+  (** get the head of the chain *)
+  val chain_head : t -> Simulator.Block.t option
+
 end
 
 
@@ -96,10 +100,22 @@ module Make(Event : Simulator.Events.Event)
           match index with
           | None -> ()
           | Some i -> 
-            let new_state = Node.handle (Hashtbl.find nodes i) e in
+            let node_state = Hashtbl.find nodes i in
+            let old_chain_head_id = Simulator.Block.opt_id (Node.chain_head node_state) in
+            let new_state = Node.handle node_state e in
               begin 
                 if Node.chain_height new_state > !max_height then 
                   max_height := Node.chain_height new_state
+              end;
+              begin
+                let new_chain_head = Node.chain_head new_state in
+                if not (old_chain_head_id = (Simulator.Block.opt_id new_chain_head)) then
+                  begin
+                    match new_chain_head with
+                    | Some(blk) ->
+                      Logger.print_new_chain_head i (Simulator.Block.minter blk) (Simulator.Block.id blk)
+                    | _ -> ()
+                  end
               end;
               Hashtbl.replace nodes i new_state
       done;

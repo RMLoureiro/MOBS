@@ -19,6 +19,9 @@ val minter : t -> node_id
 (** get the id of the block *)
 val id : t -> block_id
 
+(** get the id of a block option *)
+val opt_id : t option -> block_id
+
 (** get the balances of the nodes *)
 val balances : t -> balances
 

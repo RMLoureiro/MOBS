@@ -45,6 +45,11 @@ let minter block = block.minter
 
 let id block = block.id
 
+let opt_id block_opt =
+  match block_opt with
+  | Some(blk) -> id blk
+  | None -> -1
+
 let balances block = block.balances
 
 let gen_balances =

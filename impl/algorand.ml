@@ -171,6 +171,24 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
 
   let create_and_propose_block node =
     node (* TODO *)
+  (*
+    private void createAndProposeBlock() {
+      // create a block that extends the current head of the chain
+      // coin flip to abstract if it is able to create a block at this time
+      if(Main.random.nextDouble() <= BLOCK_CREATION_CHANCE) {
+          SamplePoSBlock parent = (SamplePoSBlock) getSelfNode().getBlock();
+          startingValue = new SamplePoSBlock(parent, getSelfNode(), getCurrentTime(), parent.getNextDifficulty());
+          log("Proposing new block with id="+startingValue.getId());
+          printCreateBlock(startingValue);
+          broadcastProtocolMessage(AlgorandMsgType.PROPOSAL, round, period, step, startingValue);
+      }
+      else {
+          startingValue = null;
+      }
+    }
+  *)
+
+
 
   let advance_period node most_next_voted_id =
     let starting_id = 
@@ -387,6 +405,9 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
 
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
+  
+  let chain_head n =
+    Some n.chain
 
   let chain_height node = 
     Simulator.Block.height node.chain
