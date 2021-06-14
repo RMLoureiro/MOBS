@@ -31,9 +31,14 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   (* prints <data> to the log_file *)
   (* <data> should be in JSON format *)
   let log_json data =
-    let out_chan = open_out_gen [Open_append; Open_creat] 0o666 log_file in
-    Printf.fprintf out_chan "%s," data;
-    close_out out_chan
+    match data with
+    | "" -> ()
+    | _ ->
+      begin
+        let out_chan = open_out_gen [Open_append; Open_creat] 0o666 log_file in
+        Printf.fprintf out_chan "%s," data;
+        close_out out_chan
+      end    
 
   let print_in_committee node_id round =
     let data = String.concat "" ["{\"kind\":\"node-committee\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
@@ -59,8 +64,10 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let timeout_json node_id = 
     String.concat "" ["{\"kind\":\"timeout\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":"; string_of_int node_id; "}}"]
 
+  (*
   let mint_json node_id ts =
     String.concat "" ["{\"kind\":\"mint\",\"content\":{\"timestamp\":";Clock.to_string (ts);",\"minter\":";string_of_int node_id;"}}"]
+  *)
 
   let print_create_block nodeID blockID =
     let data = String.concat "" ["{\"kind\":\"create-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"block-id\":";string_of_int blockID;"}}"] in
@@ -76,7 +83,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     | AddNode(node_id, region_id) -> addnode_json node_id region_id
     | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
     | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id
-    | MintBlock(node_id,ts) -> mint_json node_id ts
+    | MintBlock(_,_) -> ""
     | Timeout(node_id, _, _) -> timeout_json node_id
     in log_json event_json
 
