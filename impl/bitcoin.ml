@@ -4,11 +4,17 @@ module BitcoinMsg : (Simulator.Events.Message with type t = Simulator.Block.t) =
   let to_json (blk:t) : string =
     String.concat "" ["{\"block_id\":\"";string_of_int (Simulator.Block.id blk);"\"}"]
 
+  let get_size (_:t) =
+    4280000
+
+  let processing_time (_:t) =
+    2
+
 end
 
 module BitcoinEvent   = Simulator.Events.MakeEvent(BitcoinMsg);;
 module BitcoinQueue   = Simulator.Events.MakeQueue(BitcoinEvent);;
-module BitcoinNetwork = Abstractions.Network.Make(BitcoinEvent)(BitcoinQueue);;
+module BitcoinNetwork = Abstractions.Network.Make(BitcoinEvent)(BitcoinQueue)(BitcoinMsg);;
 module BitcoinLogger  = Simulator.Logging.Make(BitcoinMsg)(BitcoinEvent);;
 module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger);;
 module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock);;

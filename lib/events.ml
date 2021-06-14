@@ -7,6 +7,13 @@ module type Message = sig
 
   (** convert a message to JSON string *)
   val to_json : t -> string
+
+  (** returns the size of a message, in bits *)
+  val get_size : t -> int
+
+  (** returns the amount of time required to process a message, in millisseconds *)
+  val processing_time : t -> int
+
 end
 
 module type Event = sig

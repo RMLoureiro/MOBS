@@ -3,6 +3,13 @@ module Msg = struct
 
   let to_json (m: t) =
     String.concat "" ["{\"string\":\"";m;"\"}"]
+
+  let get_size (_:t) =
+    4280000
+
+  let processing_time (_:t) =
+    2
+  
 end
 
 module TestEvent = Simulator.Events.MakeEvent(Msg);;

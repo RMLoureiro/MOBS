@@ -25,12 +25,20 @@ module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct
     | CertVote(round,period,step,blk_id,creator_id) -> json round period step blk_id creator_id
     | NextVote(round,period,step,blk_id,creator_id) -> json round period step blk_id creator_id
 
+  let get_size (msg:t) =
+    match msg with
+    | Proposal(_,_,_,_,_) -> 4280000 (* TODO : obtain accurate data *)
+    | _ -> 32*5                      (* TODO : obtain accurate data *)
+
+  let processing_time (_:t) =
+    10 (* TODO : obtain accurate data *)
+
 end
 
 module AlgorandEvent   = Simulator.Events.MakeEvent(AlgorandMsg);;
 module AlgorandQueue   = Simulator.Events.MakeQueue(AlgorandEvent);;
 module AlgorandTimer   = Abstractions.Timer.Make(AlgorandEvent)(AlgorandQueue);;
-module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue);;
+module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue)(AlgorandMsg);;
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
 module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
