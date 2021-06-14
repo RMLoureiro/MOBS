@@ -61,9 +61,6 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let removelink_json begin_node_id end_node_id =
     String.concat "" ["{\"kind\":\"remove-link\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}}"]
 
-  let timeout_json node_id = 
-    String.concat "" ["{\"kind\":\"timeout\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":"; string_of_int node_id; "}}"]
-
   let print_create_block nodeID blockID =
     let data = String.concat "" ["{\"kind\":\"create-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"block-id\":";string_of_int blockID;"}}"] in
     log_json data
@@ -79,7 +76,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
     | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id
     | MintBlock(_,_) -> ""
-    | Timeout(node_id, _, _) -> timeout_json node_id
+    | Timeout(_, _, _) -> ""
     in log_json event_json
 
 end

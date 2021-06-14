@@ -1,8 +1,8 @@
 (* load protocol specific parameters *)
 let lambda                = 2000;;
-let committee_size        = 20;;
+let committee_size        = 8;;
 let num_proposers         = 2;;
-let majority_votes        = 15;;
+let majority_votes        = 5;;
 let block_creation_chance = 0.8;;
 
 
@@ -15,15 +15,15 @@ type alg_msg =
 module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct 
   type t = alg_msg
 
-  let json round period step blk_id creator_id =
-    String.concat "" ["{\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"block_id\":"; string_of_int blk_id; ",\"creator_id\":"; string_of_int creator_id;"}"]
+  let json kind round period step blk_id creator_id =
+    String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"block_id\":"; string_of_int blk_id; ",\"creator_id\":"; string_of_int creator_id;"}"]
 
   let to_json (m:t) : string =
     match m with
-    | Proposal(round,period,step,blk,creator_id)    -> json round period step (Simulator.Block.id blk) creator_id
-    | SoftVote(round,period,step,blk_id,creator_id) -> json round period step blk_id creator_id
-    | CertVote(round,period,step,blk_id,creator_id) -> json round period step blk_id creator_id
-    | NextVote(round,period,step,blk_id,creator_id) -> json round period step blk_id creator_id
+    | Proposal(round,period,step,blk,creator_id)    -> json "proposal" round period step (Simulator.Block.id blk) creator_id
+    | SoftVote(round,period,step,blk_id,creator_id) -> json "softvote" round period step blk_id creator_id
+    | CertVote(round,period,step,blk_id,creator_id) -> json "certvote" round period step blk_id creator_id
+    | NextVote(round,period,step,blk_id,creator_id) -> json "nextvote" round period step blk_id creator_id
 
   let get_size (msg:t) =
     match msg with
@@ -68,7 +68,8 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     mutable certvotes : alg_msg list;
     mutable nextvotes : alg_msg list;
     mutable prev_softvotes : alg_msg list;
-    mutable prev_nextvotes : alg_msg list
+    mutable prev_nextvotes : alg_msg list;
+    mutable highest_block_id : int
   }
 
   let init id links region =
@@ -89,6 +90,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       nextvotes = [];
       prev_softvotes = [];
       prev_nextvotes = [];
+      highest_block_id = 0
     }
   
   let send_to_neighbours node msg =
@@ -137,7 +139,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     get_blk node.received_blocks
 
   let most_voted node list =
-    let vote_counts = ref ((List.init (List.length node.received_blocks) (fun i -> (Simulator.Block.id (List.nth node.received_blocks i), 0)))@[(-1,0)]) in
+    let vote_counts = ref ((List.init (node.highest_block_id) (fun i -> (i+1, 0)))@[(-1,0)]) in
     let most_voted  = ref None in
     let max_votes   = ref 0 in
     let f = fun m -> 
@@ -210,6 +212,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     node.nextvotes <- [];
     node.softvotes <- [];
     node.certvotes <- [];
+    node.proposals <- [];
     node.starting_value <- get_block node starting_id;
     AlgorandTimer.set node.id lambda "step";
     node
@@ -225,6 +228,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     node.prev_softvotes <- [];
     node.starting_value <- None;
     node.cert_voted <- None;
+    node.proposals <- [];
     node.received_blocks <- [];
     AlgorandTimer.set node.id lambda "step";
     node
@@ -250,7 +254,15 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     let new_state =
       begin
         match node.period with 
-        | 1 -> if is_proposer node then create_and_propose_block node else node
+        | 1 -> 
+            if is_proposer node then
+              begin
+                create_and_propose_block node
+              end
+            else
+              begin
+                node
+              end
         | _ ->
           begin
             match most_voted node node.prev_nextvotes with
@@ -261,7 +273,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
                 | Some(b) -> begin if in_committee node then 
                   send_to_neighbours node (Proposal(node.round, node.period, node.step, b, node.id))
                 end; node
-                | None -> node
+                | None -> if is_proposer node then create_and_propose_block node else node
               end
             | _ ->
               if is_proposer node then create_and_propose_block node else node
@@ -279,7 +291,13 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
           if node.period >= 2 then
             begin
               match most_voted node node.prev_nextvotes with
-              | (Some bid, true) -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, bid, node.id)); node
+              | (Some bid, true) ->
+                begin
+                  match get_block node bid with
+                  | Some(_) -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, bid, node.id))
+                  | None -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id))
+                end;
+                node
               | _ -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id)); node
             end
           else
@@ -297,11 +315,18 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     let new_state =
       if in_committee node then
         begin
-        match most_voted node node.certvotes with 
+        match most_voted node node.softvotes with 
         | (Some bid, true) -> 
-          node.cert_voted <- get_block node bid;
-          send_to_neighbours node (CertVote(node.round, node.period, node.step, bid, node.id));
-          node
+          begin
+            match get_block node bid with
+            | Some(_) ->
+              begin
+                node.cert_voted <- get_block node bid;
+                send_to_neighbours node (CertVote(node.round, node.period, node.step, bid, node.id));
+                node
+              end
+            | None -> node
+          end
         | _ -> node
         end
       else node
@@ -342,11 +367,21 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let finishingStep2 node =
     if in_committee node then
       begin
-        match most_voted node node.softvotes with
-        | (Some bid, true) -> 
-          send_to_neighbours node (NextVote(node.round, node.period, node.step, bid, node.id))
-        | _ ->
-          if node.period >= 2 then send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id))
+        begin
+          match most_voted node node.softvotes with
+          | (Some -1, _)  -> ()
+          | (Some bid, true) -> 
+            send_to_neighbours node (NextVote(node.round, node.period, node.step, bid, node.id))
+          | _ -> ()
+        end;
+        begin
+          if (node.period >= 2) && (node.cert_voted = None) then
+            begin
+              match most_voted node node.prev_nextvotes with
+              | (Some -1, true) -> send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id))
+              | _ -> ()
+            end
+        end;
       end;
     match halting_condition node with
     | (new_state, true) -> new_state
@@ -383,15 +418,13 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       let (new_state,duplicate) =
         begin
           match msg with
-          | Proposal(_,_,_,_,_) -> add_no_duplicate node msg
+          | Proposal(_,_,_,blk,_) ->
+            node.highest_block_id <- max node.highest_block_id (Simulator.Block.id blk);
+            let s = register_block node (Some(blk)) in
+            add_no_duplicate s msg
           | SoftVote(_,_,_,_,_) -> add_no_duplicate node msg
-          | CertVote(_,_,_,_,_) ->
-            let (s,d)  = add_no_duplicate node msg in
-            let (ns,_) = halting_condition s in (ns, d)
-          | NextVote(_,_,_,_,_) -> 
-            let (s,d) = add_no_duplicate node msg in
-            let (most_next_voted, got_majority) = most_voted node node.nextvotes in
-            if got_majority then (advance_period s most_next_voted, d) else (s, d)
+          | CertVote(_,_,_,_,_) -> add_no_duplicate node msg
+          | NextVote(_,_,_,_,_) -> add_no_duplicate node msg
         end
       in
       match duplicate with

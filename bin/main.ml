@@ -1,6 +1,6 @@
 
 let () = 
   print_endline "Starting simulation";
-  Implementation.Bitcoin.BitcoinProtocol.run ();
+  Implementation.Algorand.AlgorandProtocol.run ();
   print_endline "Simulation completed"
 
