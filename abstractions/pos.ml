@@ -38,7 +38,10 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
           end
       done;
       if not (List.exists (fun x -> x = !selected) !selected_nodes) then
-        selected_nodes := !selected_nodes @ [!selected]
+        begin
+          selected_nodes := !selected_nodes @ [!selected];
+          num_selected := !num_selected + 1
+        end
     done;
     Random.set_state r_state;
     !selected_nodes
