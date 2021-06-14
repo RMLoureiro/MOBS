@@ -5,6 +5,7 @@ module type Logger = sig
   val log_event : ev -> unit
   val print_in_committee : int -> int -> unit
   val print_is_proposer : int -> int -> unit
+  val print_create_block : int -> int -> unit
   val print_new_chain_head : int -> int -> int -> unit
 end
 
@@ -60,6 +61,10 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let mint_json node_id ts =
     String.concat "" ["{\"kind\":\"mint\",\"content\":{\"timestamp\":";Clock.to_string (ts);",\"minter\":";string_of_int node_id;"}}"]
+
+  let print_create_block nodeID blockID =
+    let data = String.concat "" ["{\"kind\":\"create-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"block-id\":";string_of_int blockID;"}}"] in
+    log_json data
 
   let print_new_chain_head nodeID ownerID blockID =
     let data = String.concat "" ["{\"kind\":\"add-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"owner-id\":";string_of_int ownerID;",\"block-id\":";string_of_int blockID;"}}"] in

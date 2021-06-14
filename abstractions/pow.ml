@@ -1,4 +1,5 @@
 module type PoW = sig
+
   (** initialize the mining power of the nodes according to the parameters *)
   val init_mining_power : unit -> unit
 
@@ -15,7 +16,7 @@ module type PoW = sig
   val total_mining_power : unit -> int
 end
 
-module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue with type ev = Events.t) : PoW = struct
+module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue with type ev = Events.t)(Block : Simulator.Block.BlockSig) : PoW = struct
 
   let mining_power : int list ref = ref []
 
@@ -44,7 +45,7 @@ module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue
     sum !mining_power
 
   let start_minting nodeID parent =
-    let difficulty = Simulator.Block.difficulty parent in
+    let difficulty = Block.difficulty parent in
     let p = 1. /. (float_of_int difficulty) in
     let u = Random.float 1. in
     let mining_power = float_of_int(get_mining_power nodeID) in

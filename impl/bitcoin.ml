@@ -10,10 +10,13 @@ module BitcoinEvent   = Simulator.Events.MakeEvent(BitcoinMsg);;
 module BitcoinQueue   = Simulator.Events.MakeQueue(BitcoinEvent);;
 module BitcoinNetwork = Abstractions.Network.Make(BitcoinEvent)(BitcoinQueue);;
 module BitcoinLogger  = Simulator.Logging.Make(BitcoinMsg)(BitcoinEvent);;
-module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue);;
+module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger);;
+module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock);;
 let _ = BitcoinPow.init_mining_power ();;
 
-module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id = int) = struct
+module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int and type block=Simulator.Block.t) = struct
+  type block = Simulator.Block.t
+  
   type id = int
 
   type ev = BitcoinEvent.t
@@ -46,12 +49,12 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id = in
       match node.chain with
       | None -> true
       | Some(blk) -> 
-        if Simulator.Block.total_difficulty b > Simulator.Block.total_difficulty blk then true else false
+        if BitcoinBlock.total_difficulty b > BitcoinBlock.total_difficulty blk then true else false
     in
-    let already_seen = (List.exists (fun x -> x=(Simulator.Block.id block)) node.received_blocks) in
+    let already_seen = (List.exists (fun x -> x=(BitcoinBlock.id block)) node.received_blocks) in
     if is_valid_block block && not already_seen then begin
       add_to_chain node block;
-      node.received_blocks <- node.received_blocks @ [Simulator.Block.id block];
+      node.received_blocks <- node.received_blocks @ [BitcoinBlock.id block];
       send_to_neighbours node block;
       BitcoinPow.stop_minting node.id;
       BitcoinPow.start_minting node.id block;
@@ -63,8 +66,8 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id = in
     | BitcoinEvent.MintBlock(_,_) ->
       begin
       match node.chain with
-      | None -> process_block node (Simulator.Block.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
-      | Some(parent) -> process_block node (Simulator.Block.create node.id parent)
+      | None -> process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
+      | Some(parent) -> process_block node (BitcoinBlock.create node.id parent)
       end
     | BitcoinEvent.Message(_,_,_,block_msg) -> process_block node block_msg
     | _ -> node
@@ -78,7 +81,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id = in
   let chain_height node = 
     match node.chain with
     | None -> 0
-    | Some(blk) -> Simulator.Block.height blk
+    | Some(blk) -> BitcoinBlock.height blk
 
 end
 
@@ -93,7 +96,7 @@ module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger);;
+module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger);;
 
 
 

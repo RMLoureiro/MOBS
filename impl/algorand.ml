@@ -1,8 +1,9 @@
 (* load protocol specific parameters *)
-let lambda         = 2000;;
-let committee_size = 20;;
-let num_proposers  = 2;;
-let majority_votes = 15;;
+let lambda                = 2000;;
+let committee_size        = 20;;
+let num_proposers         = 2;;
+let majority_votes        = 15;;
+let block_creation_chance = 0.8;;
 
 
 type alg_msg = 
@@ -31,9 +32,13 @@ module AlgorandQueue   = Simulator.Events.MakeQueue(AlgorandEvent);;
 module AlgorandTimer   = Abstractions.Timer.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
-module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger);;
+module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger);;
+module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
 
-module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = int) = struct
+
+module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=int and type block=Simulator.Block.t) = struct
+
+  type block = Simulator.Block.t
 
   type id = int
 
@@ -64,7 +69,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
       region = region;
       links = links;
       received_blocks = [];
-      chain = Simulator.Block.genesis_pos 0;
+      chain = AlgorandBlock.genesis_pos 0;
       round = 1;
       period = 1;
       step = 1;
@@ -170,25 +175,18 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     AlgorandPoS.in_committee node.id node.chain committee_size [node.round]
 
   let create_and_propose_block node =
-    node (* TODO *)
-  (*
-    private void createAndProposeBlock() {
-      // create a block that extends the current head of the chain
-      // coin flip to abstract if it is able to create a block at this time
-      if(Main.random.nextDouble() <= BLOCK_CREATION_CHANCE) {
-          SamplePoSBlock parent = (SamplePoSBlock) getSelfNode().getBlock();
-          startingValue = new SamplePoSBlock(parent, getSelfNode(), getCurrentTime(), parent.getNextDifficulty());
-          log("Proposing new block with id="+startingValue.getId());
-          printCreateBlock(startingValue);
-          broadcastProtocolMessage(AlgorandMsgType.PROPOSAL, round, period, step, startingValue);
-      }
-      else {
-          startingValue = null;
-      }
-    }
-  *)
-
-
+    if Simulator.Rng.coinflip block_creation_chance then
+      begin
+        let blk = AlgorandBlock.create node.id node.chain in
+        node.starting_value <- Some (blk);
+        send_to_neighbours node (Proposal(node.round, node.period, node.step, blk, node.id));
+        node
+      end
+    else
+      begin
+        node.starting_value <- None;
+        node
+      end
 
   let advance_period node most_next_voted_id =
     let starting_id = 
@@ -410,7 +408,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id = 
     Some n.chain
 
   let chain_height node = 
-    Simulator.Block.height node.chain
+    AlgorandBlock.height node.chain
 
 end
 
@@ -426,4 +424,4 @@ module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger);;
+module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger);;

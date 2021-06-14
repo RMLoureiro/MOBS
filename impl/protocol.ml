@@ -1,4 +1,6 @@
 module type Node = sig
+  type block
+
   (** the id of a node *)
   type id = int
 
@@ -21,7 +23,7 @@ module type Node = sig
   val chain_height : t -> int
 
   (** get the head of the chain *)
-  val chain_head : t -> Simulator.Block.t option
+  val chain_head : t -> block option
 
 end
 
@@ -49,7 +51,8 @@ end
 
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
-           (Node : Node with type ev = Event.t) 
+           (Block : Simulator.Block.BlockSig)
+           (Node : Node with type ev = Event.t and type block = Simulator.Block.t) 
            (Initializer : Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t) : Protocol
            = struct
@@ -101,7 +104,7 @@ module Make(Event : Simulator.Events.Event)
           | None -> ()
           | Some i -> 
             let node_state = Hashtbl.find nodes i in
-            let old_chain_head_id = Simulator.Block.opt_id (Node.chain_head node_state) in
+            let old_chain_head_id = Block.opt_id (Node.chain_head node_state) in
             let new_state = Node.handle node_state e in
               begin 
                 if Node.chain_height new_state > !max_height then 
@@ -109,11 +112,11 @@ module Make(Event : Simulator.Events.Event)
               end;
               begin
                 let new_chain_head = Node.chain_head new_state in
-                if not (old_chain_head_id = (Simulator.Block.opt_id new_chain_head)) then
+                if not (old_chain_head_id = (Block.opt_id new_chain_head)) then
                   begin
                     match new_chain_head with
                     | Some(blk) ->
-                      Logger.print_new_chain_head i (Simulator.Block.minter blk) (Simulator.Block.id blk)
+                      Logger.print_new_chain_head i (Block.minter blk) (Block.id blk)
                     | _ -> ()
                   end
               end;

@@ -9,7 +9,7 @@ module type PoS = sig
 end
 
 
-module Make(Logger : Simulator.Logging.Logger) : PoS = struct
+module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig) : PoS = struct
 
   (**
     <block> : the block whose balances will be used by sortition
@@ -22,8 +22,8 @@ module Make(Logger : Simulator.Logging.Logger) : PoS = struct
     let r_state = Random.get_state () in
     let selected_nodes : int list ref = ref [] in
     let num_selected = ref 0 in
-    let balances = Array.of_list (Simulator.Block.balances block) in
-    let total_coins = Simulator.Block.total_coins block in
+    let balances = Array.of_list (Block.balances block) in
+    let total_coins = Block.total_coins block in
     Random.full_init (Array.of_list params);
     while !num_selected < num_selections do
       let weight = Random.float total_coins in
@@ -54,7 +54,7 @@ module Make(Logger : Simulator.Logging.Logger) : PoS = struct
     let selections = sortition head committee_size params in
     if List.exists (fun id -> id = node_id) selections then
       begin
-        Logger.print_in_committee node_id ((Simulator.Block.height head)+1);
+        Logger.print_in_committee node_id ((Block.height head)+1);
         true
       end
     else
@@ -71,7 +71,7 @@ module Make(Logger : Simulator.Logging.Logger) : PoS = struct
     let selections = sortition head num_proposers params in
     if List.exists (fun id -> id = node_id) selections then
       begin
-        Logger.print_is_proposer node_id ((Simulator.Block.height head)+1);
+        Logger.print_is_proposer node_id ((Block.height head)+1);
         true
       end
     else
