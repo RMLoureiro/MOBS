@@ -16,4 +16,4 @@ type msg
 val send : int -> int -> msg -> unit
 end
 
-module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t) -> (Network with type msg=Events.msg)
+module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t)(Message : Simulator.Events.Message with type t = Events.msg) -> (Network with type msg=Events.msg)

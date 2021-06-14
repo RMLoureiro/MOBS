@@ -14,6 +14,7 @@ let seed = ref 123
 let num_regions = ref 6
 let num_links = ref 5
 type lte = int list
+(* latency is in millisseconds *)
 let latency_table = ref [
   [32; 124; 184; 198; 151; 189];
   [124; 11; 227; 237; 252; 294];
@@ -23,6 +24,10 @@ let latency_table = ref [
   [189; 294; 322; 198; 126; 16]]
 let region_distribution = ref [0.3316; 0.4998; 0.0090; 0.1177; 0.0224; 0.0195]
 let degree_distribution = ref [0.025; 0.050; 0.075; 0.10; 0.20; 0.30; 0.40; 0.50; 0.60; 0.70; 0.80; 0.85; 0.90; 0.95; 0.97; 0.97; 0.98; 0.99; 0.995; 1.0]
+(* bandwidths are in bits per second *)
+let download_bandwidth = ref [52000000; 40000000; 18000000; 22800000; 22800000; 29900000; 6000000]
+let upload_bandwidth = ref [4700000; 8100000; 1800000; 5300000; 3400000; 5200000; 6000000]
+
 
 (* pos parameters *)
 let avg_coins   = ref 4000.0
@@ -68,7 +73,11 @@ let () =
   stdev_mining_power := get_pow_param json "stdev_mining_power" |> to_int;
   reward := get_pos_param json "reward" |> to_float;
   avg_coins := get_pos_param json "avg_coins" |> to_float;
-  stdev_coins := get_pos_param json "stdev_coins" |> to_float
+  stdev_coins := get_pos_param json "stdev_coins" |> to_float;
+  region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
+  degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
+  download_bandwidth := get_network_param json "download-bandwidth" |> to_list |> filter_int;
+  upload_bandwidth := get_network_param json "upload-bandwidth" |> to_list |> filter_int
 
   (*
   TODO : parse arrays from JSON

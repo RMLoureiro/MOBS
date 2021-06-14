@@ -90,7 +90,8 @@ module type Network = sig
 end
 
 module Make(Events: Simulator.Events.Event) 
-          (Queue: Simulator.Events.EventQueue with type ev = Events.t) : (Network with type msg=Events.msg) =
+          (Queue: Simulator.Events.EventQueue with type ev = Events.t)
+          (Message : Simulator.Events.Message with type t = Events.msg) : (Network with type msg=Events.msg) =
 struct
 
   type msg = Events.msg
@@ -105,15 +106,24 @@ struct
   (* TODO : validate if this is an appropriate way of calculating the latency *)
   let get_latency sender receiver = 
     let region_sender   = List.nth !region_list (sender-1) in     (* id's start at 1 *)
-    let region_receiver = List.nth !region_list (receiver - 1) in (* id's start at 1 *)
+    let region_receiver = List.nth !region_list (receiver-1) in   (* id's start at 1 *)
     let mean_latency    = List.nth (List.nth !Parameters.General.latency_table region_sender) region_receiver in
     let shape           = 0.2 *. (float_of_int mean_latency)  in
     let scale           = float_of_int (mean_latency - 5) in
     int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
 
+  let get_bandwidth sender receiver =
+    let region_sender      = List.nth !region_list (sender-1) in     (* id's start at 1 *)
+    let region_receiver    = List.nth !region_list (receiver-1) in   (* id's start at 1 *)
+    let upload_bandwidth   = List.nth !Parameters.General.upload_bandwidth region_sender in
+    let download_bandwidth = List.nth !Parameters.General.download_bandwidth region_receiver in
+    min upload_bandwidth download_bandwidth
+
   let send sender receiver msg =
     let latency = get_latency sender receiver in
-    let arrival_time = (Simulator.Clock.get_timestamp ()) + latency in
+    let bandwidth = get_bandwidth sender receiver in
+    let delay = (Message.get_size msg) / (bandwidth / 1000) + (Message.processing_time msg)  in
+    let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + delay in
     let msg_event = Events.Message(sender,receiver,arrival_time,msg) in
     Queue.add_event msg_event
 
