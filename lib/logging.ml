@@ -64,11 +64,6 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let timeout_json node_id = 
     String.concat "" ["{\"kind\":\"timeout\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":"; string_of_int node_id; "}}"]
 
-  (*
-  let mint_json node_id ts =
-    String.concat "" ["{\"kind\":\"mint\",\"content\":{\"timestamp\":";Clock.to_string (ts);",\"minter\":";string_of_int node_id;"}}"]
-  *)
-
   let print_create_block nodeID blockID =
     let data = String.concat "" ["{\"kind\":\"create-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"block-id\":";string_of_int blockID;"}}"] in
     log_json data
@@ -88,7 +83,3 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     in log_json event_json
 
 end
-
-(* TODO : is the log that specifies family of protocol necessary?
-  -> maybe for now it is, but later make the visualizer more general
-  so that it stops being necessary *)
