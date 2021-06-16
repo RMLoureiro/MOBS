@@ -96,22 +96,64 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let add_to_chain node block =
     node.chain <- block
 
+  let get_creator msg =
+    match msg with
+    | Proposal(_,_,_,_,creator) -> creator
+    | SoftVote(_,_,_,_,creator) -> creator
+    | CertVote(_,_,_,_,creator) -> creator
+    | NextVote(_,_,_,_,creator) -> creator
+
+  (** returns the most recent message, between <msg1> and <msg2> [@Pre: messages must have the same subtype] *)
+  let most_recent msg1 msg2 =
+    let compare_time (r1,p1,s1) (r2,p2,s2) =
+      if r1 > r2 then true
+      else if r2 > r1 then false
+      else if p1 > p2 then true
+      else if p2 > p1 then false
+      else if s1 > s2 then true
+      else false
+    in
+    let res = match (msg1,msg2) with
+    | (Proposal(r1,p1,s1,_,_),Proposal(r2,p2,s2,_,_)) -> compare_time (r1, p1, s1) (r2, p2, s2)
+    | (SoftVote(r1,p1,s1,_,_),SoftVote(r2,p2,s2,_,_)) -> compare_time (r1, p1, s1) (r2, p2, s2)
+    | (CertVote(r1,p1,s1,_,_),CertVote(r2,p2,s2,_,_)) -> compare_time (r1, p1, s1) (r2, p2, s2)
+    | (NextVote(r1,p1,s1,_,_),NextVote(r2,p2,s2,_,_)) -> compare_time (r1, p1, s1) (r2, p2, s2)
+    | _ -> false
+    in
+    if res then msg1 else msg2
+
   let rec contains_msg list msg =
     match list with
     | [] -> false
-    | x::xs -> x=msg || contains_msg xs msg
+    | x::xs -> ((get_creator x) = (get_creator msg)) || contains_msg xs msg
 
   let add_no_duplicate node msg =
+    (* Note: if there is a message from the same creator,
+      only keeps the message from the latest round/period/step *)
+    let keep_most_recent elem =
+      if get_creator elem = get_creator msg then most_recent msg elem else elem
+    in
     match msg with
     | Proposal(_,_,_,_,_)    -> 
-      if contains_msg node.proposals msg then (node, true) else begin node.proposals <- node.proposals @ [msg]; (node, false) end
+      if contains_msg node.proposals msg then
+        begin node.proposals <- List.map keep_most_recent node.proposals; (node, true) end
+      else
+        begin node.proposals <- node.proposals @ [msg]; (node, false) end
     | SoftVote(_,_,_,_,_) -> 
-      if contains_msg node.softvotes msg then (node, true) else begin node.softvotes <- node.softvotes @ [msg]; (node, false) end
+      if contains_msg node.softvotes msg then
+        begin node.softvotes <- List.map keep_most_recent node.softvotes; (node, true) end
+      else
+        begin node.softvotes <- node.softvotes @ [msg]; (node, false) end
     | CertVote(_,_,_,_,_) -> 
-      if contains_msg node.certvotes msg then (node, true) else begin node.certvotes <- node.certvotes @ [msg]; (node, false) end
+      if contains_msg node.certvotes msg then
+        begin node.certvotes <- List.map keep_most_recent node.certvotes; (node, true) end
+      else
+        begin node.certvotes <- node.certvotes @ [msg]; (node, false) end
     | NextVote(_,_,_,_,_) -> 
-      if contains_msg node.nextvotes msg then (node, true) else begin node.nextvotes <- node.nextvotes @ [msg]; (node, false) end
-
+      if contains_msg node.nextvotes msg then
+        begin node.nextvotes <- List.map keep_most_recent node.nextvotes; (node, true) end
+      else
+        begin node.nextvotes <- node.nextvotes @ [msg]; (node, false) end
 
   let send_to_neighbours node msg =
     List.iter (fun neighbour -> AlgorandNetwork.send node.id neighbour msg) node.links;
