@@ -92,9 +92,6 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       prev_nextvotes = [];
       highest_block_id = 0
     }
-  
-  let send_to_neighbours node msg =
-    List.iter (fun neighbour -> AlgorandNetwork.send node.id neighbour msg) node.links
 
   let add_to_chain node block =
     node.chain <- block
@@ -114,6 +111,12 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       if contains_msg node.certvotes msg then (node, true) else begin node.certvotes <- node.certvotes @ [msg]; (node, false) end
     | NextVote(_,_,_,_,_) -> 
       if contains_msg node.nextvotes msg then (node, true) else begin node.nextvotes <- node.nextvotes @ [msg]; (node, false) end
+
+
+  let send_to_neighbours node msg =
+    List.iter (fun neighbour -> AlgorandNetwork.send node.id neighbour msg) node.links;
+    let (new_state, _) = add_no_duplicate node msg in
+    new_state
 
   let register_block node blk =
     match blk with
@@ -189,8 +192,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       begin
         let blk = AlgorandBlock.create node.id node.chain in
         node.starting_value <- Some (blk);
-        send_to_neighbours node (Proposal(node.round, node.period, node.step, blk, node.id));
-        node
+        send_to_neighbours node (Proposal(node.round, node.period, node.step, blk, node.id))
       end
     else
       begin
@@ -270,9 +272,11 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
               begin 
                 let blk = get_block node id in
                 match blk with
-                | Some(b) -> begin if in_committee node then 
-                  send_to_neighbours node (Proposal(node.round, node.period, node.step, b, node.id))
-                end; node
+                | Some(b) -> 
+                  if in_committee node then 
+                    send_to_neighbours node (Proposal(node.round, node.period, node.step, b, node.id))
+                  else
+                    node
                 | None -> if is_proposer node then create_and_propose_block node else node
               end
             | _ ->
@@ -296,13 +300,12 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
                   match get_block node bid with
                   | Some(_) -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, bid, node.id))
                   | None -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id))
-                end;
-                node
-              | _ -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id)); node
+                end
+              | _ -> send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id))
             end
           else
             begin
-              send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id)); node
+              send_to_neighbours node (SoftVote(node.round, node.period, node.step, find_leader_proposal node, node.id))
             end
         end
       else
@@ -322,8 +325,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
             | Some(_) ->
               begin
                 node.cert_voted <- get_block node bid;
-                send_to_neighbours node (CertVote(node.round, node.period, node.step, bid, node.id));
-                node
+                send_to_neighbours node (CertVote(node.round, node.period, node.step, bid, node.id))
               end
             | None -> node
           end
@@ -340,23 +342,22 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
         begin
           match node.cert_voted with
           | (Some blk) ->
-            send_to_neighbours node (NextVote(node.round, node.period, node.step, Simulator.Block.id blk, node.id));
-            node
+            send_to_neighbours node (NextVote(node.round, node.period, node.step, Simulator.Block.id blk, node.id))
           | None  -> 
             begin
               match most_voted node node.nextvotes with
               | (Some -1, true) -> 
                 if node.period >= 2 then
-                  send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id));
-                node
+                  send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id))
+                else
+                  node
               | _ -> 
                 let b_id =
                 match node.starting_value with
                 | Some blk -> Simulator.Block.id blk
                 | None -> -1
                 in
-                send_to_neighbours node (NextVote(node.round, node.period, node.step, b_id, node.id));
-                node
+                send_to_neighbours node (NextVote(node.round, node.period, node.step, b_id, node.id))
             end
         end
       else node
@@ -371,14 +372,14 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
           match most_voted node node.softvotes with
           | (Some -1, _)  -> ()
           | (Some bid, true) -> 
-            send_to_neighbours node (NextVote(node.round, node.period, node.step, bid, node.id))
+            let _ = send_to_neighbours node (NextVote(node.round, node.period, node.step, bid, node.id)) in ()
           | _ -> ()
         end;
         begin
           if (node.period >= 2) && (node.cert_voted = None) then
             begin
               match most_voted node node.prev_nextvotes with
-              | (Some -1, true) -> send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id))
+              | (Some -1, true) -> let _ = send_to_neighbours node (NextVote(node.round, node.period, node.step, -1, node.id)) in ()
               | _ -> ()
             end
         end;
@@ -429,7 +430,9 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       in
       match duplicate with
       | true  -> new_state
-      | false -> send_to_neighbours new_state msg; register_block new_state (get_block node (get_block_id msg))
+      | false -> 
+        let new_state2 = send_to_neighbours new_state msg in
+        register_block new_state2 (get_block node (get_block_id msg))
 
   let handle (node:t) (event:ev) : t =
     match event with
