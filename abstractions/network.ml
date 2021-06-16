@@ -103,7 +103,6 @@ struct
 
   (* from SimBlock -> latency according to 20% variance pallet distribution *)
   (* https://dsg-titech.github.io/simblock/ *)
-  (* TODO : validate if this is an appropriate way of calculating the latency *)
   let get_latency sender receiver = 
     let region_sender   = List.nth !region_list (sender-1) in     (* id's start at 1 *)
     let region_receiver = List.nth !region_list (receiver-1) in   (* id's start at 1 *)

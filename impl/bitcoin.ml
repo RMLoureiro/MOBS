@@ -10,6 +10,9 @@ module BitcoinMsg : (Simulator.Events.Message with type t = Simulator.Block.t) =
   let processing_time (_:t) =
     2
 
+  let identifier (msg:t) =
+    Simulator.Block.id msg
+
 end
 
 module BitcoinEvent   = Simulator.Events.MakeEvent(BitcoinMsg);;

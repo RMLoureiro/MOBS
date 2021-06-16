@@ -50,7 +50,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   (*** operations that return the JSON for a specific event ***)
   let message_json node_id_from node_id_to timestamp msg =
-    String.concat "" ["{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"reception-timestamp\":";Clock.to_string timestamp;",\"begin-node-id\":";string_of_int node_id_from;",\"end-node-id\":";string_of_int node_id_to;",\"msg-data\":";Message.to_json msg;"}}"]
+    String.concat "" ["{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"reception-timestamp\":";Clock.to_string timestamp;",\"begin-node-id\":";string_of_int node_id_from;",\"end-node-id\":";string_of_int node_id_to;",\"block-id\":";string_of_int (Message.identifier msg);",\"msg-data\":";Message.to_json msg;"}}"]
 
   let addnode_json node_id region_id =
     String.concat "" ["{\"kind\":\"add-node\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"region-id\":";string_of_int region_id;"}}"]
@@ -71,7 +71,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let log_event (event: ev) =
     let event_json = match event with
-    | Message(node_id_from, node_id_to, timestamp, msg) -> message_json node_id_from node_id_to timestamp msg
+    | Message(node_id_from, node_id_to, timestamp, msg) -> message_json node_id_from node_id_to timestamp msg 
     | AddNode(node_id, region_id) -> addnode_json node_id region_id
     | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
     | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id

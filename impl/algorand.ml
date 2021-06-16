@@ -33,6 +33,13 @@ module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct
   let processing_time (_:t) =
     10 (* TODO : obtain accurate data *)
 
+  let identifier (msg:t) =
+    match msg with
+    | Proposal(_,_,_,blk,_)    -> (Simulator.Block.id blk)
+    | SoftVote(_,_,_,blk_id,_) -> blk_id
+    | CertVote(_,_,_,blk_id,_) -> blk_id
+    | NextVote(_,_,_,blk_id,_) -> blk_id
+
 end
 
 module AlgorandEvent   = Simulator.Events.MakeEvent(AlgorandMsg);;
@@ -96,13 +103,6 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let add_to_chain node block =
     node.chain <- block
 
-  let get_creator msg =
-    match msg with
-    | Proposal(_,_,_,_,creator) -> creator
-    | SoftVote(_,_,_,_,creator) -> creator
-    | CertVote(_,_,_,_,creator) -> creator
-    | NextVote(_,_,_,_,creator) -> creator
-
   (** returns the most recent message, between <msg1> and <msg2> [@Pre: messages must have the same subtype] *)
   let most_recent msg1 msg2 =
     let compare_time (r1,p1,s1) (r2,p2,s2) =
@@ -121,6 +121,13 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     | _ -> false
     in
     if res then msg1 else msg2
+
+  let get_creator msg =
+    match msg with
+    | Proposal(_,_,_,_,creator) -> creator
+    | SoftVote(_,_,_,_,creator) -> creator
+    | CertVote(_,_,_,_,creator) -> creator
+    | NextVote(_,_,_,_,creator) -> creator
 
   let rec contains_msg list msg =
     match list with

@@ -81,8 +81,6 @@ let () =
 
   (*
   TODO : parse arrays from JSON
-  region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
-  degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
   latency_table := get_network_param json "latency-table" |> to_list |> filter_list |> filter_int;
   *)
 

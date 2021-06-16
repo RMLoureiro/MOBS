@@ -1,3 +1,0 @@
-(test
- (name logging_test)
- (libraries simulator))

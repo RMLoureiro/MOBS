@@ -14,6 +14,10 @@ module type Message = sig
   (** returns the amount of time required to process a message, in millisseconds *)
   val processing_time : t -> int
 
+  (** given a message, produce an integer that identifies the content contained in the message *)
+  (* for example, the id of a block *)
+  val identifier : t -> int
+
 end
 
 module type Event = sig
