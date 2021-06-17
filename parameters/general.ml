@@ -54,11 +54,11 @@ let get_network_param json param =
 
 let get_pow_param json param =
   let open Yojson.Basic.Util in
-  json |> member "pow" |> member param
+  json |> member "general" |> member "pow" |> member param
 
 let get_pos_param json param =
   let open Yojson.Basic.Util in
-  json |> member "pos" |> member param
+  json |> member "general" |> member "pos" |> member param
 
 let () =
   let json = Yojson.Basic.from_file parameters_file in

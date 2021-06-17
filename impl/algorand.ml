@@ -1,9 +1,9 @@
 (* load protocol specific parameters *)
-let lambda                = 4000;;
-let committee_size        = 20;;
-let num_proposers         = 2;;
-let majority_votes        = 15;;
-let block_creation_chance = 0.8;;
+let lambda                = Parameters.Protocol.get_int_parameter "lambda";;
+let committee_size        = Parameters.Protocol.get_int_parameter "committee-size";;
+let num_proposers         = Parameters.Protocol.get_int_parameter "num-proposers";;
+let majority_votes        = Parameters.Protocol.get_int_parameter "majority-votes";;
+let block_creation_chance = Parameters.Protocol.get_float_parameter "block-creation-chance";;
 
 
 type alg_msg = 

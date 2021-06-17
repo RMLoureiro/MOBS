@@ -2,7 +2,17 @@
     "general": {
         "num-nodes":50,
         "end-block-height":10,
-        "seed":12345
+        "seed":12345,
+        "pow": {
+            "interval":600000,
+            "avg_mining_power":400000,
+            "stdev_mining_power":100000
+        },
+        "pos": {
+            "avg_coins":4000.0,
+            "stdev_coins":2000.0,
+            "reward":0.01
+        }
     },
     "network": {
         "num-regions":6,
@@ -19,14 +29,11 @@
         "download-bandwidth":[52000000, 40000000, 18000000, 22800000, 22800000, 29900000, 6000000],
         "upload-bandwidth":[4700000, 8100000, 1800000, 5300000, 3400000, 5200000, 6000000]
     },
-    "pow": {
-        "interval":600000,
-        "avg_mining_power":400000,
-        "stdev_mining_power":100000
-    },
-    "pos": {
-        "avg_coins":4000.0,
-        "stdev_coins":2000.0,
-        "reward":0.01
+    "protocol": {
+        "lambda":3000,
+        "committee-size":20,
+        "num-proposers":2,
+        "majority-votes":15,
+        "block-creation-chance":0.8
     }
 }
