@@ -25,6 +25,9 @@ module type Node = sig
   (** get the head of the chain *)
   val chain_head : t -> block option
 
+  (** return a JSON string containing the relevant parameters (and values) for the Node's consensus algorithm *)
+  val parameters : unit -> string
+
 end
 
 
@@ -42,6 +45,23 @@ end
 
 
 
+module type Statistics = sig
+
+  (** the type representing events in the simulator *)
+  type ev
+
+  (** receives an event and processes it, updating statistics *)
+  val process : ev -> unit
+
+  (** returns a JSON string containing the statistics and respective values *)
+  val get : unit -> string
+
+  (** node has seen consensus for a block *)
+  val consensus_reached : int -> Simulator.Block.t -> unit
+
+end
+
+
 module type Protocol = sig 
   (** the main loop of the protocol *)
   val run : unit -> unit
@@ -54,7 +74,8 @@ module Make(Event : Simulator.Events.Event)
            (Block : Simulator.Block.BlockSig)
            (Node : Node with type ev = Event.t and type block = Simulator.Block.t) 
            (Initializer : Initializer with type node = Node.t and type ev = Event.t)
-           (Logger : Simulator.Logging.Logger with type ev = Event.t) : Protocol
+           (Logger : Simulator.Logging.Logger with type ev = Event.t)
+           (Statistics : Statistics with type ev=Event.t) : Protocol
            = struct
 
   module NodeMap = Map.Make(Int)
@@ -89,6 +110,7 @@ module Make(Event : Simulator.Events.Event)
 
     let run () =
       Logger.init ();
+      Logger.log_parameters (Node.parameters ());
       let nodes            = create_nodes () in
       let _                = initial_events nodes in
       let max_height       = ref 0 in
@@ -98,6 +120,7 @@ module Make(Event : Simulator.Events.Event)
         match ev with
         | (ts, e) -> 
           Logger.log_event e;
+          Statistics.process e;
           Simulator.Clock.set_timestamp ts;
           let index = Event.target e in
           match index with
@@ -116,12 +139,14 @@ module Make(Event : Simulator.Events.Event)
                   begin
                     match new_chain_head with
                     | Some(blk) ->
-                      Logger.print_new_chain_head i (Block.minter blk) (Block.id blk)
+                      Logger.print_new_chain_head i (Block.minter blk) (Block.id blk);
+                      Statistics.consensus_reached i blk
                     | _ -> ()
                   end
               end;
               Hashtbl.replace nodes i new_state
       done;
+      Logger.log_statistics (Statistics.get ());
       Logger.terminate ()
 
 end

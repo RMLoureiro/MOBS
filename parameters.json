@@ -1,6 +1,6 @@
 {
     "general": {
-        "num-nodes":10,
+        "num-nodes":50,
         "end-block-height":10,
         "seed":12345
     },

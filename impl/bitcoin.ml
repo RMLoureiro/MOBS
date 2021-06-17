@@ -92,6 +92,9 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
     | None -> 0
     | Some(blk) -> BitcoinBlock.height blk
 
+  let parameters () =
+    "{}"
+
 end
 
 module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t and type ev=BitcoinEvent.t) = struct
@@ -105,7 +108,22 @@ module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger);;
+module BitcoinStatistics : (Protocol.Statistics with type ev = BitcoinEvent.t) = struct
+
+  type ev = BitcoinEvent.t
+
+  let consensus_reached _ _ =
+    ()
+
+  let process _ =
+    ()
+
+  let get () =
+    "{}"
+
+end
+
+module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
 
 
 

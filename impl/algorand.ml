@@ -1,8 +1,8 @@
 (* load protocol specific parameters *)
-let lambda                = 2000;;
-let committee_size        = 8;;
+let lambda                = 4000;;
+let committee_size        = 20;;
 let num_proposers         = 2;;
-let majority_votes        = 5;;
+let majority_votes        = 15;;
 let block_creation_chance = 0.8;;
 
 
@@ -503,6 +503,9 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let chain_height node = 
     AlgorandBlock.height node.chain
 
+  let parameters () =
+    String.concat "" ["{\"lambda\":";string_of_int lambda;",\"number-of-proposers\":";string_of_int num_proposers;",\"block-creation-chance\":";string_of_float block_creation_chance;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;"}"]
+
 end
 
 module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t and type ev=AlgorandEvent.t) = struct
@@ -517,4 +520,40 @@ module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger);;
+module AlgorandStatistics : (Protocol.Statistics with type ev = AlgorandEvent.t) = struct
+
+  type ev = AlgorandEvent.t
+
+  (* total messages exchanged during the simulation *)
+  let total_messages = ref 0
+
+  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
+  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
+
+  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
+  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+
+  let consensus_reached nodeID _ =
+    let current_time = (Simulator.Clock.get_timestamp ()) in
+    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
+    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
+    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
+
+  let process event =
+    match event with
+    | AlgorandEvent.Message(_,_,_,_) -> total_messages := !total_messages +1
+    | _ -> ()
+
+  let get () =
+    let avg_consensus_time =
+      let avg_consensus_time_per_node = ref [] in
+      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_consensus_time_per_node := !avg_consensus_time_per_node@[!sum / (List.length x)]) !node_time_between_blocks;
+      let sum = ref 0 in
+      List.iter (fun x -> sum := !sum + x) !avg_consensus_time_per_node;
+      !sum / (List.length !avg_consensus_time_per_node)
+    in
+    String.concat "" ["{\"messages-exchanged\":";string_of_int (!total_messages);",\"average-consensus-time\":";string_of_int avg_consensus_time;"}"]
+
+end
+
+module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;

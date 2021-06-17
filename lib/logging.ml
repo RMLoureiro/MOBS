@@ -1,12 +1,31 @@
 module type Logger = sig
   type ev
+
   val init : unit -> unit
+
   val terminate : unit -> unit
+
+  (** [@Params event] logs an event to the JSON log *)
   val log_event : ev -> unit
+
+  (** [@Params nodeID round] logs that a node belongs to a committee of a round *)
   val print_in_committee : int -> int -> unit
+
+  (** [@Params nodeID round] logs that a node is a proposer of a round *)
   val print_is_proposer : int -> int -> unit
+
+  (** [@Params nodeID blockID] print that a node has minted a block *)
   val print_create_block : int -> int -> unit
+
+  (** [@Params nodeID ownerID blockID] print that the head of a node's chain as been updated *)
   val print_new_chain_head : int -> int -> int -> unit
+
+  (** receives a JSON string with the parameters and logs them *)
+  val log_parameters : string -> unit
+
+  (** receives a JSON string with the statistics and logs them *)
+  val log_statistics : string -> unit
+
 end
 
 module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t) : (Logger with type ev = Event.t) = struct
@@ -16,7 +35,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let log_file = "output.json"
 
   (* the JSON event representing the end of the simulation *)
-  let sim_end_json = String.concat "" ["{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());"}}]"]
+  let sim_end_json () = String.concat "" ["{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());"}}]"]
 
   let init () = 
     let out_chan = open_out log_file in
@@ -25,7 +44,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let terminate () =
     let out_chan = open_out_gen [Open_append; Open_creat] 0o666 log_file in
-    Printf.fprintf out_chan "%s" sim_end_json;
+    Printf.fprintf out_chan "%s" (sim_end_json ());
     close_out out_chan
 
   (* prints <data> to the log_file *)
@@ -39,6 +58,12 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
         Printf.fprintf out_chan "%s," data;
         close_out out_chan
       end    
+
+  let log_parameters params_json =
+    log_json (String.concat "" ["{\"kind\":\"parameters\",\"content\":";params_json;"}"])
+
+  let log_statistics stats_json =
+    log_json (String.concat "" ["{\"kind\":\"statistics\",\"content\":";stats_json;"}"])
 
   let print_in_committee node_id round =
     let data = String.concat "" ["{\"kind\":\"node-committee\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
