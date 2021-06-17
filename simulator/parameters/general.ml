@@ -52,14 +52,6 @@ let get_network_param json param =
   let open Yojson.Basic.Util in
   json |> member "network" |> member param
 
-let get_pow_param json param =
-  let open Yojson.Basic.Util in
-  json |> member "general" |> member "pow" |> member param
-
-let get_pos_param json param =
-  let open Yojson.Basic.Util in
-  json |> member "general" |> member "pos" |> member param
-
 let () =
   let json = Yojson.Basic.from_file parameters_file in
   let open Yojson.Basic.Util in
@@ -68,12 +60,12 @@ let () =
   seed := get_general_param json "seed" |> to_int; Random.init !seed;
   num_regions := get_network_param json "num-regions" |> to_int;
   num_links := get_network_param json "num-links" |> to_int;
-  interval := get_pow_param json "interval" |> to_int;
-  avg_mining_power := get_pow_param json "avg_mining_power" |> to_int;
-  stdev_mining_power := get_pow_param json "stdev_mining_power" |> to_int;
-  reward := get_pos_param json "reward" |> to_float;
-  avg_coins := get_pos_param json "avg_coins" |> to_float;
-  stdev_coins := get_pos_param json "stdev_coins" |> to_float;
+  interval := get_general_param json "pow_target_interval" |> to_int;
+  avg_mining_power := get_general_param json "avg_mining_power" |> to_int;
+  stdev_mining_power := get_general_param json "stdev_mining_power" |> to_int;
+  reward := get_general_param json "reward" |> to_float;
+  avg_coins := get_general_param json "avg_coins" |> to_float;
+  stdev_coins := get_general_param json "stdev_coins" |> to_float;
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
   degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
   download_bandwidth := get_network_param json "download-bandwidth" |> to_list |> filter_int;

@@ -3,16 +3,12 @@
         "num-nodes":50,
         "end-block-height":10,
         "seed":12345,
-        "pow": {
-            "interval":600000,
-            "avg_mining_power":400000,
-            "stdev_mining_power":100000
-        },
-        "pos": {
-            "avg_coins":4000.0,
-            "stdev_coins":2000.0,
-            "reward":0.01
-        }
+        "pow_target_interval":600000,
+        "avg_mining_power":400000,
+        "stdev_mining_power":100000,
+        "avg_coins":4000.0,
+        "stdev_coins":2000.0,
+        "reward":0.01
     },
     "network": {
         "num-regions":6,
