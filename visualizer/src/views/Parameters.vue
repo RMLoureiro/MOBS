@@ -1,18 +1,18 @@
 <template>
     <section class="parameters">
         <div class="content">
-            <form class="container">
+            <form class="container" @submit.prevent="runSim">
                 <div class="left">
-                    <h3>General Parameters</h3>
                     <div class="global-parameters">
+                        <h3>General Parameters</h3>
                         <parameter
                             v-for="(param,index) in gParams"
                             :key="index"
                             :parameter="param"
                         ></parameter>
                     </div>
-                    <h3>Network Parameters</h3>
                     <div class="network-parameters">
+                        <h3>Network Parameters</h3>
                         <parameter
                             v-for="(param,index) in nParams"
                             :key="index"
@@ -21,8 +21,8 @@
                     </div>
                 </div>
                 <div class="right">
-                    <h3>Protocol Parameters</h3>
                     <div class="protocol-parameters">
+                        <h3>Protocol Parameters</h3>
                         <parameter
                             v-for="(param,index) in pParams"
                             :key="index"
@@ -55,15 +55,31 @@
         },
         created() {
             this.getParameters();
-            this.gParams  = this.generalParameters;
-            this.nParams  = this.networkParameters;
-            this.pParams  = this.protocolParameters;
+            this.gParams  = JSON.parse(JSON.stringify(this.generalParameters));
+            this.nParams  = JSON.parse(JSON.stringify(this.networkParameters));
+            this.pParams  = JSON.parse(JSON.stringify(this.protocolParameters));
         },
         computed: {
             ...mapState(["generalParameters","networkParameters","protocolParameters"]),
         },
         methods: {
-            ...mapMutations(["getParameters"]),
+            ...mapMutations(["getParameters","setParameters"]),
+            runSim: function() {
+                this.gParams.forEach(element => {
+                    let stringVal = document.getElementById(element.label).value;
+                    element.value = JSON.stringify(JSON.parse(stringVal));
+                });
+                this.nParams.forEach(element => {
+                    let stringVal = document.getElementById(element.label).value;
+                    element.value = JSON.stringify(JSON.parse(stringVal));
+                });
+                this.pParams.forEach(element => {
+                    let stringVal = document.getElementById(element.label).value;
+                    element.value = JSON.stringify(JSON.parse(stringVal));
+                });
+                this.setParameters([this.gParams, this.nParams, this.pParams]);
+                return false;
+            }
         },
     }
 
@@ -74,6 +90,7 @@
         width: 80vw;
         text-align: center;
         margin: auto;
+        margin-top: 0;
     }
 
     .left {
@@ -84,5 +101,15 @@
     .right {
         margin-left: 45vw;
         width: 35vw;
+    }
+
+    .global-parameters {
+        padding-top: 10px;
+        margin-top: 0;
+    }
+
+    .protocol-parameters {
+        padding-top: 10px;
+        margin-top: 0;
     }
 </style>

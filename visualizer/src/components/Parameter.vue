@@ -2,7 +2,7 @@
     
     <section class="parameter">
         <div class="div-parameter">
-            <p class="param-label">{{parameter.label}}:<span class="param-value"><input type="text" v-bind:value="parameter.value"></span></p>
+            <p class="param-label">{{parameter.label}}:<span class="param-value"><input type="text" v-bind:value="parameter.value" v-bind:id="parameter.label"></span></p>
         </div>
     </section>
 

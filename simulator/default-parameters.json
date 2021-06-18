@@ -6,8 +6,8 @@
         "pow_target_interval":600000,
         "avg_mining_power":400000,
         "stdev_mining_power":100000,
-        "avg_coins":4000.0,
-        "stdev_coins":2000.0,
+        "avg_coins":4000,
+        "stdev_coins":2000,
         "reward":0.01
     },
     "network": {

@@ -1,7 +1,7 @@
 (* this file will contain the simulation parameters *)
 (* reads from JSON file so that changing parameters doesn't require recompiling the code *)
 
-let parameters_file = "parameters.json"
+let parameters_file = ref "default-parameters.json"
 
 (* general parameters and default values *)
 let num_nodes = ref 10
@@ -30,8 +30,8 @@ let upload_bandwidth = ref [4700000; 8100000; 1800000; 5300000; 3400000; 5200000
 
 
 (* pos parameters *)
-let avg_coins   = ref 4000.0
-let stdev_coins = ref 2000.0
+let avg_coins   = ref 4000
+let stdev_coins = ref 2000
 let reward      = ref 0.01
 
 (* pow parameters *)
@@ -53,7 +53,8 @@ let get_network_param json param =
   json |> member "network" |> member param
 
 let () =
-  let json = Yojson.Basic.from_file parameters_file in
+  if Array.length Sys.argv > 2 then parameters_file := Sys.argv.(1);
+  let json = Yojson.Basic.from_file !parameters_file in
   let open Yojson.Basic.Util in
   num_nodes := get_general_param json "num-nodes" |> to_int;
   end_block_height := get_general_param json "end-block-height" |> to_int;
@@ -64,8 +65,8 @@ let () =
   avg_mining_power := get_general_param json "avg_mining_power" |> to_int;
   stdev_mining_power := get_general_param json "stdev_mining_power" |> to_int;
   reward := get_general_param json "reward" |> to_float;
-  avg_coins := get_general_param json "avg_coins" |> to_float;
-  stdev_coins := get_general_param json "stdev_coins" |> to_float;
+  avg_coins := get_general_param json "avg_coins" |> to_int;
+  stdev_coins := get_general_param json "stdev_coins" |> to_int;
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
   degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
   download_bandwidth := get_network_param json "download-bandwidth" |> to_list |> filter_int;

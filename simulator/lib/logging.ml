@@ -32,18 +32,19 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   type ev = Event.t
 
   (* the name of the JSON log file produced by the simulation *)
-  let log_file = "output.json"
+  let log_file = ref "output.json"
 
   (* the JSON event representing the end of the simulation *)
   let sim_end_json () = String.concat "" ["{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());"}}]"]
 
   let init () = 
-    let out_chan = open_out log_file in
+    if Array.length Sys.argv > 2 then log_file := Sys.argv.(2);
+    let out_chan = open_out !log_file in
     Printf.fprintf out_chan "%s" "[";
     close_out out_chan
 
   let terminate () =
-    let out_chan = open_out_gen [Open_append; Open_creat] 0o666 log_file in
+    let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
     Printf.fprintf out_chan "%s" (sim_end_json ());
     close_out out_chan
 
@@ -54,7 +55,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     | "" -> ()
     | _ ->
       begin
-        let out_chan = open_out_gen [Open_append; Open_creat] 0o666 log_file in
+        let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
         Printf.fprintf out_chan "%s," data;
         close_out out_chan
       end    

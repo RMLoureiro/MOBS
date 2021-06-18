@@ -107,7 +107,7 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
   let gen_balances =
     let gen_bal id =
       let r = Random.float 1.0 in
-      let coins = max (r *. !Parameters.General.stdev_coins +. !Parameters.General.avg_coins) 0.0 in
+      let coins = max (r *. (float_of_int !Parameters.General.stdev_coins) +. (float_of_int !Parameters.General.avg_coins)) 0.0 in
       (id, coins)
     in 
     List.init !Parameters.General.num_nodes gen_bal
