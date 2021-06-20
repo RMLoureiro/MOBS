@@ -17,6 +17,7 @@
                             v-for="(param,index) in nParams"
                             :key="index"
                             :parameter="param"
+
                         ></parameter>
                     </div>
                 </div>
@@ -27,6 +28,7 @@
                             v-for="(param,index) in pParams"
                             :key="index"
                             :parameter="param"
+                            :ref="el => pComponents.push(el)"
                         ></range-parameter>
                     </div>
                     <input type="submit" value="Run Simulation">
@@ -43,12 +45,48 @@
 	import Parameter from "../components/Parameter";
     import RangeParameter from '../components/RangeParameter.vue';
 
+    // https://stackoverflow.com/a/15310051
+    function getCombinations(args) {
+        let res = []
+        let maxLength = args.length-1;
+        function helper(arr, i) {
+            let length = args[i].length;
+            for (let j=0; j<length; j++) {
+                let a = arr.slice(0);
+                a.push(args[i][j]);
+                if (i==maxLength)
+                    res.push(a);
+                else
+                    helper(a, i+1);
+            }
+        }
+        helper([], 0);
+        return res;
+    }
+
+    function parseCombinations(c, labels) {
+        let res = [];
+
+        for(let i = 0; i < c.length; i++) {
+            let params = [];
+            for(let j = 0; j < c[i].length; j++) {
+                params.push({label:labels[j], value:c[i][j]});
+            }
+            res.push(params);
+        }
+
+        return res;
+    }
+
+
+
     export default {
         data() {
             return {
                 gParams:"",
                 nParams:"",
-                pParams:""
+                pParams:"",
+                pComponents:[]
             };
         },
         components: {
@@ -66,6 +104,11 @@
         },
         methods: {
             ...mapMutations(["getParameters","setParameters"]),
+            setItemRef: function(el) {
+                if(el) {
+                    this.pComponents.push(el);
+                }
+            },
             runSim: function() {
                 this.gParams.forEach(element => {
                     let stringVal = document.getElementById(element.label).value;
@@ -75,14 +118,40 @@
                     let stringVal = document.getElementById(element.label).value;
                     element.value = JSON.stringify(JSON.parse(stringVal));
                 });
-                this.pParams.forEach(element => {
-                    let stringVal = document.getElementById(element.label).value;
-                    element.value = JSON.stringify(JSON.parse(stringVal));
+
+
+                // [a,b,c,d]
+                // where each element is itself a [] containing possible values
+                // for that parameter, according to its {min,max,step} definitions
+                let pParamValues = [];
+
+                let labels = [];
+
+                this.pComponents.forEach(element => {
+                    pParamValues.push(element.getValues());
+                    labels.push(element.getLabel());
                 });
-                this.setParameters([this.gParams, this.nParams, this.pParams]);
+
+                let combinations = getCombinations(pParamValues);
+                let parsedCombinations = parseCombinations(combinations, labels);
+
+                let totalExecutions = parsedCombinations.length;
+                let execution = 1;
+
+                parsedCombinations.forEach(combination => {
+                    this.setParameters([this.gParams, this.nParams, combination]);
+                    console.log("Running execution "+execution+" out of "+totalExecutions);
+                    execution++;
+                });
+
+
+                //this.setParameters([this.gParams, this.nParams, this.pParams]);
                 return false;
             }
         },
+        beforeUpdate() {
+            this.pComponents = [];
+        }
     }
 
 </script>

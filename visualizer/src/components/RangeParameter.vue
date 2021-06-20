@@ -13,13 +13,13 @@
                             Ranged Parameter: <input type="checkbox" v-bind:checked="isRange" v-on:click="isRange = !isRange">
                         </li>
                         <li v-if="isRange">
-                            Min: <input type="text" v-bind:value="min">
+                            Min: <input type="text" v-model="min">
                         </li>
                         <li v-if="isRange">
-                            Max: <input type="text" v-bind:value="max">
+                            Max: <input type="text" v-model="max">
                         </li>
                         <li v-if="isRange">
-                            Step: <input type="text" v-bind:value="step">
+                            Step: <input type="text" v-model="step">
                         </li>
                     </ul>
                 </span>
@@ -43,6 +43,39 @@
                 max:0,
                 step:0
             };
+        },
+        methods: {
+            getValues() {
+                if(!this.isRange) {
+                    return [this.parameter.value];
+                } 
+                else {
+                    if(this.step == 0 || this.min > this.max) {
+                        return [this.min];
+                    }
+                    let ret = [];
+                    let i = this.min;
+                    while(i <= this.max) {
+                        ret.push(i);
+                        i += this.step;
+                    }
+                    return ret;
+                }
+            },
+            getLabel() {
+                return this.parameter.label;
+            }
+        },
+        watch: {
+            min: function(val) {
+                this.min = parseFloat(val);
+            },
+            max: function(val) {
+                this.max = parseFloat(val);
+            },
+            step: function(val) {
+                this.step = parseFloat(val);
+            }
         }
     }
 
