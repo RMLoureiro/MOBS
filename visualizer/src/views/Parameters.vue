@@ -23,11 +23,11 @@
                 <div class="right">
                     <div class="protocol-parameters">
                         <h3>Protocol Parameters</h3>
-                        <parameter
+                        <range-parameter
                             v-for="(param,index) in pParams"
                             :key="index"
                             :parameter="param"
-                        ></parameter>
+                        ></range-parameter>
                     </div>
                     <input type="submit" value="Run Simulation">
                 </div>
@@ -41,6 +41,7 @@
 <script>
     import { mapMutations, mapState } from "vuex";
 	import Parameter from "../components/Parameter";
+    import RangeParameter from '../components/RangeParameter.vue';
 
     export default {
         data() {
@@ -52,6 +53,7 @@
         },
         components: {
             Parameter,
+            RangeParameter,
         },
         created() {
             this.getParameters();
