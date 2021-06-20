@@ -103,13 +103,15 @@
             ...mapState(["generalParameters","networkParameters","protocolParameters"]),
         },
         methods: {
-            ...mapMutations(["getParameters","setParameters"]),
+            ...mapMutations(["getParameters","setParameters","clearInputFiles"]),
             setItemRef: function(el) {
                 if(el) {
                     this.pComponents.push(el);
                 }
             },
             runSim: function() {
+                this.clearInputFiles();
+
                 this.gParams.forEach(element => {
                     let stringVal = document.getElementById(element.label).value;
                     element.value = JSON.stringify(JSON.parse(stringVal));
@@ -144,8 +146,6 @@
                     execution++;
                 });
 
-
-                //this.setParameters([this.gParams, this.nParams, this.pParams]);
                 return false;
             }
         },
