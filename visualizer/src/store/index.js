@@ -1,7 +1,8 @@
 import { createStore } from "vuex";
 const fs = require('fs');
 
-let input_dir = '../input_files/'
+let input_dir  = '../input_files/'
+let output_dir = '../output_files/'
 
 function toJson(arr) {
     let res = "{";
@@ -73,9 +74,19 @@ const store = createStore({
             fs.writeFileSync(input_dir+'parameters'+state.numSimulations+'.json', JSON.stringify(outputJson));
         },
         clearInputFiles() {
-            let files = fs.readdirSync(input_dir);
-            files.forEach(file => {
-                console.log(file);
+            // delete old input files (JSON)
+            let input_files = fs.readdirSync(input_dir);
+            input_files.forEach(file => {
+                if(file.endsWith(".json")) {
+                    fs.unlinkSync(input_dir+file, function(err) {
+                        if(err) console.log(err);
+                    });
+                }
+            });
+
+            // delete old output files (JSON)
+            let output_files = fs.readdirSync(output_dir);
+            output_files.forEach(file => {
                 if(file.endsWith(".json")) {
                     fs.unlinkSync(input_dir+file, function(err) {
                         if(err) console.log(err);
