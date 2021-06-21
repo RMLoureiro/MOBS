@@ -32,6 +32,9 @@
                         ></range-parameter>
                     </div>
                     <input type="submit" value="Run Simulation">
+                    <p>
+                        <progress :max="maxProgress" :value="progress"></progress>
+                    </p>
                 </div>
             </form>
         </div>
@@ -41,7 +44,7 @@
 
 
 <script>
-    import { mapMutations, mapState } from "vuex";
+    import { mapActions, mapMutations, mapState } from "vuex";
 	import Parameter from "../components/Parameter";
     import RangeParameter from '../components/RangeParameter.vue';
 
@@ -86,7 +89,9 @@
                 gParams:"",
                 nParams:"",
                 pParams:"",
-                pComponents:[]
+                pComponents:[],
+                progress:0,
+                maxProgress:100
             };
         },
         components: {
@@ -103,7 +108,8 @@
             ...mapState(["generalParameters","networkParameters","protocolParameters"]),
         },
         methods: {
-            ...mapMutations(["getParameters","setParameters","clearInputFiles"]),
+            ...mapMutations(["getParameters","clearInputFiles"]),
+            ...mapActions(["produce"]),
             setItemRef: function(el) {
                 if(el) {
                     this.pComponents.push(el);
@@ -111,6 +117,7 @@
             },
             runSim: function() {
                 this.clearInputFiles();
+                this.progress = 0;
 
                 this.gParams.forEach(element => {
                     let stringVal = document.getElementById(element.label).value;
@@ -136,14 +143,13 @@
 
                 let combinations = getCombinations(pParamValues);
                 let parsedCombinations = parseCombinations(combinations, labels);
-
-                let totalExecutions = parsedCombinations.length;
-                let execution = 1;
+                this.maxProgress = parsedCombinations.length;
+                let iter = 0;
 
                 parsedCombinations.forEach(combination => {
-                    this.setParameters([this.gParams, this.nParams, combination]);
-                    console.log("Running execution "+execution+" out of "+totalExecutions);
-                    execution++;
+                    iter += 1;
+                    let promise = this.produce([this.gParams, this.nParams, combination, iter]);
+                    promise.then((value) => {console.log(value); this.progress += 1;})
                 });
 
                 return false;

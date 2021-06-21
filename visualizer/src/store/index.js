@@ -4,6 +4,12 @@ const fs = require('fs');
 let input_dir  = '../input_files/'
 let output_dir = '../output_files/'
 
+/*
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+*/
+
 function toJson(arr) {
     let res = "{";
 
@@ -55,25 +61,7 @@ const store = createStore({
                 state.loaded = true;
             }
         },
-        setParameters (state,params) {
-            state.loaded = false;
-            let g = params[0];
-            let n = params[1];
-            let p = params[2];
-            state.generalParameters  = g;
-            state.networkParameters  = n;
-            state.protocolParameters = p;
-
-            let gString = toJson(g);
-            let nString = toJson(n);
-            let pString = toJson(p);
-
-            let outputJson = {general:JSON.parse(gString), network:JSON.parse(nString), protocol:JSON.parse(pString)};
-
-            state.numSimulations += 1;
-            fs.writeFileSync(input_dir+'parameters'+state.numSimulations+'.json', JSON.stringify(outputJson));
-        },
-        clearInputFiles() {
+        clearInputFiles(state) {
             // delete old input files (JSON)
             let input_files = fs.readdirSync(input_dir);
             input_files.forEach(file => {
@@ -93,10 +81,35 @@ const store = createStore({
                     });
                 }
             });
+
+            state.numSimulations = 0;
         }
     },
     actions: {
+        async produce(state,params) {
+            //await sleep(Math.floor(Math.random() * 5000));
+            return new Promise(function(resolve) {
+                state.loaded = false;
+                let g = params[0];
+                let n = params[1];
+                let p = params[2];
+                let execution = params[3];
+                state.generalParameters  = g;
+                state.networkParameters  = n;
+                state.protocolParameters = p;
 
+                let gString = toJson(g);
+                let nString = toJson(n);
+                let pString = toJson(p);
+
+                let outputJson = {general:JSON.parse(gString), network:JSON.parse(nString), protocol:JSON.parse(pString)};
+
+                state.numSimulations += 1;
+                fs.writeFileSync(input_dir+'parameters'+execution+'.json', JSON.stringify(outputJson));
+               
+                resolve(execution);
+            });
+        }
     },
 });
 

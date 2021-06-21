@@ -68,13 +68,22 @@
         },
         watch: {
             min: function(val) {
-                this.min = parseFloat(val);
+                if(isNaN(val))
+                    this.min = 0;
+                else
+                    this.min = parseFloat(val);
             },
             max: function(val) {
-                this.max = parseFloat(val);
+                if(isNaN(val))
+                    this.max = 0;
+                else
+                    this.max = parseFloat(val);
             },
             step: function(val) {
-                this.step = parseFloat(val);
+                if(isNaN(val))
+                    this.step = 0;
+                else
+                    this.step = parseFloat(val);
             }
         }
     }
