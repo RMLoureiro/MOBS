@@ -47,7 +47,7 @@
         methods: {
             getValues() {
                 if(!this.isRange) {
-                    return [this.parameter.value];
+                    return [document.getElementById(this.parameter.label).value];
                 } 
                 else {
                     if(this.step == 0 || this.min > this.max) {

@@ -31,7 +31,7 @@
                             :ref="el => pComponents.push(el)"
                         ></range-parameter>
                     </div>
-                    <input type="submit" value="Run Simulation">
+                    <input type="submit" value="Run Simulation" :disabled="running">
                     <p>
                         <progress :max="maxProgress" :value="progress"></progress>
                     </p>
@@ -91,7 +91,10 @@
                 pParams:"",
                 pComponents:[],
                 progress:0,
-                maxProgress:100
+                maxProgress:100,
+                currentCombination:0,
+                parsedCombs:[],
+                running:false
             };
         },
         components: {
@@ -113,6 +116,23 @@
             setItemRef: function(el) {
                 if(el) {
                     this.pComponents.push(el);
+                }
+            },
+            runCombination : async function(x) {
+                if(x < this.parsedCombs.length) {
+                    let promise = this.produce([this.gParams, this.nParams, this.parsedCombs[x], x]);
+                    promise.then((value) => {
+                        if (value == "ok") {
+                            this.progress += 1;
+                            this.currentCombination += 1;
+                            this.runCombination(this.currentCombination);
+                        }
+                        else
+                            console.log("error");
+                    });
+                }
+                else {
+                    this.running = false;
                 }
             },
             runSim: function() {
@@ -142,15 +162,12 @@
                 });
 
                 let combinations = getCombinations(pParamValues);
-                let parsedCombinations = parseCombinations(combinations, labels);
-                this.maxProgress = parsedCombinations.length;
-                let iter = 0;
+                this.parsedCombs = parseCombinations(combinations, labels);
+                this.maxProgress = this.parsedCombs.length;
+                this.currentCombination = 0;
+                this.running = true;
 
-                parsedCombinations.forEach(combination => {
-                    iter += 1;
-                    let promise = this.produce([this.gParams, this.nParams, combination, iter]);
-                    promise.then((value) => {console.log(value); this.progress += 1;})
-                });
+                this.runCombination(this.currentCombination);
 
                 return false;
             }

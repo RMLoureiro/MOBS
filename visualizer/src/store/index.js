@@ -1,8 +1,11 @@
 import { createStore } from "vuex";
 const fs = require('fs');
+const child = require('child_process').spawn;
 
-let input_dir  = '../input_files/'
-let output_dir = '../output_files/'
+
+let input_dir  = '../input_files/';
+let output_dir = '../output_files/';
+let sim_path   = '../simulator/_build/default/bin/main.exe';
 
 /*
 function sleep(ms) {
@@ -76,7 +79,7 @@ const store = createStore({
             let output_files = fs.readdirSync(output_dir);
             output_files.forEach(file => {
                 if(file.endsWith(".json")) {
-                    fs.unlinkSync(input_dir+file, function(err) {
+                    fs.unlinkSync(output_dir+file, function(err) {
                         if(err) console.log(err);
                     });
                 }
@@ -88,26 +91,29 @@ const store = createStore({
     actions: {
         async produce(state,params) {
             //await sleep(Math.floor(Math.random() * 5000));
+            state.loaded = false;
+            let g = params[0];
+            let n = params[1];
+            let p = params[2];
+            let execution = params[3];
+            state.generalParameters  = g;
+            state.networkParameters  = n;
+            state.protocolParameters = p;
+
+            // produce file JSON parameters
+            let gString = toJson(g);
+            let nString = toJson(n);
+            let pString = toJson(p);
+
+            let outputJson = {general:JSON.parse(gString), network:JSON.parse(nString), protocol:JSON.parse(pString)};
+
+            state.numSimulations += 1;
+            fs.writeFileSync(input_dir+'parameters'+execution+'.json', JSON.stringify(outputJson));
+            
+            // call the execution of the simulator, using the produced parameter file
             return new Promise(function(resolve) {
-                state.loaded = false;
-                let g = params[0];
-                let n = params[1];
-                let p = params[2];
-                let execution = params[3];
-                state.generalParameters  = g;
-                state.networkParameters  = n;
-                state.protocolParameters = p;
-
-                let gString = toJson(g);
-                let nString = toJson(n);
-                let pString = toJson(p);
-
-                let outputJson = {general:JSON.parse(gString), network:JSON.parse(nString), protocol:JSON.parse(pString)};
-
-                state.numSimulations += 1;
-                fs.writeFileSync(input_dir+'parameters'+execution+'.json', JSON.stringify(outputJson));
-               
-                resolve(execution);
+                let sim = child(sim_path, [input_dir+'parameters'+execution+'.json', output_dir+'out'+execution+'.json']);
+                sim.on('close', (code) => {console.log(code); resolve("ok");});
             });
         }
     },
