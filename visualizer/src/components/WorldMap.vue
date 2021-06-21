@@ -1,11 +1,27 @@
 <template>
-  <div>
-    <canvas id="mapCanvas" ref="mapCanvas"></canvas>
+  <div class="outer">
+    <div class="top">
+      <canvas id="mapCanvas" ref="mapCanvas"></canvas>
+    </div>
+    <div class="bottom">
+      <p><button>Upload JSON Output</button></p>
+      <p>Timestamp: {{timestamp}}</p>
+      <div class="my-slider-wrapper" style="width:60%;margin:auto;text-align:center;display:flex;">
+        <button v-bind:onclick="decrementStep"> - </button>
+        <div class="my-slider" style="width:90%;margin:auto;">
+          <Slider v-model="step" :min="0" :max="maxStep" @update="$emit('input', $event)" :tooltips="tooltip" />
+        </div>
+        <button v-bind:onclick="incrementStep"> + </button>
+      </div>
+      <button v-if="!isRunning" v-bind:onclick="run">Play</button>
+      <button v-if="isRunning" v-bind:onclick="stop">Pause</button>
+    </div>
   </div>
 </template>
 
 <script>
 import Manager from "@/js/Manager";
+import Slider from '@vueform/slider'
 
 let manager;
 
@@ -15,19 +31,20 @@ export default {
     return {
       ctx: null,
       step: 0,
-      maxStep: 0,
+      maxStep: 100,
       timestamp: 0,
       isRunning: false,
       reader: new FileReader(),
       snackbarVisible: false,
-      loadSuccess: true
+      loadSuccess: true,
+      tooltip:false
     };
   },
   mounted: function() {
     this.ctx = this.$refs.mapCanvas.getContext("2d");
     this.resizeCanvas();
     manager = new Manager(this.ctx);
-    this.maxStep = manager.timestamps.length - 1;
+    this.maxStep = Math.max(manager.timestamps.length - 1,1);
     manager.updateTimeStep(this.step);
     manager.setLoadCallback(() => (this.step = 0));
     manager.run();
@@ -39,6 +56,10 @@ export default {
       }
       this.showLoadStatus(success);
     };
+    setInterval(() => {
+      if (!this.isRunning) return;
+      this.incrementStep();
+    }, 50);
   },
   watch: {
     step: function(val) {
@@ -53,13 +74,15 @@ export default {
     stop: function() {
       this.isRunning = false;
     },
-    // onResize: function() {
-    //   if (this.ctx === null) return;
-    //   this.resizeCanvas();
-    // },
+    incrementStep: function() {
+      this.step = this.step === this.maxStep ? this.step : this.step + window.speed;
+    },
+    decrementStep: function() {
+      this.step = this.step === 0 ? this.step : this.step - window.speed;
+    },
     resizeCanvas: function() {
       this.ctx.canvas.width = document.body.clientWidth;
-      this.ctx.canvas.height = document.body.clientHeight;
+      this.ctx.canvas.height = (document.body.clientHeight)*0.75;
     },
     updateFile: function(file) {
       console.clear();
@@ -76,16 +99,16 @@ export default {
     }
   },
   components: {
-    
+    Slider
   }
 };
 </script>
 
-<style>
-#mapCanvas {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 0;
+<style src="@vueform/slider/themes/default.css">
+
+.outer {
+  height: 100%;
+  width: 100%;
 }
+
 </style>

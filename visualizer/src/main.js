@@ -3,11 +3,7 @@ import App from './App.vue';
 import router from "./router";
 import store from "./store/index";
 
-
-//import Vuetify from "vuetify/lib";
-//import { Ripple } from "vuetify/lib/directives";
-//import "vuetify/src/stylus/app.styl";
-
+window.speed = 3;
 
 window.setSpeed = function(x) {
     window.speed = x;

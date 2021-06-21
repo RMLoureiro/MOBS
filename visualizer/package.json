@@ -13,6 +13,7 @@
   },
   "main": "background.js",
   "dependencies": {
+    "@vueform/slider": "^1.0.5",
     "core-js": "^3.6.5",
     "mappa-mundi": "0.0.5",
     "vue": "^3.0.0",
@@ -43,7 +44,9 @@
     "parserOptions": {
       "parser": "babel-eslint"
     },
-    "rules": {}
+    "rules": {
+      "no-unused-vars": "off"
+    }
   },
   "browserslist": [
     "> 1%",
