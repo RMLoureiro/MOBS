@@ -1,5 +1,20 @@
 <template>
-    
-    <h1>Insert visualizer here</h1>
-
+    <world-map></world-map>
 </template>
+
+<script>
+import WorldMap from "../components/WorldMap.vue";
+
+export default {
+  name: "app",
+  components: {
+    WorldMap
+  }
+};
+</script>
+
+<style>
+* {
+  text-transform: none !important;
+}
+</style>
