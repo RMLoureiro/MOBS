@@ -111,7 +111,7 @@
             ...mapState(["generalParameters","networkParameters","protocolParameters"]),
         },
         methods: {
-            ...mapMutations(["getParameters","clearInputFiles"]),
+            ...mapMutations(["getParameters","clearInputFiles","setCombinations"]),
             ...mapActions(["produce"]),
             setItemRef: function(el) {
                 if(el) {

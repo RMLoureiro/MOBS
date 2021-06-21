@@ -37,7 +37,9 @@ const store = createStore({
         networkParameters: [],
         protocolParameters: [],
         loaded: false,
-        numSimulations: 0
+        numSimulations: 0,
+        parameters:[],
+        outputs:[]
     },
     getters: {},
     mutations: {
@@ -86,6 +88,22 @@ const store = createStore({
             });
 
             state.numSimulations = 0;
+        },
+        computeGraphInOut(state) {
+            fs.readdirSync(input_dir).forEach(file => {
+                if(file.endsWith(".json")) {
+                    let raw = fs.readFileSync(input_dir+file);
+                    let sim_input = JSON.parse(raw);
+                    state.parameters.push(sim_input.protocol);
+                }
+            });
+            fs.readdirSync(output_dir).forEach(file => {
+                if(file.endsWith(".json")) {
+                    let raw = fs.readFileSync(output_dir+file);
+                    let sim_output = JSON.parse(raw);
+                    state.outputs.push(sim_output[sim_output.length - 2].content);
+                }
+            });
         }
     },
     actions: {
