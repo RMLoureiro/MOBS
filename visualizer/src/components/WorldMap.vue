@@ -6,13 +6,7 @@
     <div class="bottom">
       <p><button>Upload JSON Output</button></p>
       <p>Timestamp: {{timestamp}}</p>
-      <div class="my-slider-wrapper" style="width:60%;margin:auto;text-align:center;display:flex;">
-        <button v-bind:onclick="decrementStep"> - </button>
-        <div class="my-slider" style="width:90%;margin:auto;">
-          <Slider v-model="step" :min="0" :max="maxStep" @update="$emit('input', $event)" :tooltips="tooltip" />
-        </div>
-        <button v-bind:onclick="incrementStep"> + </button>
-      </div>
+      <timestamp-slider v-model="step" :isRunning="isRunning" :maxStep="maxStep" :minStep="0"></timestamp-slider>
       <button v-if="!isRunning" v-bind:onclick="run">Play</button>
       <button v-if="isRunning" v-bind:onclick="stop">Pause</button>
     </div>
@@ -21,7 +15,7 @@
 
 <script>
 import Manager from "@/js/Manager";
-import Slider from '@vueform/slider'
+import TimestampSlider from '../components/TimestampSlider.vue';
 
 let manager;
 
@@ -37,7 +31,6 @@ export default {
       reader: new FileReader(),
       snackbarVisible: false,
       loadSuccess: true,
-      tooltip:false
     };
   },
   mounted: function() {
@@ -56,10 +49,6 @@ export default {
       }
       this.showLoadStatus(success);
     };
-    setInterval(() => {
-      if (!this.isRunning) return;
-      this.incrementStep();
-    }, 50);
   },
   watch: {
     step: function(val) {
@@ -73,12 +62,6 @@ export default {
     },
     stop: function() {
       this.isRunning = false;
-    },
-    incrementStep: function() {
-      this.step = this.step === this.maxStep ? this.step : this.step + window.speed;
-    },
-    decrementStep: function() {
-      this.step = this.step === 0 ? this.step : this.step - window.speed;
     },
     resizeCanvas: function() {
       this.ctx.canvas.width = document.body.clientWidth;
@@ -99,12 +82,12 @@ export default {
     }
   },
   components: {
-    Slider
+    TimestampSlider
   }
 };
 </script>
 
-<style src="@vueform/slider/themes/default.css">
+<style>
 
 .outer {
   height: 100%;
