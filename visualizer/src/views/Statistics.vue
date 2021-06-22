@@ -19,6 +19,7 @@
                     </select>
             </p>
         </div>
+        <pre v-for="stat in per_statistic_data" v-bind:key="stat.label">{{stat}}</pre>
     </section>
 </template>
 
@@ -83,7 +84,9 @@
                 this.is_range_parameter.push(res);
                 if(res) {
                     this.range_parameter_labels.push(key);
-                    this.view_parameter = key;
+                    if(this.view_parameter == "") {
+                        this.view_parameter = key;
+                    }
                 }
             });
 
@@ -98,6 +101,7 @@
                     let v = out_stats[key];
                     if(i === 0) {
                         let json_obj = {
+                            label:key,
                             min:{value:v, parameters:this.parameters[i]},
                             max:{value:v, parameters:this.parameters[i]}
                         };
@@ -118,12 +122,19 @@
                     key_index++;
                 });
                 i++;
-            });
+            })
 
+            this.otherParameters();
             this.computeGraphData();
         },
         computed: {
             ...mapState(["parameters","outputs"]),
+        },
+        watch: {
+            view_parameter: function() {
+                this.otherParameters();
+                this.computeGraphData();
+            }
         },
         methods: {
             ...mapMutations(["computeGraphInOut"]),
@@ -156,7 +167,6 @@
                 });
                 labels = [...new Set(labels)].sort();
                 this.data.labels = labels;
-                this.otherParameters();
                 let stat_data = [];
                 let param_index = 0;
                 let label_index = 0;
@@ -202,6 +212,7 @@
                     });
                     stat_index++;
                 });
+                stat_dataset[stat_dataset.length-1].hidden = false;
                 this.data.datasets = stat_dataset;
                 this.$refs["chartRef"].updateChart();
             }
