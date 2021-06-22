@@ -13,6 +13,16 @@ function sleep(ms) {
 }
 */
 
+function mySort(first, second) {
+    if(first.length > second.length) {
+        return 1;
+    }
+    if(first.length < second.length) {
+        return -1;
+    }
+    return first.localeCompare(second);
+}
+
 function toJson(arr) {
     let res = "{";
 
@@ -90,14 +100,16 @@ const store = createStore({
             state.numSimulations = 0;
         },
         computeGraphInOut(state) {
-            fs.readdirSync(input_dir).forEach(file => {
+            state.parameters = [];
+            state.outputs = [];
+            fs.readdirSync(input_dir).sort(mySort).forEach(file => {
                 if(file.endsWith(".json")) {
                     let raw = fs.readFileSync(input_dir+file);
                     let sim_input = JSON.parse(raw);
                     state.parameters.push(sim_input.protocol);
                 }
             });
-            fs.readdirSync(output_dir).forEach(file => {
+            fs.readdirSync(output_dir).sort(mySort).forEach(file => {
                 if(file.endsWith(".json")) {
                     let raw = fs.readFileSync(output_dir+file);
                     let sim_output = JSON.parse(raw);
