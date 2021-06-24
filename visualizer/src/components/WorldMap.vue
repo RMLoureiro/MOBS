@@ -20,8 +20,15 @@
       <p><input type="file" @change="updateFile"/></p>
       <p>Timestamp: {{timestamp}}</p>
       <timestamp-slider v-model="step" :isRunning="isRunning" :maxStep="maxStep" :minStep="0"></timestamp-slider>
-      <button v-if="!isRunning" v-bind:onclick="run">Play</button>
-      <button v-if="isRunning" v-bind:onclick="stop">Pause</button>
+      <div style="text-align:center; margin:auto; width:250px;">
+        <div style="float:left;">
+          <button v-if="!isRunning" v-bind:onclick="run">Play</button>
+          <button v-if="isRunning" v-bind:onclick="stop">Pause</button>
+        </div>
+        <div style="float:right;">
+          Playback Speed: <input type="number" @change="updateSpeed" :value="speed" :disabled="isRunning" min="1" max="999">
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -47,7 +54,8 @@ export default {
       snackbarVisible: false,
       loadSuccess: true,
       selectedNode:null,
-      selectedLink:null
+      selectedLink:null,
+      speed:0
     };
   },
   mounted: function() {
@@ -58,6 +66,7 @@ export default {
     manager.updateTimeStep(this.step);
     manager.setLoadCallback(() => (this.step = 0));
     manager.run();
+    this.speed = window.speed;
     this.reader.onload = event => {
       const dynamicData = JSON.parse(event.target.result);
       const success = manager.loadDynamicData(dynamicData);
@@ -104,6 +113,10 @@ export default {
     updateData: function() {
       this.selectedNode = manager.getSelectedNode();
       this.selectedLink = manager.getSelectedLink();
+    },
+    updateSpeed: function(e) {
+      this.speed = parseFloat(e.target.value)
+      window.speed = this.speed;
     }
   },
   components: {
