@@ -1,31 +1,49 @@
 <template>
     <section class="statistics">
-        <parameter-chart :data="data" ref="chartRef"></parameter-chart>
-        <p>
-            Varying Parameter:
-                <select v-model="view_parameter" @change="computeGraphData">
-                    <option v-for="label in range_parameter_labels" v-bind:value="label" v-bind:key="label">
-                        {{label}}
-                    </option>
-                </select>
-        </p>
-        <div v-for="param in other_parameters" v-bind:key="param.label">
-            <p>
-                {{param.label}}:
-                    <select v-model="param.selected" @change="computeGraphData">
-                        <option v-for="v in param.values" v-bind:value="v" v-bind:key="v">
-                            {{v}}
-                        </option>
-                    </select>
-            </p>
+        <div class="scontainer">
+            <div class="ll">
+                <parameter-chart :data="data" ref="chartRef"></parameter-chart>
+                <p>
+                    Varying Parameter:
+                        <select v-model="view_parameter" @change="computeGraphData">
+                            <option v-for="label in range_parameter_labels" v-bind:value="label" v-bind:key="label">
+                                {{label}}
+                            </option>
+                        </select>
+                </p>
+                <div v-for="param in other_parameters" v-bind:key="param.label">
+                    <p>
+                        {{param.label}}:
+                            <select v-model="param.selected" @change="computeGraphData">
+                                <option v-for="v in param.values" v-bind:value="v" v-bind:key="v">
+                                    {{v}}
+                                </option>
+                            </select>
+                    </p>
+                </div>
+            </div>
+            <div class="rr">
+                <h3>Optimal Parameters</h3>
+                <div v-for="stat in per_statistic_data" v-bind:key="stat.label">
+                    <h4>{{stat.label}}</h4>
+                    <p>
+                        Minimum Value: {{stat.min.value}} <button @click="openModal(stat.min.parameters)">Show Parameters</button>
+                    </p>
+                    <p>
+                        Maximum Value: {{stat.max.value}} <button @click="openModal(stat.max.parameters)">Show Parameters</button>
+                    </p>
+                </div>
+            </div>
         </div>
-        <pre v-for="stat in per_statistic_data" v-bind:key="stat.label">{{stat}}</pre>
+
+        <param-modal v-if="showModal" @close="showModal = false" v-bind:data="modalData"></param-modal>
     </section>
 </template>
 
 <script>
     import { mapActions, mapMutations, mapState } from "vuex";
     import ParameterChart from "../components/ParameterChart.vue";
+    import ParamModal from '../components/ParamModal.vue';
 
     function randomColor(numOfSteps, step) {
         // This function generates vibrant, "evenly spaced" colours (i.e. no clustering). This is ideal for creating easily distinguishable vibrant markers in Google Maps and other apps.
@@ -68,11 +86,14 @@
                 is_range_parameter:[],
                 range_parameter_labels:[],
                 view_parameter:"",
-                other_parameters:[]
+                other_parameters:[],
+                showModal:false,
+                modalData:null
             };
         },
         components: {
-            ParameterChart
+            ParameterChart,
+            ParamModal
         },
         mounted() {
             this.computeGraphInOut();
@@ -215,6 +236,10 @@
                 stat_dataset[stat_dataset.length-1].hidden = false;
                 this.data.datasets = stat_dataset;
                 this.$refs["chartRef"].updateChart();
+            },
+            openModal: function(data) {
+                this.modalData = data;
+                this.showModal = true;
             }
         }
     }
@@ -223,10 +248,29 @@
 
 <style>
 
-.statistics {
-    width: 100vw;
-    height: 100vh;
-    margin: auto;
-}
+    .statistics {
+        width: 100vw;
+        height: 100vh;
+        margin: auto;
+    }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    .ll {
+        float: left;
+        width: 75%;
+    }
+
+    .rr {
+        margin-left: 75%;
+        padding-top: 5%;
+    }
+
+    .scontainer {
+        width: 80%;
+        margin: auto;
+    }
 
 </style>

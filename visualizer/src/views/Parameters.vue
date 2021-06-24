@@ -206,4 +206,9 @@
         padding-top: 10px;
         margin-top: 0;
     }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
 </style>

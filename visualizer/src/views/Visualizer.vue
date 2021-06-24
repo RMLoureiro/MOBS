@@ -14,7 +14,11 @@ export default {
 </script>
 
 <style>
-* {
-  text-transform: none !important;
-}
+  * {
+    text-transform: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
 </style>

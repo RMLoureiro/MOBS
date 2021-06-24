@@ -1,5 +1,5 @@
 <template>
-  <div style="height:70vh%;width: 70vh;margin:auto;">
+  <div style="height:50%;width: 100%;margin:auto;">
     <vue3-chart-js
         ref = chartRef
         :type="'line'"
