@@ -54,10 +54,10 @@ export default class Node {
       }
     }
     else if(window.PROTOCOL == 'POS') {
-      if(this.proposing.includes(height)) {
+      if(this.proposing.includes(height+1)) {
         letter = "P";
       }
-      else if(this.inCommittee.includes(height)) {
+      else if(this.inCommittee.includes(height+1)) {
         letter = "C";
       }
     }
@@ -131,7 +131,7 @@ export default class Node {
     for(let block of this.blockList) {
       round++;
       if(block.id == b.id) {
-        return this.inCommittee.includes(round);
+        return this.inCommittee.includes(round+1);
       }
     }
     return false;
@@ -146,7 +146,7 @@ export default class Node {
     for(let block of this.blockList) {
       round++;
       if(block.id == b.id) {
-        return this.proposing.includes(round);
+        return this.proposing.includes(round+1);
       }
     }
     return false;

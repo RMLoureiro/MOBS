@@ -68,12 +68,21 @@ export default class Loader {
           {
             // when a node is selected to be part of the committee for a certain round
             this.nodes[content["node-id"]].addCommitteeMembership(content["round"]);
+            if (window.PROTOCOL != "POS") {
+              window.PROTOCOL = "POS";
+              window.speed = 10;
+            }
+            
           }
           break;
         case "node-proposer":
           {
             // when a node is selected to propose a block for a certain round
             this.nodes[content["node-id"]].addProposerRound(content["round"]);
+            if (window.PROTOCOL != "POS") {
+              window.PROTOCOL = "POS";
+              window.speed = 10;
+            }
           }
           break;
         case "add-node":
@@ -134,12 +143,11 @@ export default class Loader {
             let nFrom = content["begin-node-id"];
             let nTo = content["end-node-id"];
             let bId = content["block-id"];
-            let mType = content["msg-type"];
-            let mCreator = content["msg-creator"];
+            let mData = content["msg-data"];
             for(let l of this.links) {
               if(l.beginNode.id == nFrom && l.endNode.id == nTo) {
                 // message was sent through this link
-                l.messages.push({start:startTime, end:endTime, blockId:bId, type:mType, owner:mCreator});
+                l.messages.push({start:startTime, end:endTime, blockId:bId, content:mData});
                 break;
               }
             }

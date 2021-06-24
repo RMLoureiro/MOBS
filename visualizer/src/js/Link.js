@@ -7,7 +7,7 @@ export default class Link {
     this.beginNode = beginNode;
     this.endNode = endNode;
     this.selected = false;
-    this.messages = []; // content format = {start, end, blockId, type, owner}
+    this.messages = []; // content format = {start, end, blockId, type, owner, msg-data}
   }
 
   draw(ctx, timestamp) {
@@ -133,7 +133,7 @@ export default class Link {
       if(timestamp >= m.start && timestamp <= m.end) {
         msgCount++;
         latencySum = latencySum + (m.end - m.start);
-        currentMessages.push({type:m.type, blockId:m.blockId, originallyFrom:m.owner});
+        currentMessages.push({blockId:m.blockId, msgData:m.content});
       }
       if(timestamp < m.start){
         break;
