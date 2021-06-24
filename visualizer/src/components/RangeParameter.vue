@@ -50,6 +50,9 @@
                     return [document.getElementById(this.parameter.label).value];
                 } 
                 else {
+                    this.step = parseFloat(this.step);
+                    this.max  = parseFloat(this.max);
+                    this.min  = parseFloat(this.min);
                     if(this.step == 0 || this.min > this.max) {
                         return [this.min];
                     }
@@ -64,26 +67,6 @@
             },
             getLabel() {
                 return this.parameter.label;
-            }
-        },
-        watch: {
-            min: function(val) {
-                if(isNaN(val))
-                    this.min = 0;
-                else
-                    this.min = parseFloat(val);
-            },
-            max: function(val) {
-                if(isNaN(val))
-                    this.max = 0;
-                else
-                    this.max = parseFloat(val);
-            },
-            step: function(val) {
-                if(isNaN(val))
-                    this.step = 0;
-                else
-                    this.step = parseFloat(val);
             }
         }
     }
