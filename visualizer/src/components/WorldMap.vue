@@ -4,7 +4,7 @@
       <canvas id="mapCanvas" ref="mapCanvas"></canvas>
     </div>
     <div class="bottom">
-      <p><button>Upload JSON Output</button></p>
+      <p><input type="file" @change="updateFile"/></p>
       <p>Timestamp: {{timestamp}}</p>
       <timestamp-slider v-model="step" :isRunning="isRunning" :maxStep="maxStep" :minStep="0"></timestamp-slider>
       <button v-if="!isRunning" v-bind:onclick="run">Play</button>
@@ -70,11 +70,13 @@ export default {
     updateFile: function(file) {
       console.clear();
       if (file === null) return;
-      if (file.type !== "application/json") {
+      if(file.target.files.length === 0) return;
+      let f = file.target.files[0];
+      if (f.type !== "application/json") {
         this.showLoadStatus(false);
         return;
       }
-      this.reader.readAsText(file);
+      this.reader.readAsText(f);
     },
     showLoadStatus: function(success) {
       this.loadSuccess = success;
