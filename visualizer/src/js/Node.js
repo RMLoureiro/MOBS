@@ -122,6 +122,39 @@ export default class Node {
     });
   }
 
+  getLogData(timestamp) {
+    let p = false;
+    if(window.PROTOCOL == "POS") {
+      p = this.isProposer(timestamp);
+    }
+    else {
+      const b = this.getBlock(timestamp);
+      if(b != null) {
+        p = (b.ownerNode.id == this.id);
+      }
+    }
+    let block_data = {id:-1, creator:null};
+    let blk = this.getBlock(timestamp);
+    if(blk != null) {
+      block_data.id = blk.id;
+      block_data.creator = blk.ownerNode.id;
+    }
+   return {
+      id: this.id,
+      region: this.region.name,
+      currentStatistics: {
+        chainHead: block_data,
+        inCommittee: this.committeeMember(timestamp),
+        proposer: p
+      },
+      globalStatistics:{
+        committeeParticipations: this.inCommittee.length,
+        proposalsCreated: this.proposing.length,
+        totalNumberOfBlocks: this.blockList.length
+      }
+    };
+  }
+
   committeeMember(timestamp) {
     const b = this.getBlock(timestamp);
     if(b == null) {

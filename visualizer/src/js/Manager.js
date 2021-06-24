@@ -31,32 +31,28 @@ export default class Manager {
     this.selectedNode = null;
     this.selectedLink = null;
 
-    this.ctx.canvas.addEventListener("mousedown", () => {
-      if (this.selectedNode !== null) {
-        this.selectedNode.unselect();
-        this.selectedNode = null;
-      }
-      if(this.selectedLink !== null) {
-        this.selectedLink.unselect();
-        this.selectedLink = null;
-      }
-    });
     window.addEventListener("mouseup", event => {
       const offsetX = this.ctx.canvas.getBoundingClientRect().left;
       const offsetY = this.ctx.canvas.getBoundingClientRect().top;
       const x = event.clientX - offsetX;
       const y = event.clientY - offsetY;
       const node = this._getCollidedNode(x, y);
+      const link = this._getCollidedLink(x, y);
       if (node !== null) {
+        if(this.selectedNode != null) {
+          this.selectedNode.unselect();
+        }
         node.select();
         this.selectedNode = node;
-        node.log(this.getTimestamp());
+        //node.log(this.getTimestamp());
       }
-      const link = this._getCollidedLink(x, y);
-      if(link !== null) {
+      else if(link !== null) {
+        if(this.selectedLink != null) {
+          this.selectedLink.unselect();
+        }
         link.select();
         this.selectedLink = link;
-        link.log(this.getTimestamp());
+        //link.log(this.getTimestamp());
       }
     });
   }
@@ -84,6 +80,18 @@ export default class Manager {
 
   getTimestamp() {
     return this.timestamps[this.step];
+  }
+
+  getSelectedNode() {
+    if(this.selectedNode == null)
+      return null;
+    return this.selectedNode.getLogData(this.getTimestamp());
+  }
+
+  getSelectedLink() {
+    if(this.selectedLink == null)
+      return null;
+    return this.selectedLink.getLogData(this.getTimestamp());
   }
 
   setLoadCallback(callback) {

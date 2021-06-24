@@ -148,7 +148,27 @@ export default class Link {
     });
   }
 
-
+  getLogData(timestamp) {
+    let currentMessages = [];
+    let msgCount = 0;
+    let latencySum = 0;
+    for(let m of this.messages) {
+      if(timestamp >= m.start && timestamp <= m.end) {
+        msgCount++;
+        latencySum = latencySum + (m.end - m.start);
+        currentMessages.push({blockId:m.blockId, msgData:m.content});
+      }
+      if(timestamp < m.start){
+        break;
+      }
+    }
+    return {
+      type: "LINK",
+      from: this.beginNode.id,
+      to: this.endNode.id,
+      content: currentMessages
+    };
+  }
 
 
 

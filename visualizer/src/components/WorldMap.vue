@@ -1,7 +1,20 @@
 <template>
-  <div class="outer">
+  <div class="outer" @click="updateData">
     <div class="top">
-      <canvas id="mapCanvas" ref="mapCanvas"></canvas>
+      <div class="l">
+        <canvas id="mapCanvas" ref="mapCanvas"></canvas>
+      </div>
+      <div class="r">
+        <hr>
+        <p>
+          <node-data :node="selectedNode"></node-data>
+        </p>
+        <hr>
+        <p>
+          <link-data :link="selectedLink"></link-data>
+        </p>
+        <hr>
+      </div>
     </div>
     <div class="bottom">
       <p><input type="file" @change="updateFile"/></p>
@@ -16,6 +29,8 @@
 <script>
 import Manager from "@/js/Manager";
 import TimestampSlider from '../components/TimestampSlider.vue';
+import NodeData from '../components/NodeData.vue';
+import LinkData from '../components/LinkData.vue';
 
 let manager;
 
@@ -31,6 +46,8 @@ export default {
       reader: new FileReader(),
       snackbarVisible: false,
       loadSuccess: true,
+      selectedNode:null,
+      selectedLink:null
     };
   },
   mounted: function() {
@@ -53,7 +70,9 @@ export default {
   watch: {
     step: function(val) {
       manager.updateTimeStep(val);
-      this.timestamp = manager.getTimestamp();
+      this.timestamp    = manager.getTimestamp();
+      this.selectedNode = manager.getSelectedNode();
+      this.selectedLink = manager.getSelectedLink();
     }
   },
   methods: {
@@ -64,7 +83,7 @@ export default {
       this.isRunning = false;
     },
     resizeCanvas: function() {
-      this.ctx.canvas.width = document.body.clientWidth;
+      this.ctx.canvas.width = (document.body.clientWidth)*0.75;
       this.ctx.canvas.height = (document.body.clientHeight)*0.75;
     },
     updateFile: function(file) {
@@ -81,10 +100,16 @@ export default {
     showLoadStatus: function(success) {
       this.loadSuccess = success;
       this.snackbarVisible = true;
+    },
+    updateData: function() {
+      this.selectedNode = manager.getSelectedNode();
+      this.selectedLink = manager.getSelectedLink();
     }
   },
   components: {
-    TimestampSlider
+    TimestampSlider,
+    NodeData,
+    LinkData
   }
 };
 </script>
@@ -94,6 +119,18 @@ export default {
 .outer {
   height: 100%;
   width: 100%;
+}
+
+.top {
+  height: 75vh;
+}
+
+.l {
+  float: left;
+}
+
+.r {
+  margin-left: 75vw;
 }
 
 </style>
