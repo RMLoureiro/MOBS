@@ -113,7 +113,7 @@ const store = createStore({
                 if(file.endsWith(".json")) {
                     let raw = fs.readFileSync(output_dir+file);
                     let sim_output = JSON.parse(raw);
-                    state.outputs.push(sim_output[sim_output.length - 2].content);
+                    state.outputs.push({filename:file, stats:sim_output[sim_output.length - 2].content});
                 }
             });
         }

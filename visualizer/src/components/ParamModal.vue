@@ -7,6 +7,7 @@
               <div class="modal-header">
                 <slot name="header">
                   <h3>Parameters</h3>
+                  <h4>Output File: {{getFilename()}}</h4>
                 </slot>
               </div>
 
@@ -42,14 +43,20 @@ export default {
       getParams: function() {
         let params = [];
         if(this.data != null) {
-          Object.keys(this.data).forEach(key => {
+          Object.keys(this.data.parameters).forEach(key => {
             let p = [];
             p.push(key);
-            p.push(this.data[key]);
+            p.push(this.data.parameters[key]);
             params.push(p);
           });
         }
         return params;
+      },
+      getFilename: function() {
+        if(this.data != null) {
+          return this.data.filename;
+        }
+        return "";
       }
     }
 }

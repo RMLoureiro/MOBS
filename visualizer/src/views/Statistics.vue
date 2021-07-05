@@ -27,10 +27,10 @@
                 <div v-for="stat in per_statistic_data" v-bind:key="stat.label">
                     <h4>{{stat.label}}</h4>
                     <p>
-                        Minimum Value: {{stat.min.value}} <button @click="openModal(stat.min.parameters)">Show Parameters</button>
+                        Minimum Value: {{stat.min.value}} <button @click="openModal(stat.min)">Show Parameters</button>
                     </p>
                     <p>
-                        Maximum Value: {{stat.max.value}} <button @click="openModal(stat.max.parameters)">Show Parameters</button>
+                        Maximum Value: {{stat.max.value}} <button @click="openModal(stat.max)">Show Parameters</button>
                     </p>
                 </div>
             </div>
@@ -111,20 +111,20 @@
                 }
             });
 
-            Object.keys(this.outputs[0]).forEach(key => {
+            Object.keys(this.outputs[0].stats).forEach(key => {
                 this.statistic_labels.push(key);
             });
 
             let i = 0;
             this.outputs.forEach(out_stats => {
                 let key_index = 0;
-                Object.keys(out_stats).forEach(key =>{
-                    let v = out_stats[key];
+                Object.keys(out_stats.stats).forEach(key =>{
+                    let v = out_stats.stats[key];
                     if(i === 0) {
                         let json_obj = {
                             label:key,
-                            min:{value:v, parameters:this.parameters[i]},
-                            max:{value:v, parameters:this.parameters[i]}
+                            min:{value:v, parameters:this.parameters[i], filename:this.outputs[i].filename},
+                            max:{value:v, parameters:this.parameters[i], filename:this.outputs[i].filename}
                         };
                         this.per_statistic_data.push(json_obj);
                     }
@@ -133,10 +133,12 @@
                         if(v < json_obj.min.value) {
                             json_obj.min.value = v;
                             json_obj.min.parameters = this.parameters[i];
+                            json_obj.min.filename = this.outputs[i].filename;
                         }
                         if(v > json_obj.max.value) {
                             json_obj.max.value = v;
                             json_obj.max.parameters = this.parameters[i];
+                            json_obj.max.filename = this.outputs[i].filename;
                         }
                         this.per_statistic_data[key] = json_obj;
                     }
@@ -204,7 +206,7 @@
                         flag = false;
                     }
                     if(flag) {
-                        stat_data.push(this.outputs[param_index]);
+                        stat_data.push(this.outputs[param_index].stats);
                         label_index++;
                     }
                     param_index++;
