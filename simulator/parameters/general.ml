@@ -70,11 +70,8 @@ let () =
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
   degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
   download_bandwidth := get_network_param json "download-bandwidth" |> to_list |> filter_int;
-  upload_bandwidth := get_network_param json "upload-bandwidth" |> to_list |> filter_int
-
-  (*
-  TODO : parse arrays from JSON
-  latency_table := get_network_param json "latency-table" |> to_list |> filter_list |> filter_int;
-  *)
+  upload_bandwidth := get_network_param json "upload-bandwidth" |> to_list |> filter_int;
+  let latency_table_tmp = get_network_param json "latency-table" |> to_list in
+  latency_table := List.map (fun x -> List.map (fun y -> to_int y) (to_list x)) latency_table_tmp
 
 
