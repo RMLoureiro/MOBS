@@ -37,6 +37,11 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   (* the JSON event representing the end of the simulation *)
   let sim_end_json () = String.concat "" ["{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());"}}]"]
 
+  let write_to_file str = 
+    let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
+    Printf.fprintf out_chan "%s," str;
+    close_out out_chan
+
   let init () = 
     if Array.length Sys.argv > 2 then log_file := Sys.argv.(2);
     let out_chan = open_out !log_file in
@@ -51,20 +56,18 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   (* prints <data> to the log_file *)
   (* <data> should be in JSON format *)
   let log_json data =
-    match data with
-    | "" -> ()
-    | _ ->
-      begin
-        let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
-        Printf.fprintf out_chan "%s," data;
-        close_out out_chan
-      end    
+    if !Parameters.General.verbose then
+      match data with
+      | "" -> ()
+      | _ -> write_to_file data
 
   let log_parameters params_json =
-    log_json (String.concat "" ["{\"kind\":\"parameters\",\"content\":";params_json;"}"])
+    let str = (String.concat "" ["{\"kind\":\"parameters\",\"content\":";params_json;"}"]) in
+    write_to_file str
 
   let log_statistics stats_json =
-    log_json (String.concat "" ["{\"kind\":\"statistics\",\"content\":";stats_json;"}"])
+    let str = (String.concat "" ["{\"kind\":\"statistics\",\"content\":";stats_json;"}"]) in
+    write_to_file str
 
   let print_in_committee node_id round =
     let data = String.concat "" ["{\"kind\":\"node-committee\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in

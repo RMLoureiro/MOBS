@@ -9,6 +9,7 @@ let end_block_height = ref 5
 let seed = ref 123
 let max_timestamp = ref 0
 let timestamp_limit = ref false
+let verbose = ref true
 
 (* TODO : add other parameters as they are needed *)
 
@@ -70,6 +71,7 @@ let () =
   avg_coins := get_general_param json "avg_coins" |> to_int;
   stdev_coins := get_general_param json "stdev_coins" |> to_int;
   max_timestamp := get_general_param json "timestamp-limit" |> to_int;
+  verbose := get_general_param json "verbose-output" |> to_bool;
   if !max_timestamp > 0 then timestamp_limit := true;
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
   degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
