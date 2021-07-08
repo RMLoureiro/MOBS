@@ -1,5 +1,6 @@
 <template>
-  <div style="height:50%;width: 100%;margin:auto;">
+  <div style="height:50%;width: 100%;margin:auto;text-align:center;">
+    Select one or more statistics to display in the graph:
     <vue3-chart-js
         ref = chartRef
         :type="'line'"

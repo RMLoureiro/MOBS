@@ -4,7 +4,7 @@
             <div class="ll">
                 <parameter-chart :data="data" ref="chartRef"></parameter-chart>
                 <p>
-                    Varying Parameter:
+                    Varying Parameter (X Axis):
                         <select v-model="view_parameter" @change="computeGraphData">
                             <option v-for="label in range_parameter_labels" v-bind:value="label" v-bind:key="label">
                                 {{label}}
