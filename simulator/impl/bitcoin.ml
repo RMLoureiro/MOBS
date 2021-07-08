@@ -87,7 +87,7 @@ module BitcoinStatistics = struct
       print_endline (string_of_int median_bpt);
       print_string "AVG(reach all nodes): ";
       print_endline (string_of_int avg_bpt);
-      String.concat "" ["{\"average-block-propagation-time\":";string_of_int avg_bpt;",{\"median-block-propagation-time\":";string_of_int median_bpt;"}"]
+      String.concat "" ["{\"average-block-propagation-time\":";string_of_int avg_bpt;",\"median-block-propagation-time\":";string_of_int median_bpt;"}"]
     else
       "{}"
 
