@@ -7,6 +7,8 @@ let parameters_file = ref "default-parameters.json"
 let num_nodes = ref 10
 let end_block_height = ref 5
 let seed = ref 123
+let max_timestamp = ref 0
+let timestamp_limit = ref false
 
 (* TODO : add other parameters as they are needed *)
 
@@ -67,6 +69,8 @@ let () =
   reward := get_general_param json "reward" |> to_float;
   avg_coins := get_general_param json "avg_coins" |> to_int;
   stdev_coins := get_general_param json "stdev_coins" |> to_int;
+  max_timestamp := get_general_param json "timestamp-limit" |> to_int;
+  if !max_timestamp > 0 then timestamp_limit := true;
   region_distribution := get_network_param json "region-distribution" |> to_list |> filter_float;
   degree_distribution := get_network_param json "degree-distribution" |> to_list |> filter_float;
   download_bandwidth := get_network_param json "download-bandwidth" |> to_list |> filter_int;

@@ -115,7 +115,9 @@ module Make(Event : Simulator.Events.Event)
       let _                = initial_events nodes in
       let max_height       = ref 0 in
       let end_block_height = !Parameters.General.end_block_height in
-      while Queue.has_event () && !max_height < end_block_height do
+      let max_timestamp    = !Parameters.General.max_timestamp in
+      let timestamp_limit  = !Parameters.General.timestamp_limit in
+      while Queue.has_event () && !max_height < end_block_height && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
         let ev = Queue.get_event () in
         match ev with
         | (ts, e) -> 
