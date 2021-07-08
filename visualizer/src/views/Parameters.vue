@@ -31,7 +31,9 @@
                             :ref="el => pComponents.push(el)"
                         ></range-parameter>
                     </div>
-                    <input type="submit" value="Run Simulation" :disabled="running">
+                    <input type="button" value="Store as Default Parameters" @click="storeAsDefault">
+                    <p></p>
+                    <input type="submit" value="Run Simulation" :disabled="running">                   
                     <p>
                         <progress :max="maxProgress" :value="progress"></progress>
                     </p>
@@ -111,7 +113,7 @@
             ...mapState(["generalParameters","networkParameters","protocolParameters"]),
         },
         methods: {
-            ...mapMutations(["getParameters","clearInputFiles","setCombinations"]),
+            ...mapMutations(["getParameters","clearInputFiles","setCombinations","storeParamsDefault"]),
             ...mapActions(["produce"]),
             setItemRef: function(el) {
                 if(el) {
@@ -170,6 +172,28 @@
                 this.runCombination(this.currentCombination);
 
                 return false;
+            },
+            storeAsDefault: function() {
+                this.gParams.forEach(element => {
+                    let stringVal = document.getElementById(element.label).value;
+                    element.value = JSON.stringify(JSON.parse(stringVal));
+                });
+                this.nParams.forEach(element => {
+                    let stringVal = document.getElementById(element.label).value;
+                    element.value = JSON.stringify(JSON.parse(stringVal));
+                });
+
+                let pParamValues = [];
+                let labels = [];
+
+                this.pComponents.forEach(element => {
+                    pParamValues.push(element.getValues());
+                    labels.push(element.getLabel());
+                });
+
+                let combinations = getCombinations(pParamValues);
+                this.parsedCombs = parseCombinations(combinations, labels);
+                this.storeParamsDefault([this.gParams, this.nParams, this.parsedCombs[0]]);
             }
         },
         beforeUpdate() {

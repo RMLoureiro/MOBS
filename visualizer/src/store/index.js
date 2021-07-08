@@ -3,9 +3,10 @@ const fs = require('fs');
 const child = require('child_process').spawn;
 
 
-let input_dir  = '../input_files/';
-let output_dir = '../output_files/';
-let sim_path   = '../simulator/_build/default/bin/main.exe';
+let input_dir          = '../input_files/';
+let output_dir         = '../output_files/';
+let sim_path           = '../simulator/_build/default/bin/main.exe';
+let default_params_dir = '../simulator/default-parameters.json';
 
 /*
 function sleep(ms) {
@@ -55,7 +56,7 @@ const store = createStore({
     mutations: {
         getParameters: state => {
             if(!state.loaded) {
-                let rawData = fs.readFileSync('../simulator/default-parameters.json')
+                let rawData = fs.readFileSync(default_params_dir)
                 let json = JSON.parse(rawData);
                 
                 let generalParamsJson  = json.general;
@@ -116,6 +117,19 @@ const store = createStore({
                     state.outputs.push({filename:file, stats:sim_output[sim_output.length - 2].content});
                 }
             });
+        },
+        storeParamsDefault(state,params) {
+            let g = params[0];
+            let n = params[1];
+            let p = params[2];
+
+            let gString = toJson(g);
+            let nString = toJson(n);
+            let pString = toJson(p);
+
+            let outputJson = {general:JSON.parse(gString), network:JSON.parse(nString), protocol:JSON.parse(pString)};
+
+            fs.writeFileSync(default_params_dir, JSON.stringify(outputJson));
         }
     },
     actions: {
