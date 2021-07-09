@@ -23,8 +23,8 @@ module SimpleBlock   = Simulator.Block.Make(SimpleLogger);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
 
-module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int and type block=Simulator.Block.t) = struct
-  type block = Simulator.Block.t
+module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int and type value=Simulator.Block.t) = struct
+  type value = Simulator.Block.t
   
   type id = int
 
@@ -84,8 +84,13 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int an
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
 
-  let chain_head n =
+  let state n =
     n.chain
+
+  let state_id n =
+    match n.chain with
+    | Some(blk) -> Simulator.Block.id blk
+    | None -> -1
 
   let chain_height node = 
     match node.chain with
@@ -97,7 +102,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int an
 
 end
 
-module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and type ev=SimpleEvent.t) = struct
+module SimpleInitializer : (Abstract.Initializer with type node=SimpleNode.t and type ev=SimpleEvent.t) = struct
   type node = SimpleNode.t
 
   type ev = SimpleEvent.t
@@ -108,9 +113,10 @@ module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and
   
 end
 
-module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t) = struct
+module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and type value = Simulator.Block.t) = struct
 
   type ev = SimpleEvent.t
+  type value = Simulator.Block.t
 
   let consensus_reached _ _ =
     ()

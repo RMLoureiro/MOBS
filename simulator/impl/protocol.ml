@@ -1,81 +1,26 @@
 module type Node = sig
-  type block
-
-  (** the id of a node *)
-  type id = int
-
-  (** the type of the events being handled *)
-  type ev
-
-  (** the type representing a node and its state *)
-  type t
-
-  (** create the initial state of a node *)
-  val init : id -> Abstractions.Network.links -> Abstractions.Network.region -> t
-
-  (** receives the state of a node and an event, returning the resulting state *)
-  val handle : t -> ev -> t
-
-  (** compares two nodes *)
-  val compare : t -> t -> int
+  include Abstract.Node
 
   (** obtain the height of the chain stored in the node *)
   val chain_height : t -> int
 
-  (** get the head of the chain *)
-  val chain_head : t -> block option
-
-  (** return a JSON string containing the relevant parameters (and values) for the Node's consensus algorithm *)
-  val parameters : unit -> string
-
 end
-
-
-
-module type Initializer = sig
-  (** the type representing a node *)
-  type node
-
-  (** the type of the events being produced *)
-  type ev
-
-  (** returns a list of events that kickstart the simulation *)
-  val init : (int, node) Hashtbl.t -> ev list
-end
-
 
 
 module type Statistics = sig
 
-  (** the type representing events in the simulator *)
-  type ev
-
-  (** receives an event and processes it, updating statistics *)
-  val process : ev -> unit
-
-  (** returns a JSON string containing the statistics and respective values *)
-  val get : unit -> string
-
-  (** node has seen consensus for a block *)
-  val consensus_reached : int -> Simulator.Block.t -> unit
+  include Abstract.Statistics
 
 end
-
-
-module type Protocol = sig 
-  (** the main loop of the protocol *)
-  val run : unit -> unit
-end
-
 
 
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Block : Simulator.Block.BlockSig)
-           (Node : Node with type ev = Event.t and type block = Simulator.Block.t) 
-           (Initializer : Initializer with type node = Node.t and type ev = Event.t)
+           (Node : Node with type ev = Event.t and type value = Simulator.Block.t) 
+           (Initializer : Abstract.Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Statistics with type ev=Event.t) : Protocol
+           (Statistics : Statistics with type ev=Event.t and type value=Simulator.Block.t) : Abstract.Protocol
            = struct
 
   module NodeMap = Map.Make(Int)
@@ -129,14 +74,14 @@ module Make(Event : Simulator.Events.Event)
           | None -> ()
           | Some i -> 
             let node_state = Hashtbl.find nodes i in
-            let old_chain_head_id = Block.opt_id (Node.chain_head node_state) in
+            let old_chain_head_id = Block.opt_id (Node.state node_state) in
             let new_state = Node.handle node_state e in
               begin 
                 if Node.chain_height new_state > !max_height then 
                   max_height := Node.chain_height new_state
               end;
               begin
-                let new_chain_head = Node.chain_head new_state in
+                let new_chain_head = Node.state new_state in
                 if not (old_chain_head_id = (Block.opt_id new_chain_head)) then
                   begin
                     match new_chain_head with

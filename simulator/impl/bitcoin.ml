@@ -40,6 +40,7 @@ let _ = BitcoinPow.init_mining_power ();;
 module BitcoinStatistics = struct
 
   type ev = BitcoinEvent.t
+  type value = Simulator.Block.t
 
   (* Observed Delay per Block per Node *)
   let odpb = ref []
@@ -93,8 +94,8 @@ module BitcoinStatistics = struct
 
 end
 
-module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int and type block=Simulator.Block.t) = struct
-  type block = Simulator.Block.t
+module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int and type value=Simulator.Block.t) = struct
+  type value = Simulator.Block.t
   
   type id = int
 
@@ -205,8 +206,13 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
 
-  let chain_head n =
+  let state n =
     n.chain
+
+  let state_id n =
+    match n.chain with
+    | Some(blk) -> Simulator.Block.id blk
+    | None -> -1
 
   let chain_height node = 
     match node.chain with
@@ -218,7 +224,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
 
 end
 
-module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t and type ev=BitcoinEvent.t) = struct
+module BitcoinInitializer : (Abstract.Initializer with type node=BitcoinNode.t and type ev=BitcoinEvent.t) = struct
   type node = BitcoinNode.t
 
   type ev = BitcoinEvent.t

@@ -51,9 +51,9 @@ module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
 
 
-module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=int and type block=Simulator.Block.t) = struct
+module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=int and type value=Simulator.Block.t) = struct
 
-  type block = Simulator.Block.t
+  type value = Simulator.Block.t
 
   type id = int
 
@@ -497,8 +497,11 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
   
-  let chain_head n =
+  let state n =
     Some n.chain
+
+  let state_id n =
+    Simulator.Block.id n.chain
 
   let chain_height node = 
     AlgorandBlock.height node.chain
@@ -508,7 +511,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
 
 end
 
-module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t and type ev=AlgorandEvent.t) = struct
+module AlgorandInitializer : (Abstract.Initializer with type node=AlgorandNode.t and type ev=AlgorandEvent.t) = struct
   type node = AlgorandNode.t
 
   type ev = AlgorandEvent.t
@@ -520,9 +523,10 @@ module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandStatistics : (Protocol.Statistics with type ev = AlgorandEvent.t) = struct
+module AlgorandStatistics : (Protocol.Statistics with type ev = AlgorandEvent.t and type value=Simulator.Block.t) = struct
 
   type ev = AlgorandEvent.t
+  type value = Simulator.Block.t
 
   (* total messages exchanged during the simulation *)
   let total_messages = ref 0
