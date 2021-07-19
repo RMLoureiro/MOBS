@@ -109,6 +109,9 @@ module type EventQueue = sig
 
   (** cancels a scheduled minting event *)
   val cancel_minting : int -> unit
+
+  (** cancels a scheduled timeout event *)
+  val cancel_timer : int -> timeout_label -> unit
 end
 
 module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
@@ -150,5 +153,16 @@ module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
 
   let cancel_minting nodeID = 
     event_queue := remove_minting_task nodeID !event_queue
+
+  let rec remove_timeout_event (nodeID:int) (list:elem list) (label:timeout_label) : elem list =
+    match list with
+    | [] -> list
+    | x::xs -> 
+      match x with
+      | (_, Event.Timeout(id,_,l)) -> if id = nodeID && l = label then xs else x::remove_timeout_event nodeID xs label
+      | _ -> x::remove_timeout_event nodeID xs label
+
+  let cancel_timer nodeID label =
+    event_queue := remove_timeout_event nodeID !event_queue label
 
 end

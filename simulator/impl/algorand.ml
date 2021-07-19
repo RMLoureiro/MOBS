@@ -1,40 +1,48 @@
 (* load protocol specific parameters *)
-let lambda                = Parameters.Protocol.get_int_parameter "lambda";;
+let lambda_step           = Parameters.Protocol.get_int_parameter "lambda-step";;
+let lambda_stepvar        = Parameters.Protocol.get_int_parameter "lambda-stepvar";;
+let lambda_priority       = Parameters.Protocol.get_int_parameter "lambda-priority";;
+let lambda_block          = Parameters.Protocol.get_int_parameter "lambda-block";;
 let committee_size        = Parameters.Protocol.get_int_parameter "committee-size";;
 let num_proposers         = Parameters.Protocol.get_int_parameter "num-proposers";;
 let majority_votes        = Parameters.Protocol.get_int_parameter "majority-votes";;
-let block_creation_chance = Parameters.Protocol.get_float_parameter "block-creation-chance";;
-
+let block_size            = Parameters.Protocol.get_int_parameter "block-size-bits";;
 
 type alg_msg = 
-  Proposal of int * int * int * Simulator.Block.t * int (* round, period, step, block,    creator_id *)
-  | SoftVote of int * int * int * int * int             (* round, period, step, block_id, creator_id *)
-  | CertVote of int * int * int * int * int             (* round, period, step, block_id, creator_id *)
-  | NextVote of int * int * int * int * int             (* round, period, step, block_id, creator_id *)
+    Priority of int * int * int * int * int               (* round, period, step, priority, creator_id *)
+  | Proposal of int * int * int * Simulator.Block.t * int (* round, period, step, block,    creator_id *)
+  | SoftVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
+  | CertVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
+  | NextVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
 
 module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct 
   type t = alg_msg
 
-  let json kind round period step blk_id creator_id =
-    String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"block_id\":"; string_of_int blk_id; ",\"creator_id\":"; string_of_int creator_id;"}"]
+  let json kind round period step v creator_id is_priority =
+    if is_priority then
+      String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"priority\":"; string_of_int v; ",\"creator_id\":"; string_of_int creator_id;"}"]
+    else
+      String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"block_id\":"; string_of_int v; ",\"creator_id\":"; string_of_int creator_id;"}"]
 
   let to_json (m:t) : string =
     match m with
-    | Proposal(round,period,step,blk,creator_id)    -> json "proposal" round period step (Simulator.Block.id blk) creator_id
-    | SoftVote(round,period,step,blk_id,creator_id) -> json "softvote" round period step blk_id creator_id
-    | CertVote(round,period,step,blk_id,creator_id) -> json "certvote" round period step blk_id creator_id
-    | NextVote(round,period,step,blk_id,creator_id) -> json "nextvote" round period step blk_id creator_id
+    | Priority(round,period,step,priority,creator_id) -> json "priority" round period step priority creator_id true
+    | Proposal(round,period,step,blk,creator_id)      -> json "proposal" round period step (Simulator.Block.id blk) creator_id false
+    | SoftVote(round,period,step,blk_id,creator_id)   -> json "softvote" round period step blk_id creator_id false
+    | CertVote(round,period,step,blk_id,creator_id)   -> json "certvote" round period step blk_id creator_id false
+    | NextVote(round,period,step,blk_id,creator_id)   -> json "nextvote" round period step blk_id creator_id false
 
   let get_size (msg:t) =
     match msg with
-    | Proposal(_,_,_,_,_) -> 4280000 (* TODO : obtain accurate data *)
-    | _ -> 32*5                      (* TODO : obtain accurate data *)
+    | Proposal(_,_,_,_,_) -> block_size
+    | _ -> 32*5
 
   let processing_time (_:t) =
-    10 (* TODO : obtain accurate data *)
+    10
 
   let identifier (msg:t) =
     match msg with
+    | Priority(_,_,_,_,_)      -> -1
     | Proposal(_,_,_,blk,_)    -> (Simulator.Block.id blk)
     | SoftVote(_,_,_,blk_id,_) -> blk_id
     | CertVote(_,_,_,blk_id,_) -> blk_id
@@ -49,6 +57,65 @@ module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue)
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
 module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
+
+
+module AlgorandStatistics = struct
+
+  type ev = AlgorandEvent.t
+  type value = Simulator.Block.t
+
+  (* total messages exchanged during the simulation *)
+  let total_messages = ref 0
+
+  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
+  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
+
+  (* each index <i> contains the list of time elapsed to finish the block_proposal step of the protocol, in each node <i> *)
+  let block_proposal_time = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+
+  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
+  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+
+  let completed_step2 nodeID =
+    let current_time = (Simulator.Clock.get_timestamp ()) in
+    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
+    block_proposal_time := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !block_proposal_time
+
+  let consensus_reached nodeID _ =
+    let current_time = (Simulator.Clock.get_timestamp ()) in
+    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
+    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
+    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
+
+  let process event =
+    match event with
+    | AlgorandEvent.Message(_,_,_,_) -> total_messages := !total_messages +1
+    | _ -> ()
+
+  let get () =
+    let avg_consensus_time =
+      let avg_consensus_time_per_node = ref [] in
+      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_consensus_time_per_node := !avg_consensus_time_per_node@[!sum / (List.length x)]) !node_time_between_blocks;
+      let sum = ref 0 in
+      List.iter (fun x -> sum := !sum + x) !avg_consensus_time_per_node;
+      !sum / (List.length !avg_consensus_time_per_node)
+    in
+    let avg_block_proposal_time =
+      let avg_block_proposal_time_per_node = ref [] in
+      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_block_proposal_time_per_node := !avg_block_proposal_time_per_node@[!sum / (List.length x)]) !block_proposal_time;
+      let sum = ref 0 in
+      List.iter (fun x -> sum := !sum + x) !avg_block_proposal_time_per_node;
+      !sum / (List.length !avg_block_proposal_time_per_node)
+    in
+    String.concat "" ["{\"final-step\":";string_of_int avg_consensus_time;",\"block-proposal\":";string_of_int avg_block_proposal_time;"}"]
+
+end
+
+
+
+
+
+
 
 
 module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=int and type value=Simulator.Block.t) = struct
@@ -70,6 +137,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     mutable step : int;
     mutable starting_value : Simulator.Block.t option;
     mutable cert_voted : Simulator.Block.t option;
+    mutable highest_priority : (int*int) option; (* priority, node_id *)
     mutable proposals : alg_msg list;
     mutable softvotes : alg_msg list;
     mutable certvotes : alg_msg list;
@@ -88,9 +156,10 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       chain = AlgorandBlock.genesis_pos 0;
       round = 1;
       period = 1;
-      step = 1;
+      step = 0;
       starting_value = None;
       cert_voted = None;
+      highest_priority = None;
       proposals = [];
       softvotes = [];
       certvotes = [];
@@ -124,6 +193,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
 
   let get_creator msg =
     match msg with
+    | Priority(_,_,_,_,creator) -> creator
     | Proposal(_,_,_,_,creator) -> creator
     | SoftVote(_,_,_,_,creator) -> creator
     | CertVote(_,_,_,_,creator) -> creator
@@ -141,7 +211,19 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       if get_creator elem = get_creator msg then most_recent msg elem else elem
     in
     match msg with
-    | Proposal(_,_,_,_,_)    -> 
+    | Priority(_,_,_,priority,creator_id) ->
+      begin
+        match node.highest_priority with
+        | None      -> node.highest_priority <- Some(priority, creator_id); (node, false)
+        | Some(p,_) -> 
+          if p < priority then 
+            begin
+              node.highest_priority <- Some(priority, creator_id);
+              (node,false)
+            end
+          else (node,true)
+      end
+    | Proposal(_,_,_,_,_) -> 
       if contains_msg node.proposals msg then
         begin node.proposals <- List.map keep_most_recent node.proposals; (node, true) end
       else
@@ -177,6 +259,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
 
   let get_block_id msg =
     match msg with
+    | Priority(_,_,_,_,_)      -> -1
     | Proposal(_,_,_,blk,_)    -> Simulator.Block.id blk
     | SoftVote(_,_,_,blk_id,_) -> blk_id
     | CertVote(_,_,_,blk_id,_) -> blk_id
@@ -205,23 +288,14 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
 
   let find_leader_proposal node =
     let leader_proposal : Simulator.Block.t option ref = ref None in
-    let min_hash : string option ref = ref None in
     let find_leader proposal =
       match proposal with
-      | Proposal(_,_,_,bid,creator) -> 
+      | Proposal(_,_,_,blk,creator) -> 
         begin
-          let cred = String.concat "" [string_of_int creator; string_of_int node.round; string_of_int node.period] in
-          let hash = Sha256.to_hex (Sha256.string cred) in
-          match !min_hash with
-          | Some h ->
-            if hash < h then
-              begin
-                leader_proposal := Some bid;
-                min_hash := Some hash
-              end
-          | None ->
-            leader_proposal := Some bid;
-            min_hash := Some hash
+          match node.highest_priority with
+          | Some(_,node_id) -> 
+            if creator = node_id then leader_proposal := Some(blk)
+          | None -> ()
         end
       | _ -> ()
     in
@@ -233,21 +307,19 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
   let is_proposer node =
     AlgorandPoS.is_proposer node.id node.chain num_proposers [node.round]
   
+  let proposer_priority node =
+    AlgorandPoS.proposer_priority node.id node.chain num_proposers [node.round]
+
   let in_committee node =
     AlgorandPoS.in_committee node.id node.chain committee_size [node.round]
 
   let create_and_propose_block node =
-    if Simulator.Rng.coinflip block_creation_chance then
-      begin
-        let blk = AlgorandBlock.create node.id node.chain in
-        node.starting_value <- Some (blk);
-        send_to_neighbours node (Proposal(node.round, node.period, node.step, blk, node.id))
-      end
-    else
-      begin
-        node.starting_value <- None;
-        node
-      end
+    let blk = AlgorandBlock.create node.id node.chain in
+    let priority = proposer_priority node in
+    node.starting_value <- Some (blk);
+    node.highest_priority <- Some(priority, node.id);
+    let ns = send_to_neighbours node (Priority(node.round, node.period, node.step, priority, node.id)) in
+    send_to_neighbours ns (Proposal(node.round, node.period, node.step, blk, node.id))
 
   let advance_period node most_next_voted_id =
     let starting_id = 
@@ -256,35 +328,38 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       | None -> -1
     in
     node.period <- node.period +1;
-    node.step <- 1;
+    node.step <- 0;
     node.cert_voted <- None;
     node.prev_nextvotes <- node.nextvotes;
     node.prev_softvotes <- node.softvotes;
+    node.highest_priority <- None;
     node.nextvotes <- [];
     node.softvotes <- [];
     node.certvotes <- [];
     node.proposals <- [];
     node.starting_value <- get_block node starting_id;
-    AlgorandTimer.set node.id lambda "step";
+    AlgorandTimer.set node.id 1 "step"; (* TODO : is it OK to immediately begin the next period *)
     node
   
   let advance_round node =
     node.round <- node.round + 1;
     node.period <- 1;
-    node.step <- 1;
+    node.step <- 0;
     node.nextvotes <- [];
     node.softvotes <- [];
     node.certvotes <- [];
+    node.highest_priority <- None;
     node.prev_nextvotes <- [];
     node.prev_softvotes <- [];
     node.starting_value <- None;
     node.cert_voted <- None;
     node.proposals <- [];
     node.received_blocks <- [];
-    AlgorandTimer.set node.id lambda "step";
+    AlgorandTimer.cancel node.id "step";
+    AlgorandTimer.set node.id 1 "step"; (* TODO : is it OK to immediately begin the next round? *)
     node
 
-  let inc_step node =
+  let inc_step node lambda =
     node.step <- node.step +1;
     AlgorandTimer.set node.id lambda "step";
     node
@@ -300,21 +375,17 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       end
     | _ -> (node, false)
 
-  (* step 1 *)
+  (* step 0 *)
   let valueProposal node =
     let new_state =
       begin
         match node.period with 
         | 1 -> 
             if is_proposer node then
-              begin
                 create_and_propose_block node
-              end
             else
-              begin
                 node
-              end
-        | _ ->
+        | _ -> (* TODO : double check if this case needs to change because of the new priority functionalities *)
           begin
             match most_voted node node.prev_nextvotes with
             | (Some id, true) -> 
@@ -331,10 +402,17 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
             | _ ->
               if is_proposer node then create_and_propose_block node else node
           end
-
       end
     in
-    inc_step new_state
+    inc_step new_state (lambda_priority + lambda_stepvar)
+
+  (* step 1 *)
+  (* if already received the highest priority block, then run next step; else wait for the lambdablock timout *)
+  let identifyPriority node =
+    let lambda =
+      if find_leader_proposal node != -1 then 1 else lambda_block
+    in
+    inc_step node lambda
 
   (* step 2 *)
   let filteringStep node =
@@ -360,7 +438,8 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       else
         node
     in
-    inc_step new_state
+    AlgorandStatistics.completed_step2 node.id;
+    inc_step new_state lambda_step
 
   (* step 3 *)
   let certifyingStep node =
@@ -382,7 +461,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
         end
       else node
     in
-    inc_step new_state
+    inc_step new_state lambda_step
 
   (* step 4 *)
   let finishingStep1 node =
@@ -411,7 +490,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
         end
       else node
     in
-    inc_step new_state
+    inc_step new_state lambda_step
     
   (* step 5 *)
   let finishingStep2 node =
@@ -439,20 +518,43 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       begin
         match most_voted node node.nextvotes with
         | (Some bid, true) -> advance_period node (Some bid)
-        | _ -> inc_step node
+        | _ -> inc_step node lambda_step
       end
 
   let run_step node =
     match node.step with
-    | 1 -> valueProposal node
+    | 0 -> valueProposal node
+    | 1 -> identifyPriority node
     | 2 -> filteringStep node
     | 3 -> certifyingStep node
     | 4 -> finishingStep1 node
     | _ -> finishingStep2 node
 
+  let check_conditions node =
+    match node.step with
+    | 2 -> (* if we have already received the proposal with highest priority, we run the step, without waiting for timer *)
+      if find_leader_proposal node != -1 then 
+        begin
+          AlgorandTimer.cancel node.id "step";
+          run_step node
+        end
+      else node
+    | 3 -> (* if we already received a majority of softvotes, we can run the step imediately, without waiting for timer *)
+      begin
+        match most_voted node node.softvotes with 
+        | (Some _, true) -> AlgorandTimer.cancel node.id "step"; run_step node
+        | _ -> node
+      end
+    | _ -> (* if at any point the halting condition is verified, move to the next round *)
+      begin
+        match halting_condition node with
+        | (new_state, _) -> new_state
+      end
+
   let old_msg node msg =
     let (r,p) = 
       match msg with
+      | Priority(round,period,_,_,_) -> (round,period)
       | Proposal(round,period,_,_,_) -> (round,period)
       | SoftVote(round,period,_,_,_) -> (round,period)
       | CertVote(round,period,_,_,_) -> (round,period)
@@ -468,10 +570,13 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       let (new_state,duplicate) =
         begin
           match msg with
+          | Priority(_,_,_,_,_) -> add_no_duplicate node msg
           | Proposal(_,_,_,blk,_) ->
-            node.highest_block_id <- max node.highest_block_id (Simulator.Block.id blk);
-            let s = register_block node (Some(blk)) in
-            add_no_duplicate s msg
+            begin
+              node.highest_block_id <- max node.highest_block_id (Simulator.Block.id blk);
+              let s = register_block node (Some(blk)) in
+              add_no_duplicate s msg
+            end
           | SoftVote(_,_,_,_,_) -> add_no_duplicate node msg
           | CertVote(_,_,_,_,_) -> add_no_duplicate node msg
           | NextVote(_,_,_,_,_) -> add_no_duplicate node msg
@@ -481,7 +586,8 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       | true  -> new_state
       | false -> 
         let new_state2 = send_to_neighbours new_state msg in
-        register_block new_state2 (get_block node (get_block_id msg))
+        let new_state3 = register_block new_state2 (get_block node (get_block_id msg)) in
+        check_conditions new_state3
 
   let handle (node:t) (event:ev) : t =
     match event with
@@ -507,7 +613,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     AlgorandBlock.height node.chain
 
   let parameters () =
-    String.concat "" ["{\"lambda\":";string_of_int lambda;",\"number-of-proposers\":";string_of_int num_proposers;",\"block-creation-chance\":";string_of_float block_creation_chance;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;"}"]
+    String.concat "" ["{\"lambda-step\":";string_of_int lambda_step;",\"lambda-stepvar\":";string_of_int lambda_stepvar;",\"lambda-priority\":";string_of_int lambda_priority;",\"lambda-block\":";string_of_int lambda_block;",\"number-of-proposers\":";string_of_int num_proposers;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;"}"]
 
 end
 
@@ -521,43 +627,6 @@ module AlgorandInitializer : (Abstract.Initializer with type node=AlgorandNode.t
     Hashtbl.iter (fun nid _ -> evs := !evs @ [AlgorandEvent.Timeout(nid, 0, "step")]) nodes;
     !evs
   
-end
-
-module AlgorandStatistics : (Protocol.Statistics with type ev = AlgorandEvent.t and type value=Simulator.Block.t) = struct
-
-  type ev = AlgorandEvent.t
-  type value = Simulator.Block.t
-
-  (* total messages exchanged during the simulation *)
-  let total_messages = ref 0
-
-  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
-  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
-
-  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
-  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
-
-  let consensus_reached nodeID _ =
-    let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
-    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
-    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
-
-  let process event =
-    match event with
-    | AlgorandEvent.Message(_,_,_,_) -> total_messages := !total_messages +1
-    | _ -> ()
-
-  let get () =
-    let avg_consensus_time =
-      let avg_consensus_time_per_node = ref [] in
-      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_consensus_time_per_node := !avg_consensus_time_per_node@[!sum / (List.length x)]) !node_time_between_blocks;
-      let sum = ref 0 in
-      List.iter (fun x -> sum := !sum + x) !avg_consensus_time_per_node;
-      !sum / (List.length !avg_consensus_time_per_node)
-    in
-    String.concat "" ["{\"messages-exchanged\":";string_of_int (!total_messages);",\"average-consensus-time\":";string_of_int avg_consensus_time;"}"]
-
 end
 
 module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;

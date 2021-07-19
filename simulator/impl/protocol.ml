@@ -77,8 +77,11 @@ module Make(Event : Simulator.Events.Event)
             let old_chain_head_id = Block.opt_id (Node.state node_state) in
             let new_state = Node.handle node_state e in
               begin 
-                if Node.chain_height new_state > !max_height then 
-                  max_height := Node.chain_height new_state
+                if Node.chain_height new_state > !max_height then
+                  begin
+                  max_height := Node.chain_height new_state;
+                  print_endline (string_of_int !max_height)
+                  end
               end;
               begin
                 let new_chain_head = Node.state new_state in

@@ -6,6 +6,8 @@ module type PoS = sig
 
   val is_proposer : int -> Simulator.Block.t -> int -> int list -> bool
 
+  val proposer_priority : int -> Simulator.Block.t -> int -> int list -> int
+
 end
 
 
@@ -63,8 +65,6 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     else
       false
 
-
-
   (** 
     * check if the node with <node_id> was selected by sortition of size <num_proposers>
     * <head> is the head of the chain (required to access the stakes of the nodes)
@@ -79,5 +79,12 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
       end
     else
       false
+
+  (** obtain the priority associated with a user that was selected to propose a block *)
+  let proposer_priority node_id head num_proposers params =
+    let selections = sortition head num_proposers params in
+    let res = ref (-1) in
+    List.iteri (fun i id -> if id=node_id then res := i) selections;
+    !res
 
 end

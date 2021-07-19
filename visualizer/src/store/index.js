@@ -134,7 +134,6 @@ const store = createStore({
     },
     actions: {
         async produce(state,params) {
-            //await sleep(Math.floor(Math.random() * 5000));
             state.loaded = false;
             let g = params[0];
             let n = params[1];
@@ -158,6 +157,7 @@ const store = createStore({
             return new Promise(function(resolve) {
                 let sim = child(sim_path, [input_dir+'parameters'+execution+'.json', output_dir+'out'+execution+'.json']);
                 sim.on('close', (code) => {console.log(code); resolve("ok");});
+                sim.stdout.on('data', (data) => {console.log(`${data}`)});
             });
         }
     },

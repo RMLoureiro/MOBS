@@ -1,6 +1,6 @@
 {
     "general": {
-        "num-nodes":50,
+        "num-nodes":500,
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
@@ -28,10 +28,13 @@
         "upload-bandwidth":[4700000, 8100000, 1800000, 5300000, 3400000, 5200000, 6000000]
     },
     "protocol": {
-        "lambda":3000,
+        "lambda-step":20000,
+        "lambda-stepvar":5000,
+        "lambda-priority":5000,
+        "lambda-block":60000,
         "committee-size":20,
         "num-proposers":2,
         "majority-votes":15,
-        "block-creation-chance":0.8
+        "block-size-bits":8000000
     }
 }
