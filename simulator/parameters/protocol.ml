@@ -1,4 +1,9 @@
 
+let get () =
+  let json = Yojson.Basic.from_file !General.parameters_file in
+  let open Yojson.Basic.Util in
+  let obj = json |> member "protocol" in
+  Yojson.Basic.to_string obj
 
 let get_protocol_parameter json param =
   let open Yojson.Basic.Util in

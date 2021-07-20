@@ -118,20 +118,24 @@ end
 
 
 
-module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=int and type value=Simulator.Block.t) = struct
+module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value=Simulator.Block.t) = struct
 
   type value = Simulator.Block.t
 
-  type id = int
+  module V = struct
+    type v = value
+  end
+
+  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
 
   type ev = AlgorandEvent.t
 
   type t = {
-    id     : id;
+    id     : int;
     region : Abstractions.Network.region;
     links  : Abstractions.Network.links;
     mutable received_blocks : Simulator.Block.t list;
-    mutable chain  : Simulator.Block.t;
+    mutable state  : Simulator.Block.t;
     mutable round : int;
     mutable period : int;
     mutable step : int;
@@ -153,7 +157,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       region = region;
       links = links;
       received_blocks = [];
-      chain = AlgorandBlock.genesis_pos 0;
+      state = AlgorandBlock.genesis_pos 0;
       round = 1;
       period = 1;
       step = 0;
@@ -170,7 +174,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     }
 
   let add_to_chain node block =
-    node.chain <- block
+    node.state <- block
 
   (** returns the most recent message, between <msg1> and <msg2> [@Pre: messages must have the same subtype] *)
   let most_recent msg1 msg2 =
@@ -305,16 +309,16 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     | None -> -1
 
   let is_proposer node =
-    AlgorandPoS.is_proposer node.id node.chain num_proposers [node.round]
+    AlgorandPoS.is_proposer node.id node.state num_proposers [node.round]
   
   let proposer_priority node =
-    AlgorandPoS.proposer_priority node.id node.chain num_proposers [node.round]
+    AlgorandPoS.proposer_priority node.id node.state num_proposers [node.round]
 
   let in_committee node =
-    AlgorandPoS.in_committee node.id node.chain committee_size [node.round]
+    AlgorandPoS.in_committee node.id node.state committee_size [node.round]
 
   let create_and_propose_block node =
-    let blk = AlgorandBlock.create node.id node.chain in
+    let blk = AlgorandBlock.create node.id node.state in
     let priority = proposer_priority node in
     node.starting_value <- Some (blk);
     node.highest_priority <- Some(priority, node.id);
@@ -600,20 +604,23 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
       end
     | _ -> node
 
+  (* this function is the same in every blockchain node, 
+    just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
+  let chain_height node = 
+    AlgorandBlock.height node.state
+
+  (* The following four functions are the same for every node object *)
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
   
   let state n =
-    Some n.chain
+    n.state
 
   let state_id n =
-    Simulator.Block.id n.chain
-
-  let chain_height node = 
-    AlgorandBlock.height node.chain
+    Unique.id n.state
 
   let parameters () =
-    String.concat "" ["{\"lambda-step\":";string_of_int lambda_step;",\"lambda-stepvar\":";string_of_int lambda_stepvar;",\"lambda-priority\":";string_of_int lambda_priority;",\"lambda-block\":";string_of_int lambda_block;",\"number-of-proposers\":";string_of_int num_proposers;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;",\"block-size-bits\":";string_of_int block_size;"}"]
+    Parameters.Protocol.get ()
 
 end
 

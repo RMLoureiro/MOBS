@@ -1,9 +1,6 @@
 module type Node = sig
   type value
 
-  (** the id of a node *)
-  type id = int
-
   (** the type of the events being handled *)
   type ev
 
@@ -11,7 +8,7 @@ module type Node = sig
   type t
 
   (** create the initial state of a node *)
-  val init : id -> Abstractions.Network.links -> Abstractions.Network.region -> t
+  val init : int -> Abstractions.Network.links -> Abstractions.Network.region -> t
 
   (** receives the state of a node and an event, returning the resulting state *)
   val handle : t -> ev -> t
@@ -19,8 +16,8 @@ module type Node = sig
   (** compares two nodes *)
   val compare : t -> t -> int
 
-  (** get the state of the node (value being stored) *)
-  val state : t -> value option
+  (** get the state of the node *)
+  val state : t -> value
 
   (** return an integer that identifies the state of the node *)
   val state_id : t -> int
@@ -135,13 +132,8 @@ module Make(Event : Simulator.Events.Event)
                 let new_value = Node.state new_state in
                 if not (old_value = new_value) then
                   begin
-                      match new_value with
-                      | Some(v) ->
-                        begin
-                          Logger.print_new_chain_head i i (Node.state_id new_state);
-                          Statistics.consensus_reached i v
-                        end
-                      | _ -> ()
+                    Logger.print_new_chain_head i i (Node.state_id new_state);
+                    Statistics.consensus_reached i new_value
                   end
               end;
               Hashtbl.replace nodes i new_state

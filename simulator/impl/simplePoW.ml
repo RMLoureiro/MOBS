@@ -23,9 +23,15 @@ module SimpleBlock   = Simulator.Block.Make(SimpleLogger);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
 
-module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int and type value=Simulator.Block.t) = struct
+module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Simulator.Block.t) = struct
   type value = Simulator.Block.t
   
+  module V = struct
+    type v = value
+  end
+
+  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
+
   type id = int
 
   type ev = SimpleEvent.t
@@ -35,7 +41,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int an
     region : Abstractions.Network.region;
     links  : Abstractions.Network.links;
     mutable received_blocks : id list;
-    mutable chain  : Simulator.Block.t option;
+    mutable state  : Simulator.Block.t;
   }
 
   let init id links region =
@@ -44,21 +50,21 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int an
       region = region;
       links = links;
       received_blocks = [];
-      chain = None;
+      state = SimpleBlock.null;
     }
   
   let send_to_neighbours node msg =
     List.iter (fun neighbour -> SimpleNetwork.send node.id neighbour msg) node.links
 
   let add_to_chain node block =
-    node.chain <- Some block
+    node.state <- block
 
   let process_block node block =
     let is_valid_block b = 
-      match node.chain with
-      | None -> true
-      | Some(blk) -> 
-        if SimpleBlock.total_difficulty b > SimpleBlock.total_difficulty blk then true else false
+      if node.state = SimpleBlock.null then
+        true
+      else
+        if SimpleBlock.total_difficulty b > SimpleBlock.total_difficulty node.state then true else false
     in
     let already_seen = (List.exists (fun x -> x=(SimpleBlock.id block)) node.received_blocks) in
     if is_valid_block block && not already_seen then begin
@@ -74,31 +80,31 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type id=int an
     match event with
     | SimpleEvent.MintBlock(_,_) ->
       begin
-      match node.chain with
-      | None -> process_block node (SimpleBlock.genesis_pow node.id (SimplePow.total_mining_power ())) 
-      | Some(parent) -> process_block node (SimpleBlock.create node.id parent)
+      if node.state = SimpleBlock.null then
+        process_block node (SimpleBlock.genesis_pow node.id (SimplePow.total_mining_power ())) 
+      else
+        process_block node (SimpleBlock.create node.id node.state)
       end
     | SimpleEvent.Message(_,_,_,block_msg) -> process_block node block_msg
     | _ -> node
 
+  (* this function is the same in every blockchain node, 
+    just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
+  let chain_height node = 
+    SimpleBlock.height node.state
+
+  (* The following four functions are the same for every node object *)
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
-
+  
   let state n =
-    n.chain
+    n.state
 
   let state_id n =
-    match n.chain with
-    | Some(blk) -> Simulator.Block.id blk
-    | None -> -1
-
-  let chain_height node = 
-    match node.chain with
-    | None -> 0
-    | Some(blk) -> SimpleBlock.height blk
+    Unique.id n.state
 
   let parameters () =
-    "{}"
+    Parameters.Protocol.get ()
 
 end
 

@@ -1,7 +1,7 @@
 {
     "general": {
-        "num-nodes":250,
-        "end-block-height":10,
+        "num-nodes":100,
+        "end-block-height":5,
         "timestamp-limit":0,
         "verbose-output":true,
         "seed":12345,

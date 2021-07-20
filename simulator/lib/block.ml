@@ -20,6 +20,9 @@ module type BlockSig = sig
   (** construct a new block, given the minter_id and parent block *)
   val create : node_id -> t -> t
 
+  (** returns the null block *)
+  val null : t
+
   (** get the height of the block *)
   val height : t -> int
 
@@ -86,6 +89,17 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       parent     = Some parent;
       difficulty = parent.difficulty;
       balances   = reward minter parent.balances;
+      timestamp  = Clock.get_timestamp ()
+    }
+
+  let null =
+    {
+      id         = -1;
+      height     = 0;
+      minter     = -1;
+      parent     = None;
+      difficulty = 0;
+      balances   = [];
       timestamp  = Clock.get_timestamp ()
     }
 

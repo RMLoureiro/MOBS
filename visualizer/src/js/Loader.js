@@ -91,7 +91,7 @@ export default class Loader {
               this.worldMap,
               content["timestamp"],
               content["node-id"],
-              this.regions[content["region-id"]]
+              this.regions[content["region-id"]%6]
             );
           }
           break;

@@ -94,20 +94,26 @@ module BitcoinStatistics = struct
 
 end
 
-module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int and type value=Simulator.Block.t) = struct
-  type value = Simulator.Block.t
+
+module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=Simulator.Block.t) = struct
   
-  type id = int
+  type value = Simulator.Block.t
+
+  module V = struct
+    type v = value
+  end
+
+  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
 
   type ev = BitcoinEvent.t
 
   type t = {
-    id     : id;
+    id     : int;
     region : Abstractions.Network.region;
     links  : Abstractions.Network.links;
+    mutable state: value;
     mutable received_blocks : Simulator.Block.t list;
-    mutable chain  : Simulator.Block.t option;
-    mutable downloading_blocks : id list;
+    mutable downloading_blocks : int list;
     mutable outgoing_queue : (msg * int) list;
     mutable sending : bool;
   }
@@ -117,9 +123,9 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
       id = id;
       region = region;
       links = links;
+      state = BitcoinBlock.null;
       received_blocks = [];
       downloading_blocks = [];
-      chain = None;
       outgoing_queue = [];
       sending = false;
     }
@@ -128,7 +134,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
     List.iter (fun neighbour -> BitcoinNetwork.send node.id neighbour msg) node.links
 
   let add_to_chain node block =
-    node.chain <- Some block
+    node.state <- block
 
   let get_block node bid =
     let b = ref None in
@@ -137,10 +143,12 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
 
   let process_block node block =
     let is_valid_block b = 
-      match node.chain with
-      | None -> true
-      | Some(blk) -> 
-        if BitcoinBlock.total_difficulty b > BitcoinBlock.total_difficulty blk then true else false
+      if node.state = BitcoinBlock.null then
+        true
+      else 
+        begin
+          if BitcoinBlock.total_difficulty b > BitcoinBlock.total_difficulty node.state then true else false
+        end
     in
     let already_seen = (List.exists (fun x -> BitcoinBlock.id x=(BitcoinBlock.id block)) node.received_blocks) in
     if is_valid_block block && not already_seen then begin
@@ -189,9 +197,10 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
     match event with
     | BitcoinEvent.MintBlock(_,_) ->
       begin
-      match node.chain with
-      | None -> process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
-      | Some(parent) -> process_block node (BitcoinBlock.create node.id parent)
+        if node.state = BitcoinBlock.null then
+          process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
+        else
+          process_block node (BitcoinBlock.create node.id node.state)
       end
     | BitcoinEvent.Message(_,_,_,msg) -> 
       begin
@@ -203,24 +212,23 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type id=int 
     | BitcoinEvent.Timeout(_,_,"message_sent") -> send_next_block node
     | _ -> node
 
+  (* this function is the same in every blockchain node, 
+    just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
+  let chain_height node = 
+    BitcoinBlock.height node.state
+
+  (* The following four functions are the same for every node object *)
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
-
+  
   let state n =
-    n.chain
+    n.state
 
   let state_id n =
-    match n.chain with
-    | Some(blk) -> Simulator.Block.id blk
-    | None -> -1
-
-  let chain_height node = 
-    match node.chain with
-    | None -> 0
-    | Some(blk) -> BitcoinBlock.height blk
+    Unique.id n.state
 
   let parameters () =
-    "{}"
+    Parameters.Protocol.get ()
 
 end
 
