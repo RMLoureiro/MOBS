@@ -188,7 +188,7 @@
                 this.parameters.forEach(comb => {
                     labels.push(comb[this.view_parameter]);
                 });
-                labels = [...new Set(labels)].sort();
+                //labels = [...new Set(labels)].sort();
                 this.data.labels = labels;
                 let stat_data = [];
                 let param_index = 0;

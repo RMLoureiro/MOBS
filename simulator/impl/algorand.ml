@@ -613,7 +613,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type id=in
     AlgorandBlock.height node.chain
 
   let parameters () =
-    String.concat "" ["{\"lambda-step\":";string_of_int lambda_step;",\"lambda-stepvar\":";string_of_int lambda_stepvar;",\"lambda-priority\":";string_of_int lambda_priority;",\"lambda-block\":";string_of_int lambda_block;",\"number-of-proposers\":";string_of_int num_proposers;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;"}"]
+    String.concat "" ["{\"lambda-step\":";string_of_int lambda_step;",\"lambda-stepvar\":";string_of_int lambda_stepvar;",\"lambda-priority\":";string_of_int lambda_priority;",\"lambda-block\":";string_of_int lambda_block;",\"number-of-proposers\":";string_of_int num_proposers;",\"committee-size\":";string_of_int committee_size;",\"majority-size\":";string_of_int majority_votes;",\"block-size-bits\":";string_of_int block_size;"}"]
 
 end
 
