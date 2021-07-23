@@ -107,41 +107,41 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
 
   type ev = BitcoinEvent.t
 
-  type t = {
-    id     : int;
-    region : Abstractions.Network.region;
-    links  : Abstractions.Network.links;
-    mutable state: value;
+  type node_data = {
     mutable received_blocks : Simulator.Block.t list;
     mutable downloading_blocks : int list;
     mutable outgoing_queue : (msg * int) list;
     mutable sending : bool;
   }
 
-  let init id links region =
+  type t = (node_data, value) Abstract.template
+
+  let init id links region : (t) =
     {
       id = id;
       region = region;
       links = links;
       state = BitcoinBlock.null;
-      received_blocks = [];
-      downloading_blocks = [];
-      outgoing_queue = [];
-      sending = false;
+      data  = {
+        received_blocks = [];
+        downloading_blocks = [];
+        outgoing_queue = [];
+        sending = false;
+      }
     }
   
-  let send_to_neighbours node msg =
+  let send_to_neighbours (node:t) msg =
     List.iter (fun neighbour -> BitcoinNetwork.send node.id neighbour msg) node.links
 
-  let add_to_chain node block =
+  let add_to_chain (node:t) block =
     node.state <- block
 
-  let get_block node bid =
+  let get_block (node:t) bid =
     let b = ref None in
-    List.iter (fun blk -> if BitcoinBlock.id blk = bid then b := Some blk) node.received_blocks;
+    List.iter (fun blk -> if BitcoinBlock.id blk = bid then b := Some blk) node.data.received_blocks;
     !b
 
-  let process_block node block =
+  let process_block (node:t) block =
     let is_valid_block b = 
       if node.state = BitcoinBlock.null then
         true
@@ -150,11 +150,11 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
           if BitcoinBlock.total_difficulty b > BitcoinBlock.total_difficulty node.state then true else false
         end
     in
-    let already_seen = (List.exists (fun x -> BitcoinBlock.id x=(BitcoinBlock.id block)) node.received_blocks) in
+    let already_seen = (List.exists (fun x -> BitcoinBlock.id x=(BitcoinBlock.id block)) node.data.received_blocks) in
     if is_valid_block block && not already_seen then begin
       add_to_chain node block;
       BitcoinStatistics.received_new_block block;
-      node.received_blocks <- node.received_blocks @ [block];
+      node.data.received_blocks <- node.data.received_blocks @ [block];
       send_to_neighbours node (Inv(BitcoinBlock.id block, node.id));
       (* TODO : remove block from "downloading" list *)
       BitcoinPow.stop_minting node.id;
@@ -162,35 +162,35 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
     end;
     node
 
-  let process_inv node bid sender = 
-    let already_received = List.exists (fun x -> BitcoinBlock.id x = bid) node.received_blocks in
-    let downloading = List.exists (fun x -> x = bid) node.downloading_blocks in
+  let process_inv (node:t) bid sender = 
+    let already_received = List.exists (fun x -> BitcoinBlock.id x = bid) node.data.received_blocks in
+    let downloading = List.exists (fun x -> x = bid) node.data.downloading_blocks in
     if not downloading && not already_received then
       begin
         BitcoinNetwork.send node.id sender (Rec(bid,node.id));
-        node.downloading_blocks <- node.downloading_blocks@[bid];
+        node.data.downloading_blocks <- node.data.downloading_blocks@[bid];
         node
       end
     else
       node
 
-  let send_next_block node =
-    match node.outgoing_queue with
+  let send_next_block (node:t) =
+    match node.data.outgoing_queue with
     | []    ->
-      node.sending <- false;
+      node.data.sending <- false;
       node
     | (msg,target)::xs -> 
       BitcoinNetwork.send node.id target msg;
-      node.outgoing_queue <- xs;
-      node.sending <- true;
+      node.data.outgoing_queue <- xs;
+      node.data.sending <- true;
       node
 
-  let process_rec node bid sender = 
+  let process_rec (node:t) bid sender = 
     let blk = get_block node bid in
     match blk with
     | Some(b) -> 
-      node.outgoing_queue <- node.outgoing_queue@[(Block(b), sender)];
-      if not node.sending then send_next_block node else node
+      node.data.outgoing_queue <- node.data.outgoing_queue@[(Block(b), sender)];
+      if not node.data.sending then send_next_block node else node
     | None -> node
 
   let handle (node:t) (event:ev) : t =
@@ -212,23 +212,12 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
     | BitcoinEvent.Timeout(_,_,"message_sent") -> send_next_block node
     | _ -> node
 
-  (* this function is the same in every blockchain node, 
+  (* this function is the same in every blockchain-specific node, 
     just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
-  let chain_height node = 
+  let chain_height (node:t) = 
     BitcoinBlock.height node.state
 
-  (* The following four functions are the same for every node object *)
-  let compare n1 n2 =
-    if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
-  
-  let state n =
-    n.state
-
-  let state_id n =
-    Unique.id n.state
-
-  let parameters () =
-    Parameters.Protocol.get ()
+    include Abstract.MakeBaseNode(Unique);;
 
 end
 

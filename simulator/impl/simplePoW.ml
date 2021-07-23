@@ -32,44 +32,42 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
 
   module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
 
-  type id = int
-
   type ev = SimpleEvent.t
 
-  type t = {
-    id     : id;
-    region : Abstractions.Network.region;
-    links  : Abstractions.Network.links;
-    mutable received_blocks : id list;
-    mutable state  : Simulator.Block.t;
+  type node_data = {
+    mutable received_blocks : int list;
   }
 
-  let init id links region =
+  type t = (node_data, value) Abstract.template
+
+  let init id links region : (t) =
     {
       id = id;
       region = region;
       links = links;
-      received_blocks = [];
       state = SimpleBlock.null;
+      data = {
+        received_blocks = [];
+      }
     }
   
-  let send_to_neighbours node msg =
+  let send_to_neighbours (node:t) msg =
     List.iter (fun neighbour -> SimpleNetwork.send node.id neighbour msg) node.links
 
-  let add_to_chain node block =
+  let add_to_chain (node:t) block =
     node.state <- block
 
-  let process_block node block =
+  let process_block (node:t) block =
     let is_valid_block b = 
       if node.state = SimpleBlock.null then
         true
       else
         if SimpleBlock.total_difficulty b > SimpleBlock.total_difficulty node.state then true else false
     in
-    let already_seen = (List.exists (fun x -> x=(SimpleBlock.id block)) node.received_blocks) in
+    let already_seen = (List.exists (fun x -> x=(SimpleBlock.id block)) node.data.received_blocks) in
     if is_valid_block block && not already_seen then begin
       add_to_chain node block;
-      node.received_blocks <- node.received_blocks @ [SimpleBlock.id block];
+      node.data.received_blocks <- node.data.received_blocks @ [SimpleBlock.id block];
       send_to_neighbours node block;
       SimplePow.stop_minting node.id;
       SimplePow.start_minting node.id block;
@@ -88,23 +86,12 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     | SimpleEvent.Message(_,_,_,block_msg) -> process_block node block_msg
     | _ -> node
 
-  (* this function is the same in every blockchain node, 
+  (* this function is the same in every blockchain-specific node, 
     just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
-  let chain_height node = 
+  let chain_height (node:t) = 
     SimpleBlock.height node.state
 
-  (* The following four functions are the same for every node object *)
-  let compare n1 n2 =
-    if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
-  
-  let state n =
-    n.state
-
-  let state_id n =
-    Unique.id n.state
-
-  let parameters () =
-    Parameters.Protocol.get ()
+  include Abstract.MakeBaseNode(Unique);;
 
 end
 

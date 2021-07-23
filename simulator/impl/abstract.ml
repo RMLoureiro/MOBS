@@ -1,11 +1,22 @@
+type ('a, 'b) template = {
+  id:int;
+  region : Abstractions.Network.region;
+  links  : Abstractions.Network.links;
+  mutable state:'b;
+  mutable data:'a;
+}
+
 module type Node = sig
   type value
 
   (** the type of the events being handled *)
   type ev
 
+  (** the protocol specific data stored by the node *)
+  type node_data
+
   (** the type representing a node and its state *)
-  type t
+  type t = (node_data, value) template
 
   (** create the initial state of a node *)
   val init : int -> Abstractions.Network.links -> Abstractions.Network.region -> t
@@ -27,6 +38,22 @@ module type Node = sig
 
 end
 
+
+module MakeBaseNode(Unique:Simulator.Unique.Unique) = struct
+
+  let compare n1 n2 =
+    if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0
+  
+  let state n =
+    n.state
+
+  let state_id n =
+    Unique.id n.state
+
+  let parameters () =
+    Parameters.Protocol.get ()
+
+end
 
 
 module type Initializer = sig
