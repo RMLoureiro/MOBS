@@ -103,7 +103,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
     type v = value
   end
 
-  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
+  include Abstract.MakeBaseNode(V)
 
   type ev = BitcoinEvent.t
 
@@ -217,7 +217,6 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
   let chain_height (node:t) = 
     BitcoinBlock.height node.state
 
-    include Abstract.MakeBaseNode(Unique);;
 
 end
 

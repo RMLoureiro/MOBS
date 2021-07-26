@@ -38,8 +38,14 @@ module type Node = sig
 
 end
 
+module type V = sig
+  type v
+end
 
-module MakeBaseNode(Unique:Simulator.Unique.Unique) = struct
+
+module MakeBaseNode(V:V) = struct
+
+  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
 
   let compare n1 n2 =
     if n1.id < n2.id then -1 else if n1.id > n2.id then 1 else 0

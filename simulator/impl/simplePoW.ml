@@ -30,7 +30,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     type v = value
   end
 
-  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
+  include Abstract.MakeBaseNode(V)
 
   type ev = SimpleEvent.t
 
@@ -90,8 +90,6 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     just changing the prefix of the protocol (AlgorandBlock, BitcoinBlock, SimpleBlock, _Block...) *)
   let chain_height (node:t) = 
     SimpleBlock.height node.state
-
-  include Abstract.MakeBaseNode(Unique);;
 
 end
 

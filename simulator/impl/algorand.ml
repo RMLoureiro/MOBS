@@ -126,7 +126,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     type v = value
   end
 
-  module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
+  include Abstract.MakeBaseNode(V)
 
   type ev = AlgorandEvent.t
 
@@ -609,7 +609,6 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
   let chain_height (node:t) = 
     AlgorandBlock.height node.state
 
-  include Abstract.MakeBaseNode(Unique);;
 
 end
 
