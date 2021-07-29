@@ -104,7 +104,6 @@ end
 
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
-           (Block : Simulator.Block.BlockSig)
            (Node : Node with type ev = Event.t) 
            (Initializer : Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
