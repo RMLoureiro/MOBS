@@ -1,6 +1,5 @@
 module BlockContents = struct
   type t = unit
-  let default = ()
 end
 
 module SimpleMsg : (Simulator.Events.Message with type t = BlockContents.t Simulator.Block.t) = struct 
@@ -50,7 +49,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
       id = id;
       region = region;
       links = links;
-      state = SimpleBlock.null;
+      state = SimpleBlock.null ();
       data = {
         received_blocks = [];
       }
@@ -64,7 +63,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
 
   let process_block (node:t) block =
     let is_valid_block b = 
-      if node.state = SimpleBlock.null then
+      if node.state = SimpleBlock.null () then
         true
       else
         if SimpleBlock.total_difficulty b > SimpleBlock.total_difficulty node.state then true else false
@@ -83,8 +82,8 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     match event with
     | SimpleEvent.MintBlock(_,_) ->
       begin
-      if node.state = SimpleBlock.null then
-        process_block node (SimpleBlock.genesis_pow node.id (SimplePow.total_mining_power ())) 
+      if node.state = SimpleBlock.null () then
+        process_block node (SimpleBlock.genesis_pow node.id (SimplePow.total_mining_power ()) ()) 
       else
         process_block node (SimpleBlock.create node.id node.state ())
       end

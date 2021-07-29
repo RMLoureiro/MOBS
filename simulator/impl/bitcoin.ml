@@ -1,6 +1,5 @@
 module BlockContents = struct
   type t = unit
-  let default = ()
 end
 
 type msg = 
@@ -126,7 +125,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
       id = id;
       region = region;
       links = links;
-      state = BitcoinBlock.null;
+      state = BitcoinBlock.null ();
       data  = {
         received_blocks = [];
         downloading_blocks = [];
@@ -148,7 +147,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
 
   let process_block (node:t) block =
     let is_valid_block b = 
-      if node.state = BitcoinBlock.null then
+      if node.state = BitcoinBlock.null () then
         true
       else 
         begin
@@ -202,8 +201,8 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
     match event with
     | BitcoinEvent.MintBlock(_,_) ->
       begin
-        if node.state = BitcoinBlock.null then
-          process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
+        if node.state = BitcoinBlock.null () then
+          process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ()) ()) 
         else
           process_block node (BitcoinBlock.create node.id node.state ())
       end

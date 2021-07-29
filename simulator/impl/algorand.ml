@@ -10,7 +10,6 @@ let block_size            = Parameters.Protocol.get_int_parameter "block-size-bi
 
 module BlockContents = struct
   type t = unit
-  let default = ()
 end
 
 type alg_msg = 
@@ -159,7 +158,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
       id = id;
       region = region;
       links = links;
-      state = AlgorandBlock.genesis_pos 0;
+      state = AlgorandBlock.genesis_pos 0 ();
       data = {
         received_blocks = [];
         round = 1;

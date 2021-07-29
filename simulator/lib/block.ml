@@ -5,14 +5,15 @@ type balances = (node_id * float) list
 (** type of a block's representation *)
 type 'a t =
   {
-    id         : block_id;
-    height     : int;
-    minter     : node_id;
-    parent     : 'a t option;
-    balances   : balances;
-    difficulty : int;
-    timestamp  : Clock.t;
-    contents   : 'a;
+    id               : block_id;
+    height           : int;
+    minter           : node_id;
+    parent           : node_id option;
+    balances         : balances;
+    difficulty       : int;
+    total_difficulty : int;
+    timestamp        : Clock.t;
+    contents         : 'a;
   }
 
 let id block = block.id
@@ -26,13 +27,13 @@ module type BlockSig = sig
   val create : node_id -> block -> block_contents -> block
 
   (** returns the null block *)
-  val null : block
+  val null : block_contents -> block
 
   (** get the height of the block *)
   val height : 'a t -> int
 
   (** get the parent block *)
-  val parent : 'a t -> 'a t option
+  val parent : 'a t -> node_id option
 
   (** get the id of the node that minted the block *)
   val minter : 'a t -> node_id
@@ -59,10 +60,10 @@ module type BlockSig = sig
   val total_coins : 'a t -> float
 
   (** get the genesis block, assigning a minter and a initial dificulty *)
-  val genesis_pow : node_id -> int -> block
+  val genesis_pow : node_id -> int -> block_contents -> block
 
   (** get the genesis block, assigning a minter *)
-  val genesis_pos : node_id -> block
+  val genesis_pos : node_id -> block_contents -> block
 
   (** check if two blocks are equal *)
   val equals : 'a t -> 'a t -> bool
@@ -70,7 +71,6 @@ end
 
 module type BlockContent = sig
   type t
-  val default : t
 end
 
 
@@ -96,26 +96,28 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
     latest_id := !latest_id + 1;
     Logger.print_create_block minter !latest_id;
     {
-      id         = !latest_id;
-      height     = parent.height + 1;
-      minter     = minter;
-      parent     = Some parent;
-      difficulty = parent.difficulty;
-      balances   = reward minter parent.balances;
-      timestamp  = Clock.get_timestamp ();
-      contents   = data;
+      id               = !latest_id;
+      height           = parent.height + 1;
+      minter           = minter;
+      parent           = Some parent.id;
+      difficulty       = parent.difficulty;
+      total_difficulty = parent.total_difficulty + parent.difficulty;
+      balances         = reward minter parent.balances;
+      timestamp        = Clock.get_timestamp ();
+      contents         = data;
     }
 
-  let null =
+  let null content =
     {
-      id         = -1;
-      height     = 0;
-      minter     = -1;
-      parent     = None;
-      difficulty = 0;
-      balances   = [];
-      timestamp  = Clock.get_timestamp ();
-      contents   = BlockContent.default;
+      id               = -1;
+      height           = 0;
+      minter           = -1;
+      parent           = None;
+      difficulty       = 0;
+      total_difficulty = 0;
+      balances         = [];
+      timestamp        = Clock.get_timestamp ();
+      contents         = content;
     }
 
   let height block = block.height
@@ -153,36 +155,32 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
 
   let difficulty block = block.difficulty
 
-  let total_difficulty block =
-    let rec sum_difficulty b =
-      match b.parent with
-      | None -> b.difficulty
-      | Some(parent) -> b.difficulty + (sum_difficulty parent)
-    in
-    sum_difficulty block
+  let total_difficulty block = block.total_difficulty
 
-  let genesis_pow minter_id difficulty =
+  let genesis_pow minter_id difficulty content =
     {
-      id         = 0;
-      height     = 0;
-      minter     = minter_id;
-      parent     = None;
-      difficulty = difficulty * !Parameters.General.interval;
-      balances   = gen_balances;
-      timestamp  = 0;
-      contents   = BlockContent.default;
+      id               = 0;
+      height           = 0;
+      minter           = minter_id;
+      parent           = None;
+      difficulty       = difficulty * !Parameters.General.interval;
+      total_difficulty = difficulty * !Parameters.General.interval;
+      balances         = gen_balances;
+      timestamp        = 0;
+      contents         = content;
     }
 
-  let genesis_pos minter_id =
+  let genesis_pos minter_id content =
     {
-      id         = 0;
-      height     = 0;
-      minter     = minter_id;
-      parent     = None;
-      difficulty = 10000;
-      balances   = gen_balances; 
-      timestamp  = 0;
-      contents   = BlockContent.default;
+      id               = 0;
+      height           = 0;
+      minter           = minter_id;
+      parent           = None;
+      difficulty       = 10000;
+      total_difficulty = 10000;
+      balances         = gen_balances; 
+      timestamp        = 0;
+      contents         = content;
     }
 
   let equals a b =
