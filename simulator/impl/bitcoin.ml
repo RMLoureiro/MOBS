@@ -1,5 +1,10 @@
+module BlockContents = struct
+  type t = unit
+  let default = ()
+end
+
 type msg = 
-  Block of Simulator.Block.t (* block *)
+  Block of BlockContents.t Simulator.Block.t (* block *)
   | Inv of int*int           (* blockID, from *)
   | Rec of int*int           (* blockID, from *)
 
@@ -33,14 +38,14 @@ module BitcoinEvent   = Simulator.Events.MakeEvent(BitcoinMsg);;
 module BitcoinQueue   = Simulator.Events.MakeQueue(BitcoinEvent);;
 module BitcoinNetwork = Abstractions.Network.Make(BitcoinEvent)(BitcoinQueue)(BitcoinMsg);;
 module BitcoinLogger  = Simulator.Logging.Make(BitcoinMsg)(BitcoinEvent);;
-module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger);;
+module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger)(BlockContents);;
 module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock);;
 let _ = BitcoinPow.init_mining_power ();;
 
 module BitcoinStatistics = struct
 
   type ev = BitcoinEvent.t
-  type value = Simulator.Block.t
+  type value = BitcoinBlock.block
 
   (* Observed Delay per Block per Node *)
   let odpb = ref []
@@ -95,9 +100,9 @@ module BitcoinStatistics = struct
 end
 
 
-module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=Simulator.Block.t) = struct
+module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=BitcoinBlock.block) = struct
   
-  type value = Simulator.Block.t
+  type value = BitcoinBlock.block
 
   module V = struct
     type v = value
@@ -108,7 +113,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
   type ev = BitcoinEvent.t
 
   type node_data = {
-    mutable received_blocks : Simulator.Block.t list;
+    mutable received_blocks : BitcoinBlock.block list;
     mutable downloading_blocks : int list;
     mutable outgoing_queue : (msg * int) list;
     mutable sending : bool;
@@ -200,7 +205,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=S
         if node.state = BitcoinBlock.null then
           process_block node (BitcoinBlock.genesis_pow node.id (BitcoinPow.total_mining_power ())) 
         else
-          process_block node (BitcoinBlock.create node.id node.state)
+          process_block node (BitcoinBlock.create node.id node.state ())
       end
     | BitcoinEvent.Message(_,_,_,msg) -> 
       begin

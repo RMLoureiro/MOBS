@@ -1,6 +1,6 @@
 (library
  (name implementation)
- (libraries parameters simulator abstractions sha))
+ (libraries parameters simulator abstractions sha cryptokit data-encoding base64))
 (env
  (dev
    (flags (:standard -warn-error -A))))

@@ -3,69 +3,82 @@ type block_id = int
 type balances = (node_id * float) list
 
 (** type of a block's representation *)
-type t =
+type 'a t =
   {
     id         : block_id;
     height     : int;
     minter     : node_id;
-    parent     : t option;
+    parent     : 'a t option;
     balances   : balances;
     difficulty : int;
-    timestamp  : Clock.t
+    timestamp  : Clock.t;
+    contents   : 'a;
   }
 
 let id block = block.id
 
 module type BlockSig = sig
-  (** construct a new block, given the minter_id and parent block *)
-  val create : node_id -> t -> t
+  type block_contents
+
+  type block = block_contents t
+
+  (** construct a new block, given the minter_id and parent block and block data *)
+  val create : node_id -> block -> block_contents -> block
 
   (** returns the null block *)
-  val null : t
+  val null : block
 
   (** get the height of the block *)
-  val height : t -> int
+  val height : 'a t -> int
 
   (** get the parent block *)
-  val parent : t -> t option
+  val parent : 'a t -> 'a t option
 
   (** get the id of the node that minted the block *)
-  val minter : t -> node_id
+  val minter : 'a t -> node_id
 
   (** get the id of the block *)
-  val id : t -> block_id
+  val id : 'a t -> block_id
 
   (** get the id of a block option *)
-  val opt_id : t option -> block_id
+  val opt_id : 'a t option -> block_id
 
   (** get the balances of the nodes *)
-  val balances : t -> balances
+  val balances : 'a t -> balances
 
   (** get the timestamp of the block's creation *)
-  val timestamp : t -> Clock.t
+  val timestamp : 'a t -> Clock.t
 
   (** get the difficulty of the block *)
-  val difficulty : t -> int
+  val difficulty : 'a t -> int
 
   (** get the total difficulty of the chain *)
-  val total_difficulty : t -> int
+  val total_difficulty : 'a t -> int
 
   (** get the total amount of coins *)
-  val total_coins : t -> float
+  val total_coins : 'a t -> float
 
   (** get the genesis block, assigning a minter and a initial dificulty *)
-  val genesis_pow : node_id -> int -> t
+  val genesis_pow : node_id -> int -> block
 
   (** get the genesis block, assigning a minter *)
-  val genesis_pos : node_id -> t
+  val genesis_pos : node_id -> block
 
   (** check if two blocks are equal *)
-  val equals : t -> t -> bool
+  val equals : 'a t -> 'a t -> bool
+end
+
+module type BlockContent = sig
+  type t
+  val default : t
 end
 
 
+module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with type block_contents = BlockContent.t and type block = BlockContent.t t) = struct
 
-module Make(Logger : Logging.Logger) : BlockSig = struct
+  type block_contents = BlockContent.t
+
+  type block = block_contents t
 
   let latest_id = ref 0
 
@@ -79,7 +92,7 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       in
     List.map gets_reward balances
 
-  let create minter parent =
+  let create minter parent data =
     latest_id := !latest_id + 1;
     Logger.print_create_block minter !latest_id;
     {
@@ -89,7 +102,8 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       parent     = Some parent;
       difficulty = parent.difficulty;
       balances   = reward minter parent.balances;
-      timestamp  = Clock.get_timestamp ()
+      timestamp  = Clock.get_timestamp ();
+      contents   = data;
     }
 
   let null =
@@ -100,7 +114,8 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       parent     = None;
       difficulty = 0;
       balances   = [];
-      timestamp  = Clock.get_timestamp ()
+      timestamp  = Clock.get_timestamp ();
+      contents   = BlockContent.default;
     }
 
   let height block = block.height
@@ -154,7 +169,8 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       parent     = None;
       difficulty = difficulty * !Parameters.General.interval;
       balances   = gen_balances;
-      timestamp  = 0
+      timestamp  = 0;
+      contents   = BlockContent.default;
     }
 
   let genesis_pos minter_id =
@@ -165,7 +181,8 @@ module Make(Logger : Logging.Logger) : BlockSig = struct
       parent     = None;
       difficulty = 10000;
       balances   = gen_balances; 
-      timestamp  = 0
+      timestamp  = 0;
+      contents   = BlockContent.default;
     }
 
   let equals a b =

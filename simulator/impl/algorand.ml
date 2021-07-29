@@ -8,9 +8,14 @@ let num_proposers         = Parameters.Protocol.get_int_parameter "num-proposers
 let majority_votes        = Parameters.Protocol.get_int_parameter "majority-votes";;
 let block_size            = Parameters.Protocol.get_int_parameter "block-size-bits";;
 
+module BlockContents = struct
+  type t = unit
+  let default = ()
+end
+
 type alg_msg = 
     Priority of int * int * int * int * int               (* round, period, step, priority, creator_id *)
-  | Proposal of int * int * int * Simulator.Block.t * int (* round, period, step, block,    creator_id *)
+  | Proposal of int * int * int * (BlockContents.t Simulator.Block.t) * int (* round, period, step, block,    creator_id *)
   | SoftVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
   | CertVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
   | NextVote of int * int * int * int * int               (* round, period, step, block_id, creator_id *)
@@ -55,14 +60,14 @@ module AlgorandQueue   = Simulator.Events.MakeQueue(AlgorandEvent);;
 module AlgorandTimer   = Abstractions.Timer.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue)(AlgorandMsg);;
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
-module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger);;
+module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger)(BlockContents);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
 
 
 module AlgorandStatistics = struct
 
   type ev = AlgorandEvent.t
-  type value = Simulator.Block.t
+  type value = AlgorandBlock.block
 
   (* total messages exchanged during the simulation *)
   let total_messages = ref 0
@@ -118,9 +123,9 @@ end
 
 
 
-module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value=Simulator.Block.t) = struct
+module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value=AlgorandBlock.block) = struct
 
-  type value = Simulator.Block.t
+  type value = AlgorandBlock.block
 
   module V = struct
     type v = value
@@ -131,12 +136,12 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
   type ev = AlgorandEvent.t
 
   type node_data = {
-    mutable received_blocks : Simulator.Block.t list;
+    mutable received_blocks : AlgorandBlock.block list;
     mutable round : int;
     mutable period : int;
     mutable step : int;
-    mutable starting_value : Simulator.Block.t option;
-    mutable cert_voted : Simulator.Block.t option;
+    mutable starting_value : AlgorandBlock.block option;
+    mutable cert_voted : AlgorandBlock.block option;
     mutable highest_priority : (int*int) option; (* priority, node_id *)
     mutable proposals : alg_msg list;
     mutable softvotes : alg_msg list;
@@ -291,7 +296,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     (!most_voted, !max_votes >= majority_votes)
 
   let find_leader_proposal (node:t) =
-    let leader_proposal : Simulator.Block.t option ref = ref None in
+    let leader_proposal : AlgorandBlock.block option ref = ref None in
     let find_leader proposal =
       match proposal with
       | Proposal(_,_,_,blk,creator) -> 
@@ -318,7 +323,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     AlgorandPoS.in_committee node.id node.state committee_size [node.data.round]
 
   let create_and_propose_block (node:t) =
-    let blk = AlgorandBlock.create node.id node.state in
+    let blk = AlgorandBlock.create node.id node.state () in
     let priority = proposer_priority node in
     node.data.starting_value <- Some (blk);
     node.data.highest_priority <- Some(priority, node.id);

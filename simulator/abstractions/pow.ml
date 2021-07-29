@@ -4,7 +4,7 @@ module type PoW = sig
   val init_mining_power : unit -> unit
 
   (** given a node's ID and a block, starts the minting process by nodeID to extend that block *)
-  val start_minting : int -> Simulator.Block.t -> unit
+  val start_minting : int -> 'a Simulator.Block.t -> unit
 
   (** given a node's ID, stops its minting process *)
   val stop_minting : int -> unit

@@ -1,12 +1,12 @@
 module type PoS = sig
 
-  val sortition : Simulator.Block.t -> int -> int list -> int list
+  val sortition : 'a Simulator.Block.t -> int -> int list -> int list
 
-  val in_committee : int -> Simulator.Block.t -> int -> int list -> bool
+  val in_committee : int -> 'a Simulator.Block.t -> int -> int list -> bool
 
-  val is_proposer : int -> Simulator.Block.t -> int -> int list -> bool
+  val is_proposer : int -> 'a Simulator.Block.t -> int -> int list -> bool
 
-  val proposer_priority : int -> Simulator.Block.t -> int -> int list -> int
+  val proposer_priority : int -> 'a Simulator.Block.t -> int -> int list -> int
 
 end
 

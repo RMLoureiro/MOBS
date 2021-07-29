@@ -1,5 +1,10 @@
-module SimpleMsg : (Simulator.Events.Message with type t = Simulator.Block.t) = struct 
-  type t = Simulator.Block.t
+module BlockContents = struct
+  type t = unit
+  let default = ()
+end
+
+module SimpleMsg : (Simulator.Events.Message with type t = BlockContents.t Simulator.Block.t) = struct 
+  type t = BlockContents.t Simulator.Block.t
 
   let to_json (blk:t) : string =
     String.concat "" ["{\"block_id\":\"";string_of_int (Simulator.Block.id blk);"\"}"]
@@ -19,12 +24,12 @@ module SimpleEvent   = Simulator.Events.MakeEvent(SimpleMsg);;
 module SimpleQueue   = Simulator.Events.MakeQueue(SimpleEvent);;
 module SimpleNetwork = Abstractions.Network.Make(SimpleEvent)(SimpleQueue)(SimpleMsg);;
 module SimpleLogger  = Simulator.Logging.Make(SimpleMsg)(SimpleEvent);;
-module SimpleBlock   = Simulator.Block.Make(SimpleLogger);;
+module SimpleBlock   = Simulator.Block.Make(SimpleLogger)(BlockContents);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
 
-module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Simulator.Block.t) = struct
-  type value = Simulator.Block.t
+module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=SimpleBlock.block) = struct
+  type value = SimpleBlock.block
   
   module V = struct
     type v = value
@@ -81,7 +86,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
       if node.state = SimpleBlock.null then
         process_block node (SimpleBlock.genesis_pow node.id (SimplePow.total_mining_power ())) 
       else
-        process_block node (SimpleBlock.create node.id node.state)
+        process_block node (SimpleBlock.create node.id node.state ())
       end
     | SimpleEvent.Message(_,_,_,block_msg) -> process_block node block_msg
     | _ -> node
@@ -104,10 +109,10 @@ module SimpleInitializer : (Abstract.Initializer with type node=SimpleNode.t and
   
 end
 
-module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and type value = Simulator.Block.t) = struct
+module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and type value = SimpleBlock.block) = struct
 
   type ev = SimpleEvent.t
-  type value = Simulator.Block.t
+  type value = SimpleBlock.block
 
   let consensus_reached _ _ =
     ()

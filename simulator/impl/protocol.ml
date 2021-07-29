@@ -17,10 +17,10 @@ end
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Block : Simulator.Block.BlockSig)
-           (Node : Node with type ev = Event.t and type value = Simulator.Block.t) 
+           (Node : Node with type ev = Event.t and type value = Block.block) 
            (Initializer : Abstract.Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Statistics with type ev=Event.t and type value=Simulator.Block.t) : Abstract.Protocol
+           (Statistics : Statistics with type ev=Event.t and type value=Block.block) : Abstract.Protocol
            = struct
 
   module NodeMap = Map.Make(Int)
