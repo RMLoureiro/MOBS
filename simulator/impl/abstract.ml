@@ -146,7 +146,8 @@ module Make(Event : Simulator.Events.Event)
       let nodes            = create_nodes () in
       let _                = initial_events nodes in
       let max_timestamp    = !Parameters.General.max_timestamp in
-      while Queue.has_event () && (Simulator.Clock.get_timestamp () <= max_timestamp) do
+      let timestamp_limit  = !Parameters.General.timestamp_limit in
+      while Queue.has_event () && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
         let ev = Queue.get_event () in
         match ev with
         | (ts, e) -> 
