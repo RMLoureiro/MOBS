@@ -80,6 +80,14 @@ module AlgorandStatistics = struct
   (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
   let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
 
+  (* each index <i> contains the list of time elapsed until a majority of soft-votes is observed *)
+  let majority_soft_vote_time = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+
+  let obs_majority_softvotes nodeID =
+    let current_time = (Simulator.Clock.get_timestamp ()) in
+    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
+    majority_soft_vote_time := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !majority_soft_vote_time
+
   let completed_step2 nodeID =
     let current_time = (Simulator.Clock.get_timestamp ()) in
     let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
@@ -97,21 +105,39 @@ module AlgorandStatistics = struct
     | _ -> ()
 
   let get () =
+    (*
+    let rec print_list l =
+      match l with 
+      | [] -> ()
+      | x::xs -> print_int x; print_string ", "; print_list xs
+    in*)
+    let per_node_average avg_list = 
+      fun x ->
+        let sum = ref 0 in
+        List.iter (fun y -> sum := !sum + y) x;
+        avg_list := !avg_list@[!sum / (List.length x)]
+    in
+    let avg_total avg_per_node =
+      let sum = ref 0 in
+      List.iter (fun x -> sum := !sum + x) !avg_per_node;
+      !sum / (List.length !avg_per_node)
+    in
     let avg_consensus_time =
       let avg_consensus_time_per_node = ref [] in
-      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_consensus_time_per_node := !avg_consensus_time_per_node@[!sum / (List.length x)]) !node_time_between_blocks;
-      let sum = ref 0 in
-      List.iter (fun x -> sum := !sum + x) !avg_consensus_time_per_node;
-      !sum / (List.length !avg_consensus_time_per_node)
+      List.iter (per_node_average avg_consensus_time_per_node) !node_time_between_blocks;
+      avg_total avg_consensus_time_per_node
+    in
+    let avg_majority_sv_time =
+      let avg_majority_sv_time_per_node = ref [] in
+      List.iter (per_node_average avg_majority_sv_time_per_node) !majority_soft_vote_time;
+      avg_total avg_majority_sv_time_per_node
     in
     let avg_block_proposal_time =
       let avg_block_proposal_time_per_node = ref [] in
-      List.iter (fun x -> let sum = ref 0 in List.iter (fun y -> sum := !sum + y) x; avg_block_proposal_time_per_node := !avg_block_proposal_time_per_node@[!sum / (List.length x)]) !block_proposal_time;
-      let sum = ref 0 in
-      List.iter (fun x -> sum := !sum + x) !avg_block_proposal_time_per_node;
-      !sum / (List.length !avg_block_proposal_time_per_node)
+      List.iter (per_node_average avg_block_proposal_time_per_node) !block_proposal_time;
+      avg_total avg_block_proposal_time_per_node
     in
-    String.concat "" ["{\"final-step\":";string_of_int avg_consensus_time;",\"block-proposal\":";string_of_int avg_block_proposal_time;"}"]
+    String.concat "" ["{\"final-step\":";string_of_int avg_consensus_time;",\"block-proposal\":";string_of_int avg_block_proposal_time;",\"majority-softvotes\":";string_of_int avg_majority_sv_time;"}"]
 
 end
 
@@ -418,7 +444,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
   (* if already received the highest priority block, then run next step; else wait for the lambdablock timout *)
   let identifyPriority (node:t) =
     let lambda =
-      if find_leader_proposal node != -1 then 1 else lambda_block
+      if find_leader_proposal node != -1 then 0 else lambda_block
     in
     inc_step node lambda
 
@@ -550,7 +576,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     | 3 -> (* if we already received a majority of softvotes, we can run the step imediately, without waiting for timer *)
       begin
         match most_voted node node.data.softvotes with 
-        | (Some _, true) -> AlgorandTimer.cancel node.id "step"; run_step node
+        | (Some _, true) -> AlgorandTimer.cancel node.id "step"; AlgorandStatistics.obs_majority_softvotes node.id; run_step node
         | _ -> node
       end
     | _ -> (* if at any point the halting condition is verified, move to the next round *)
@@ -570,7 +596,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     in
     r < node.data.round || p < node.data.period-1
 
-  (* TODO : NextVotes and SoftVotes require the check if there are for this period or the previous one *)
+  (* TODO : NextVotes and SoftVotes require the check if they are for this period or the previous one *)
   let process_msg (node:t) msg =
     match old_msg node msg with
     | true -> node
