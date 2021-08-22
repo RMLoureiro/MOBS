@@ -2,21 +2,27 @@ type node_id  = int
 type block_id = int
 type balances = (node_id * float) list
 
-(** type of a block's representation *)
+(** mandatory information that every block possesses *)
+type block_header = 
+{
+  id               : block_id;
+  height           : int;
+  minter           : node_id;
+  parent           : node_id option;
+  timestamp        : Clock.t;
+  balances         : balances;
+  difficulty       : int;
+  total_difficulty : int;
+}
+
+(** type of a block: header + arbitrary information *)
 type 'a t =
   {
-    id               : block_id;
-    height           : int;
-    minter           : node_id;
-    parent           : node_id option;
-    balances         : balances;
-    difficulty       : int;
-    total_difficulty : int;
-    timestamp        : Clock.t;
-    contents         : 'a;
+    header   : block_header;
+    contents : 'a;
   }
 
-let id block = block.id
+let id (block:'a t) = block.header.id
 
 module type BlockSig = sig
   type block_contents
@@ -92,48 +98,52 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
       in
     List.map gets_reward balances
 
-  let create minter parent data =
+  let create minter (parent:block) (data:block_contents) =
     latest_id := !latest_id + 1;
     Logger.print_create_block minter !latest_id;
     {
-      id               = !latest_id;
-      height           = parent.height + 1;
-      minter           = minter;
-      parent           = Some parent.id;
-      difficulty       = parent.difficulty;
-      total_difficulty = parent.total_difficulty + parent.difficulty;
-      balances         = reward minter parent.balances;
-      timestamp        = Clock.get_timestamp ();
-      contents         = data;
+      header = {
+        id               = !latest_id;
+        height           = parent.header.height + 1;
+        minter           = minter;
+        parent           = Some parent.header.id;
+        difficulty       = parent.header.difficulty;
+        total_difficulty = parent.header.total_difficulty + parent.header.difficulty;
+        balances         = reward minter parent.header.balances;
+        timestamp        = Clock.get_timestamp ();
+      };
+      contents = data;
     }
 
   let null content =
     {
-      id               = -1;
-      height           = 0;
-      minter           = -1;
-      parent           = None;
-      difficulty       = 0;
-      total_difficulty = 0;
-      balances         = [];
-      timestamp        = Clock.get_timestamp ();
+      header = {
+        id               = -1;
+        height           = 0;
+        minter           = -1;
+        parent           = None;
+        difficulty       = 0;
+        total_difficulty = 0;
+        balances         = [];
+        timestamp        = Clock.get_timestamp ();
+      };
       contents         = content;
     }
 
-  let height block = block.height
+  let height block = block.header.height
 
-  let parent block = block.parent
+  let parent block = block.header.parent
 
-  let minter block = block.minter
+  let minter block = block.header.minter
 
-  let id block = block.id
+  let id block = block.header.id
 
   let opt_id block_opt =
     match block_opt with
     | Some(blk) -> id blk
     | None -> -1
 
-  let balances block = block.balances
+  let balances block = block.header.balances
 
   let gen_balances =
     let gen_bal id =
@@ -149,42 +159,46 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
       | [] -> sum
       | (_,coins)::xs -> total xs (sum+.coins)
     in
-    total block.balances 0.0
+    total block.header.balances 0.0
 
-  let timestamp block = block.timestamp
+  let timestamp block = block.header.timestamp
 
-  let difficulty block = block.difficulty
+  let difficulty block = block.header.difficulty
 
-  let total_difficulty block = block.total_difficulty
+  let total_difficulty block = block.header.total_difficulty
 
   let genesis_pow minter_id difficulty content =
     {
-      id               = 0;
-      height           = 0;
-      minter           = minter_id;
-      parent           = None;
-      difficulty       = difficulty * !Parameters.General.interval;
-      total_difficulty = difficulty * !Parameters.General.interval;
-      balances         = gen_balances;
-      timestamp        = 0;
+      header = {
+        id               = 0;
+        height           = 0;
+        minter           = minter_id;
+        parent           = None;
+        difficulty       = difficulty * !Parameters.General.interval;
+        total_difficulty = difficulty * !Parameters.General.interval;
+        balances         = gen_balances;
+        timestamp        = 0;
+      };
       contents         = content;
     }
 
   let genesis_pos minter_id content =
     {
-      id               = 0;
-      height           = 0;
-      minter           = minter_id;
-      parent           = None;
-      difficulty       = 10000;
-      total_difficulty = 10000;
-      balances         = gen_balances; 
-      timestamp        = 0;
+      header = {
+        id               = 0;
+        height           = 0;
+        minter           = minter_id;
+        parent           = None;
+        difficulty       = 10000;
+        total_difficulty = 10000;
+        balances         = gen_balances; 
+        timestamp        = 0;
+      };
       contents         = content;
     }
 
   let equals a b =
-    a.id = b.id
+    a.header.id = b.header.id
 
 end
 
