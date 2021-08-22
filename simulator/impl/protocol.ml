@@ -74,18 +74,18 @@ module Make(Event : Simulator.Events.Event)
           | None -> ()
           | Some i -> 
             let node_state = Hashtbl.find nodes i in
-            let old_chain_head_id = Block.id (Node.state node_state) in
+            let old_chain_head = Node.state node_state in
             let new_state = Node.handle node_state e in
               begin 
                 if Node.chain_height new_state > !max_height then
                   begin
                   max_height := Node.chain_height new_state;
-                  print_endline (string_of_int !max_height)
+                  print_endline (String.concat "" ["Max Chain Height: ";(string_of_int !max_height)])
                   end
               end;
               begin
                 let new_chain_head = Node.state new_state in
-                if not (old_chain_head_id = (Block.id new_chain_head)) then
+                if not (Block.equals old_chain_head new_chain_head) then
                   begin
                     Logger.print_new_chain_head i (Block.minter new_chain_head) (Block.id new_chain_head);
                     Statistics.consensus_reached i new_chain_head
