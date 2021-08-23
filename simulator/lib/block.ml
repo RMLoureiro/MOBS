@@ -30,7 +30,7 @@ module type BlockSig = sig
   type block = block_contents t
 
   (** construct a new block, given the minter_id and parent block and block data *)
-  val create : node_id -> block -> block_contents -> block
+  val create : ?reward:bool -> node_id -> block -> block_contents -> block
 
   (** returns the null block *)
   val null : block_contents -> block
@@ -98,9 +98,10 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
       in
     List.map gets_reward balances
 
-  let create minter (parent:block) (data:block_contents) =
+  let create ?reward:(r=true) minter (parent:block) (data:block_contents) =
     latest_id := !latest_id + 1;
     Logger.print_create_block minter !latest_id;
+    let bal = if r then reward minter parent.header.balances else parent.header.balances in
     {
       header = {
         id               = !latest_id;
@@ -109,7 +110,7 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
         parent           = Some parent.header.id;
         difficulty       = parent.header.difficulty;
         total_difficulty = parent.header.total_difficulty + parent.header.difficulty;
-        balances         = reward minter parent.header.balances;
+        balances         = bal;
         timestamp        = Clock.get_timestamp ();
       };
       contents = data;
@@ -171,7 +172,7 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
     {
       header = {
         id               = 0;
-        height           = 0;
+        height           = 1;
         minter           = minter_id;
         parent           = None;
         difficulty       = difficulty * !Parameters.General.interval;
@@ -186,7 +187,7 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
     {
       header = {
         id               = 0;
-        height           = 0;
+        height           = 1;
         minter           = minter_id;
         parent           = None;
         difficulty       = 10000;
