@@ -36,8 +36,13 @@ module Make(Event : Simulator.Events.Event)
         ) links
     in
     let num_nodes = !Parameters.General.num_nodes in
+    print_endline "\t Assigning node regions...";
     let regions   = Abstractions.Network.node_regions () in
+    print_endline "\t [DONE] Assigning node regions";
+    print_endline "\t Creating links between nodes...";
     let links     = Abstractions.Network.node_links () in
+    print_endline "\t [DONE] Creating links between nodes";
+    print_endline "\t Initializing nodes...";
     let nodes     = Hashtbl.create num_nodes in
     for i = 1 to num_nodes do
       let node_links = List.nth links (i-1) in
@@ -46,6 +51,7 @@ module Make(Event : Simulator.Events.Event)
       Hashtbl.add nodes i node;
       Logger.log_event (Event.AddNode(i, node_region))
     done;
+    print_endline "\t [DONE] Initializing nodes";
     log_links links;
     nodes
 
@@ -55,9 +61,16 @@ module Make(Event : Simulator.Events.Event)
 
     let run () =
       Logger.init ();
+      print_endline "Parsing simulation parameters...";
       Logger.log_parameters (Node.parameters ());
+      print_endline "[DONE] Parsing simulation parameters";
+      print_endline "Creating nodes...";
       let nodes            = create_nodes () in
+      print_endline "[DONE] Creating nodes";
+      print_endline "Creating initial events...";
       let _                = initial_events nodes in
+      print_endline "[DONE] Creating initial events";
+      print_endline "Running simulation...";
       let max_height       = ref 0 in
       let end_block_height = !Parameters.General.end_block_height in
       let max_timestamp    = !Parameters.General.max_timestamp in
@@ -80,7 +93,7 @@ module Make(Event : Simulator.Events.Event)
                 if Node.chain_height new_state > !max_height then
                   begin
                   max_height := Node.chain_height new_state;
-                  print_endline (String.concat "" ["Max Chain Height: ";(string_of_int !max_height)])
+                  print_endline (String.concat "" ["\t Longest Chain Height Observed: ";(string_of_int !max_height)])
                   end
               end;
               begin
@@ -93,6 +106,7 @@ module Make(Event : Simulator.Events.Event)
               end;
               Hashtbl.replace nodes i new_state
       done;
+      print_endline "\t Reached stopping condition";
       Logger.log_statistics (Statistics.get ());
       Logger.terminate ()
 
