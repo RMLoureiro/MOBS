@@ -115,7 +115,7 @@ module Make(Event : Simulator.Events.Event)
   (** create the nodes to be used in the simulation, and produce the node and link creation JSON logs *)
   let create_nodes () =
     let log_links links = 
-      List.iteri (
+      Array.iteri (
         fun i l -> 
           (List.iter (
             fun j -> Logger.log_event (Event.AddLink(i+1, j))
@@ -127,8 +127,8 @@ module Make(Event : Simulator.Events.Event)
     let links     = Abstractions.Network.node_links () in
     let nodes     = Hashtbl.create num_nodes in
     for i = 1 to num_nodes do
-      let node_links = List.nth links (i-1) in
-      let node_region = List.nth regions (i-1) in
+      let node_links = links.(i-1) in
+      let node_region = regions.(i-1) in
       let node = Node.init i node_links node_region in
       Hashtbl.add nodes i node;
       Logger.log_event (Event.AddNode(i, node_region))

@@ -25,10 +25,16 @@ module Make(Event : Simulator.Events.Event)
 
   module NodeMap = Map.Make(Int)
 
+  (*let dump_links_stdout links =
+    print_endline "";
+    Array.iter (fun x -> print_string "["; List.iter (fun y -> print_int y;print_string ",") x; print_endline "]") links;
+    print_endline "";
+    ()*)
+
   (** create the nodes to be used in the simulation, and produce the node and link creation JSON logs *)
   let create_nodes () =
     let log_links links = 
-      List.iteri (
+      Array.iteri (
         fun i l -> 
           (List.iter (
             fun j -> Logger.log_event (Event.AddLink(i+1, j))
@@ -45,8 +51,8 @@ module Make(Event : Simulator.Events.Event)
     print_endline "\t Initializing nodes...";
     let nodes     = Hashtbl.create num_nodes in
     for i = 1 to num_nodes do
-      let node_links = List.nth links (i-1) in
-      let node_region = List.nth regions (i-1) in
+      let node_links = links.(i-1) in
+      let node_region = regions.(i-1) in
       let node = Node.init i node_links node_region in
       Hashtbl.add nodes i node;
       Logger.log_event (Event.AddNode(i, node_region))

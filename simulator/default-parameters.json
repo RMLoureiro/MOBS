@@ -1,6 +1,6 @@
 {
     "general": {
-        "num-nodes":10,
+        "num-nodes":20,
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
