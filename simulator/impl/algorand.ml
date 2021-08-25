@@ -24,9 +24,9 @@ module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct
 
   let json kind round period step v creator_id is_priority =
     if is_priority then
-      String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"priority\":"; string_of_int v; ",\"creator_id\":"; string_of_int creator_id;"}"]
+      Printf.sprintf "{\"kind\":\"%s\",\"round\":%d,\"period\":%d,\"step\":%d,\"priority\":%d,\"creator\":%d}" kind round period step v creator_id
     else
-      String.concat "" ["{\"kind\":\"";kind;"\",\"round\":";string_of_int round;",\"period\":";string_of_int period; ",\"step\":";string_of_int step; ",\"block_id\":"; string_of_int v; ",\"creator_id\":"; string_of_int creator_id;"}"]
+      Printf.sprintf "{\"kind\":\"%s\",\"round\":%d,\"period\":%d,\"step\":%d,\"block_id\":%d,\"creator\":%d}" kind round period step v creator_id
 
   let to_json (m:t) : string =
     match m with
@@ -137,7 +137,7 @@ module AlgorandStatistics = struct
       List.iter (per_node_average avg_block_proposal_time_per_node) !block_proposal_time;
       avg_total avg_block_proposal_time_per_node
     in
-    String.concat "" ["{\"final-step\":";string_of_int avg_consensus_time;",\"block-proposal\":";string_of_int avg_block_proposal_time;",\"majority-softvotes\":";string_of_int avg_majority_sv_time;"}"]
+    Printf.sprintf "{\"final-step\":%d,\"block-proposal\":%d,\"majority-softvotes\":%d}" avg_consensus_time avg_block_proposal_time avg_majority_sv_time
 
 end
 

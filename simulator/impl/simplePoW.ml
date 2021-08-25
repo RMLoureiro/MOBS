@@ -5,8 +5,8 @@ end
 module SimpleMsg : (Simulator.Events.Message with type t = BlockContents.t Simulator.Block.t) = struct 
   type t = BlockContents.t Simulator.Block.t
 
-  let to_json (blk:t) : string =
-    String.concat "" ["{\"block_id\":\"";string_of_int (Simulator.Block.id blk);"\"}"]
+  let to_json (blk:t) : string = 
+    Printf.sprintf "{\"block_id\":\"%d\"}" (Simulator.Block.id blk)
 
   let get_size (_:t) =
     4280000

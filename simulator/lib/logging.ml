@@ -35,7 +35,8 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let log_file = ref "output.json"
 
   (* the JSON event representing the end of the simulation *)
-  let sim_end_json () = String.concat "" ["{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());"}}]"]
+  let sim_end_json () = 
+    Printf.sprintf "{\"kind\":\"simulation-end\",\"content\":{\"timestamp\":%d}}]" (Clock.get_timestamp ())
 
   let write_to_file str = 
     let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
@@ -62,40 +63,40 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
       | _ -> write_to_file data
 
   let log_parameters params_json =
-    let str = (String.concat "" ["{\"kind\":\"parameters\",\"content\":";params_json;"}"]) in
+    let str = (Printf.sprintf "{\"kind\":\"parameters\",\"content\":%s}" params_json) in
     write_to_file str
 
   let log_statistics stats_json =
-    let str = (String.concat "" ["{\"kind\":\"statistics\",\"content\":";stats_json;"}"]) in
+    let str = (Printf.sprintf "{\"kind\":\"statistics\",\"content\":%s}" stats_json) in
     write_to_file str
 
   let print_in_committee node_id round =
-    let data = String.concat "" ["{\"kind\":\"node-committee\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
+    let data = Printf.sprintf "{\"kind\":\"node-committee\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"round\":%d}}" (Clock.get_timestamp ()) node_id round in
     log_json data
 
   let print_is_proposer node_id round =
-    let data = String.concat "" ["{\"kind\":\"node-proposer\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"round\":";string_of_int round;"}}"] in
+    let data = Printf.sprintf "{\"kind\":\"node-proposer\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"round\":%d}}" (Clock.get_timestamp ()) node_id round in
     log_json data
 
   (*** operations that return the JSON for a specific event ***)
   let message_json node_id_from node_id_to timestamp msg =
-    String.concat "" ["{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"reception-timestamp\":";Clock.to_string timestamp;",\"begin-node-id\":";string_of_int node_id_from;",\"end-node-id\":";string_of_int node_id_to;",\"block-id\":";string_of_int (Message.identifier msg);",\"msg-data\":";Message.to_json msg;"}}"]
+    Printf.sprintf "{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":%d,\"reception-timestamp\":%d,\"begin-node-id\":%d,\"end-node-id\":%d,\"block-id\":%d,\"msg-data\":%s}}" (Clock.get_timestamp ()) timestamp node_id_from node_id_to (Message.identifier msg) (Message.to_json msg)
 
   let addnode_json node_id region_id =
-    String.concat "" ["{\"kind\":\"add-node\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int node_id; ",\"region-id\":";string_of_int region_id;"}}"]
+    Printf.sprintf "{\"kind\":\"add-node\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"region-id\":%d}}" (Clock.get_timestamp ()) node_id region_id
 
   let addlink_json begin_node_id end_node_id =
-    String.concat "" ["{\"kind\":\"add-link\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}}"]
+    Printf.sprintf "{\"kind\":\"add-link\",\"content\":{\"timestamp\":%d,\"begin-node-id\":%d,\"end-node-id\":%d}}" (Clock.get_timestamp ()) begin_node_id end_node_id
 
   let removelink_json begin_node_id end_node_id =
-    String.concat "" ["{\"kind\":\"remove-link\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"begin-node-id\":"; string_of_int begin_node_id;",\"end-node-id\":";string_of_int end_node_id;"}}"]
+    Printf.sprintf "{\"kind\":\"remove-link\",\"content\":{\"timestamp\":%d,\"begin-node-id\":%d,\"end-node-id\":%d}}" (Clock.get_timestamp ()) begin_node_id end_node_id
 
   let print_create_block nodeID blockID =
-    let data = String.concat "" ["{\"kind\":\"create-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"block-id\":";string_of_int blockID;"}}"] in
+    let data = Printf.sprintf "{\"kind\":\"create-block\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"block-id\":%d}}" (Clock.get_timestamp ()) nodeID blockID in
     log_json data
 
   let print_new_chain_head nodeID ownerID blockID =
-    let data = String.concat "" ["{\"kind\":\"add-block\",\"content\":{\"timestamp\":";Clock.to_string (Clock.get_timestamp ());",\"node-id\":";string_of_int nodeID;",\"owner-id\":";string_of_int ownerID;",\"block-id\":";string_of_int blockID;"}}"] in
+    let data = Printf.sprintf "{\"kind\":\"add-block\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"block-id\":%d,\"owner-id\":%d}}" (Clock.get_timestamp ()) nodeID blockID ownerID in
     log_json data
 
   let log_event (event: ev) =

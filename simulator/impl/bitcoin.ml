@@ -12,9 +12,9 @@ module BitcoinMsg : (Simulator.Events.Message with type t = msg) = struct
 
   let to_json (msg:t) : string =
     match msg with
-    | Block(b)  -> String.concat "" ["{\"type\":\"BLOCK\",\"block_id\":\"";string_of_int (Simulator.Block.id b);"\"}"]
-    | Inv(id,_) -> String.concat "" ["{\"type\":\"INV\",\"block_id\":\"";string_of_int id;"\"}"]
-    | Rec(id,_) -> String.concat "" ["{\"type\":\"REC\",\"block_id\":\"";string_of_int id;"\"}"]
+    | Block(b)  -> Printf.sprintf "{\"type\":\"BLOCK\",\"block_id\":\"%d\"}" (Simulator.Block.id b)
+    | Inv(id,_) -> Printf.sprintf "{\"type\":\"INV\",\"block_id\":\"%d\"}" id
+    | Rec(id,_) -> Printf.sprintf "{\"type\":\"REC\",\"block_id\":\"%d\"}" id
 
   let get_size (msg:t) =
     match msg with
@@ -92,7 +92,7 @@ module BitcoinStatistics = struct
       print_endline (string_of_int median_bpt);
       print_string "AVG(reach all nodes): ";
       print_endline (string_of_int avg_bpt);
-      String.concat "" ["{\"average-block-propagation-time\":";string_of_int avg_bpt;",\"median-block-propagation-time\":";string_of_int median_bpt;"}"]
+      Printf.sprintf "{\"average-block-propagation-time\":%d,\"median-block-propagation-time\":%d}" avg_bpt median_bpt
     else
       "{}"
 
