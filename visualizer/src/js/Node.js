@@ -54,10 +54,10 @@ export default class Node {
       }
     }
     else if(window.PROTOCOL == 'POS') {
-      if(this.proposing.includes(height+1)) {
+      if(this.proposing.includes(height+2)) {
         letter = "P";
       }
-      else if(this.inCommittee.includes(height+1)) {
+      else if(this.inCommittee.includes(height+2)) {
         letter = "C";
       }
     }
