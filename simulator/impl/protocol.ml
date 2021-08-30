@@ -99,7 +99,8 @@ module Make(Event : Simulator.Events.Event)
                 if Node.chain_height new_state > !max_height then
                   begin
                   max_height := Node.chain_height new_state;
-                  Printf.printf "\t Longest Chain Height Observed: %d\n" !max_height
+                  let s = Printf.sprintf "\t Longest Chain Height Observed: %d" !max_height in
+                  print_endline s
                   end
               end;
               begin
