@@ -150,9 +150,12 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
     let gen_bal id =
       let r = Random.float 1.0 in
       let coins = max (r *. (float_of_int !Parameters.General.stdev_coins) +. (float_of_int !Parameters.General.avg_coins)) 0.0 in
-      (id, coins)
+      (id+1, coins)
     in 
-    List.init !Parameters.General.num_nodes gen_bal
+    let r_state = Random.get_state () in
+    let ret = List.init !Parameters.General.num_nodes gen_bal in
+    Random.set_state r_state;
+    ret
 
   let total_coins block = 
     let rec total bal sum =
