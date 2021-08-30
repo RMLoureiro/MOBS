@@ -6,6 +6,10 @@ module type PoS = sig
 
   val is_proposer : int -> 'a Simulator.Block.t -> int -> int list -> bool
 
+  val check_proposer : int -> 'a Simulator.Block.t -> int -> int list -> bool
+
+  val check_committee : int -> 'a Simulator.Block.t -> int -> int list -> bool
+
   val proposer_priority : int -> 'a Simulator.Block.t -> int -> int list -> int
 
 end
@@ -48,7 +52,20 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     Random.set_state r_state;
     !selected_nodes
 
+  let check_credential node_id head num params =
+    let selections = sortition head num params in
+    if List.exists (fun id -> id = node_id) selections then
+      begin
+        true
+      end
+    else
+      false
 
+  let check_proposer node_id head num_proposers params = 
+    check_credential node_id head num_proposers params
+
+  let check_committee node_id head committee_size params =
+    check_credential node_id head committee_size params
 
   (** 
     * check if the node with <node_id> was selected by sortition of size <committee_size>
@@ -56,14 +73,12 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     * <params> is a list of integer parameters that identify the committee
   *)
   let in_committee node_id head committee_size params =
-    let selections = sortition head committee_size params in
-    if List.exists (fun id -> id = node_id) selections then
-      begin
+    if check_committee node_id head committee_size params then
+      (
         Logger.print_in_committee node_id ((Block.height head)+1);
         true
-      end
-    else
-      false
+      )
+    else false
 
   (** 
     * check if the node with <node_id> was selected by sortition of size <num_proposers>
@@ -71,12 +86,11 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     * <params> is a list of integer parameters that identify the committee
   *)
   let is_proposer node_id head num_proposers params =
-    let selections = sortition head num_proposers params in
-    if List.exists (fun id -> id = node_id) selections then
-      begin
+    if check_proposer node_id head num_proposers params then
+      (
         Logger.print_is_proposer node_id ((Block.height head)+1);
         true
-      end
+      )
     else
       false
 
