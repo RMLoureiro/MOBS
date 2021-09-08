@@ -20,6 +20,8 @@
   -> mutable records are leveraged to store and update the nodes' state
   -> can easily extend the statistics module to gather arbitrary statistics about the execution of the protocol
      -> at the moment, the only one being extracted is the average time to decide on a block
+  -> can leverage the visualizer to run batch simulations, to analyze the gathered statistics and to monitor
+     the overall behavior of the protocol
 *)
 
 let committee_size  = Parameters.Protocol.get_int_parameter "committee-size";;
@@ -35,18 +37,18 @@ type block_contents = {
 }
 and endorsement    = Endorsement    of Simulator.Block.block_header * signature
 and preendorsement = Preendorsement of Simulator.Block.block_header * signature
-and signature      = int
+and signature      = Signature of int
 
 module BlockContents = struct
   type t = block_contents
 end
 
-type tenderbake_msg = unsigned_message (* TODO : signature *)
+type tenderbake_msg = unsigned_message (* TODO : can replace creator with a signature *)
 and unsigned_message = {
   level : int;
   round : int;
-  previous_block_hash : Simulator.Block.block_id option; (* TODO : hash? *)
-  creator : int; (* TODO : not needed if there are signatures *)
+  previous_block_hash : Simulator.Block.block_id option; (* TODO : not really an hash *)
+  creator : int;
   payload : payload;
 }
 and payload = 
@@ -68,23 +70,23 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
     | Preendorsements(block,_) -> block.header.id
 
   let to_json (msg:t) : string =
-    let level = string_of_int msg.level in
-    let round = string_of_int msg.round in
-    let creator = string_of_int msg.creator in
+    let level = msg.level in
+    let round = msg.round in
+    let creator = msg.creator in
     let prev_block = 
       match msg.previous_block_hash with
-      | None -> string_of_int (-1)
-      | Some(blk) -> string_of_int blk
+      | None -> -1
+      | Some(blk) -> blk
     in
-    let id = string_of_int (identifier msg) in
+    let id = identifier msg in
     let kind = match msg.payload with 
       | Propose(_) -> "PROPOSE"
       | Preendorse(_) -> "PREENDORSE"
       | Endorse(_) -> "ENDORSE"
       | Preendorsements(_) -> "PREENDORSEMENTS"
     in
-    let payload = String.concat "" ["{\"kind\":\"";kind;"\"";",\"block\":";id;"}"] in
-    String.concat "" ["{\"level\":";level;",\"round\":";round;",\"creator\":";creator;",\"prev_block\":";prev_block;",\"payload\":";payload;"}"]
+    let payload = Printf.sprintf "{\"kind\":\"%s\",\"block\":%d}" kind id in
+    Printf.sprintf "{\"level\":%d,\"round\":%d,\"creator\":%d,\"prev_block\":%d,\"payload\":%s}" level round creator prev_block payload
 
   let get_size (msg:t) =
     match msg with
@@ -208,8 +210,8 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       List.length l >= majority_votes
 
     let is_qc_valid (block:TenderbakeBlock.block) (qc:(Simulator.Block.block_header*signature) list) =
-      let check_endorsement ((e:Simulator.Block.block_header),(signature:signature)) =
-        let in_committee = TenderbakePoS.in_committee signature block committee_size [block.header.height] in
+      let check_endorsement ((e:Simulator.Block.block_header),(Signature(signature):signature)) =
+        let in_committee = TenderbakePoS.check_committee signature block committee_size [block.header.height] in
         block.header.id = e.id && in_committee
       in
       List.for_all check_endorsement qc && qc_complete qc
@@ -280,7 +282,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
                   true
               | Some None ->
                   (* [predecessor_hash] is [None], this is only acceptible for
-                      the very first block. *)
+                      the first block. *)
                   Int.equal block.header.height 1
               | Some (Some hash) ->
                   (* Otherwise the [predecessor_hash] from the newer block must
@@ -356,7 +358,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       | [] -> ()
       | block :: _ -> 
         let previous_block_hash = block.header.parent in
-        let endorsement = Endorsement(block.header, node.id) in
+        let endorsement = Endorsement(block.header, Signature(node.id)) in
         let msg = {
           level = block.header.height;
           round = block.contents.round;
@@ -412,8 +414,8 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       match node.data.chain with
       | [] -> ()
       | block :: _ -> 
-        let previous_block_hash = block.header.parent in (* TODO : hash/signatures ? *)
-        let preendorsement = Preendorsement(block.header, node.id) in
+        let previous_block_hash = block.header.parent in
+        let preendorsement = Preendorsement(block.header, Signature(node.id)) in
         let msg = {
           level = block.header.height;
           round = current_round node;
@@ -431,7 +433,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
 
     let rcv_propose (Propose(candidate_chain)) (creator:int) (node:t) =
       let candidate = List.nth candidate_chain 0 in
-      let valid_proposer = TenderbakePoS.is_proposer creator candidate 1 [head_level node.data.chain;current_round node] in
+      let valid_proposer = TenderbakePoS.check_proposer creator candidate 1 [head_level node.data.chain;current_round node] in
       let valid_previously_proposed_pqc = 
         match candidate.contents.previously_proposed with
         | None -> true
@@ -469,9 +471,10 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       else
         ()
 
+        (* TODO : make a function to extract signature, to factor this code *)
     let rcv_preendorse (Preendorse(preendorsement)) (node:t) =
-      let signature = match preendorsement with Preendorsement(_,signature) -> signature in
-      let valid_preendorser = TenderbakePoS.in_committee signature node.state committee_size [head_level node.data.chain] in
+      let signature = match preendorsement with Preendorsement(_,Signature(signature)) -> signature in
+      let valid_preendorser = TenderbakePoS.check_committee signature node.state committee_size [head_level node.data.chain] in
       match node.data.proposal_state with
       | Collecting_preendorsements(_) -> 
         if valid_preendorser then
@@ -479,8 +482,8 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       | _ -> ()
 
     let rcv_endorse (Endorse(endorsement, pqc)) (node:t) =
-      let signature = match endorsement with Endorsement(_,signature) -> signature in
-      let valid_endorser = TenderbakePoS.in_committee signature node.state committee_size [head_level node.data.chain] in
+      let signature = match endorsement with Endorsement(_,Signature(signature)) -> signature in
+      let valid_endorser = TenderbakePoS.check_committee signature node.state committee_size [head_level node.data.chain] in
       match (node.data.proposal_state, node.data.chain) with
       | Collecting_endorsements _, block::_ -> 
         let valid_pqc = is_pqc_valid block pqc in
@@ -589,20 +592,12 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
           else
             increment_round node
 
-    let debug (node:t) =
-      let s = match node.data.proposal_state with
-        | No_proposal -> "no proposal"
-        | Collecting_endorsements(m) -> String.concat "" ["collecting endorsements:";string_of_int (List.length m.acc)]
-        | Collecting_preendorsements(m) -> String.concat "" ["collecting preendorsements:";string_of_int (List.length m.acc)]
-      in
-      print_endline s
-
     let process_wake (node:t) =
       match node.data.chain with
       | [] -> assert false (* not possible, since all nodes start with the genesis block in their chain *)
       | block :: _ ->
         attempt_to_decide_head node;
-        if TenderbakePoS.is_proposer node.id block 1 [head_level node.data.chain;current_round node] then
+        if TenderbakePoS.is_proposer node.id block 1 [head_level node.data.chain] then
             send_proposal node
 
     let handle (node:t) (event:TenderbakeEvent.t) =
