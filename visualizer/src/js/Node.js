@@ -164,7 +164,7 @@ export default class Node {
     for(let block of this.blockList) {
       round++;
       if(block.id == b.id) {
-        return this.inCommittee.includes(round+1);
+        return this.inCommittee.includes(round+2);
       }
     }
     return false;
@@ -179,7 +179,7 @@ export default class Node {
     for(let block of this.blockList) {
       round++;
       if(block.id == b.id) {
-        return this.proposing.includes(round+1);
+        return this.proposing.includes(round+2);
       }
     }
     return false;
