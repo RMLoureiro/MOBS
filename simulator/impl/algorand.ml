@@ -6,7 +6,7 @@ let lambda_block          = Parameters.Protocol.get_int_parameter "lambda-block"
 let committee_size        = Parameters.Protocol.get_int_parameter "committee-size";;
 let num_proposers         = Parameters.Protocol.get_int_parameter "num-proposers";;
 let majority_votes        = Parameters.Protocol.get_int_parameter "majority-votes";;
-let block_size            = Parameters.Protocol.get_int_parameter "block-size-bits";;
+let block_size            = Parameters.Protocol.get_int_parameter "block-size-mb";;
 
 module BlockContents = struct
   type t = unit
@@ -38,8 +38,8 @@ module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct
 
   let get_size (msg:t) =
     match msg with
-    | Proposal(_,_,_,_,_) -> block_size
-    | _ -> 32*5
+    | Proposal(_,_,_,_,_) -> Simulator.Size.Megabyte(block_size)
+    | _ -> Simulator.Size.Bit(32*5)
 
   let processing_time (_:t) =
     10

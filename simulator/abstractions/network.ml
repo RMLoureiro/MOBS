@@ -134,11 +134,12 @@ struct
   let send sender receiver msg =
     let latency = get_latency sender receiver in
     let bandwidth = get_bandwidth sender receiver in
-    let delay = (Message.get_size msg) / (bandwidth / 1000) + (Message.processing_time msg)  in
+    let msg_size_bits = (Simulator.Size.to_bits (Message.get_size msg)) in
+    let delay = msg_size_bits / (bandwidth / 1000) + (Message.processing_time msg)  in
     let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + delay in
     let msg_event = Events.Message(sender,receiver,arrival_time,msg) in
     Queue.add_event msg_event;
-    if Message.get_size msg >= 800000 then 
+    if msg_size_bits >= 800000 then 
       Queue.add_event (Events.Timeout(sender, arrival_time, "message_sent")) (* "notify" the sender when it finishes sending a large message *)
 
   let get_neighbours node =

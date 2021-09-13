@@ -42,6 +42,6 @@
         "committee-size":9,
         "num-proposers":1,
         "majority-votes":5,
-        "block-size-bits":8000000
+        "block-size-mb":1
     }
 }

@@ -9,7 +9,7 @@ module SimpleMsg : (Simulator.Events.Message with type t = BlockContents.t Simul
     Printf.sprintf "{\"block_id\":\"%d\"}" (Simulator.Block.id blk)
 
   let get_size (_:t) =
-    4280000
+    Simulator.Size.Kilobyte(534)
 
   let processing_time (_:t) =
     2

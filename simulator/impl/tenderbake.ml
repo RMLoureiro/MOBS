@@ -90,7 +90,7 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
 
   let get_size (msg:t) =
     match msg with
-    | _ -> 10000 (* TODO *)
+    | _ -> Simulator.Size.Bit(10000) (* TODO *)
 
   let processing_time (_:t) =
     10

@@ -18,9 +18,9 @@ module BitcoinMsg : (Simulator.Events.Message with type t = msg) = struct
 
   let get_size (msg:t) =
     match msg with
-    | Block(_) -> 4280000
-    | Inv(_,_) -> 32
-    | Rec(_,_) -> 32
+    | Block(_) -> Simulator.Size.Kilobyte(534)
+    | Inv(_,_) -> Simulator.Size.Bit(32)
+    | Rec(_,_) -> Simulator.Size.Bit(32)
 
   let processing_time (_:t) =
     2
