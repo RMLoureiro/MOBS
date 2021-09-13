@@ -654,4 +654,4 @@ module AlgorandInitializer : (Abstract.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;
+module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandTimer)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;

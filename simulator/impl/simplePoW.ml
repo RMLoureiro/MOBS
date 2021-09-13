@@ -23,6 +23,7 @@ module SimpleEvent   = Simulator.Events.MakeEvent(SimpleMsg);;
 module SimpleQueue   = Simulator.Events.MakeQueue(SimpleEvent);;
 module SimpleNetwork = Abstractions.Network.Make(SimpleEvent)(SimpleQueue)(SimpleMsg);;
 module SimpleLogger  = Simulator.Logging.Make(SimpleMsg)(SimpleEvent);;
+module SimpleTimer   = Abstractions.Timer.Make(SimpleEvent)(SimpleQueue);;
 module SimpleBlock   = Simulator.Block.Make(SimpleLogger)(BlockContents);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
@@ -124,7 +125,7 @@ module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and 
 
 end
 
-module SimpleProtocol = Protocol.Make(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
+module SimpleProtocol = Protocol.Make(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
 
 
 

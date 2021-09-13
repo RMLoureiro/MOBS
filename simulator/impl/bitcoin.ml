@@ -37,6 +37,7 @@ module BitcoinEvent   = Simulator.Events.MakeEvent(BitcoinMsg);;
 module BitcoinQueue   = Simulator.Events.MakeQueue(BitcoinEvent);;
 module BitcoinNetwork = Abstractions.Network.Make(BitcoinEvent)(BitcoinQueue)(BitcoinMsg);;
 module BitcoinLogger  = Simulator.Logging.Make(BitcoinMsg)(BitcoinEvent);;
+module BitcoinTimer   = Abstractions.Timer.Make(BitcoinEvent)(BitcoinQueue);;
 module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger)(BlockContents);;
 module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock);;
 let _ = BitcoinPow.init_mining_power ();;
@@ -235,7 +236,7 @@ module BitcoinInitializer : (Abstract.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
+module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
 
 
 

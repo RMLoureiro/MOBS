@@ -17,6 +17,7 @@ end
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Block : Simulator.Block.BlockSig)
+           (Timer : Abstractions.Timer.Timer)
            (Node : Node with type ev = Event.t and type value = Block.block) 
            (Initializer : Abstract.Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
@@ -81,10 +82,8 @@ module Make(Event : Simulator.Events.Event)
       let end_block_height = !Parameters.General.end_block_height in
       let max_timestamp    = !Parameters.General.max_timestamp in
       let timestamp_limit  = !Parameters.General.timestamp_limit in
-      while Queue.has_event () && !max_height < end_block_height && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
-        let ev = Queue.get_event () in
-        match ev with
-        | (ts, e) -> 
+      let step ts e =
+        begin
           Logger.log_event e;
           Statistics.process e;
           Simulator.Clock.set_timestamp ts;
@@ -112,6 +111,18 @@ module Make(Event : Simulator.Events.Event)
                   end
               end;
               Hashtbl.replace nodes i new_state
+        end
+      in
+      while Queue.has_event () && !max_height < end_block_height && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
+        let ev = Queue.get_event () in
+        match ev with
+        | (ts, e) -> 
+          match e with
+          | Event.Timeout(id,time,label) -> 
+            begin
+              if not (Timer.expired id time label) then step ts e
+            end
+          | _ -> step ts e
       done;
       print_endline "\t Reached stopping condition";
       Logger.log_statistics (Statistics.get ());

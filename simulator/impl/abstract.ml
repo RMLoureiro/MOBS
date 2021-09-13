@@ -104,6 +104,7 @@ end
 
 module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
+           (Timer : Abstractions.Timer.Timer)
            (Node : Node with type ev = Event.t) 
            (Initializer : Initializer with type node = Node.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
@@ -147,10 +148,8 @@ module Make(Event : Simulator.Events.Event)
       let _                = initial_events nodes in
       let max_timestamp    = !Parameters.General.max_timestamp in
       let timestamp_limit  = !Parameters.General.timestamp_limit in
-      while Queue.has_event () && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
-        let ev = Queue.get_event () in
-        match ev with
-        | (ts, e) -> 
+      let step ts e =
+        begin
           Logger.log_event e;
           Statistics.process e;
           Simulator.Clock.set_timestamp ts;
@@ -170,6 +169,18 @@ module Make(Event : Simulator.Events.Event)
                   end
               end;
               Hashtbl.replace nodes i new_state
+        end
+      in
+      while Queue.has_event () && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
+        let ev = Queue.get_event () in
+        match ev with
+        | (ts, e) -> 
+          match e with
+          | Event.Timeout(id,time,label) -> 
+            begin
+              if not (Timer.expired id time label) then step ts e
+            end
+          | _ -> step ts e
       done;
       Logger.log_statistics (Statistics.get ());
       Logger.terminate ()
