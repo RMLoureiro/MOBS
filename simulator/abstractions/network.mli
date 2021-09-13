@@ -1,4 +1,4 @@
-type links         = int list
+type links         = int array
 type network_links = links array
 type region        = int
 type regions       = int array

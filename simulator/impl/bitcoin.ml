@@ -136,7 +136,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
     }
   
   let send_to_neighbours (node:t) msg =
-    List.iter (fun neighbour -> BitcoinNetwork.send node.id neighbour msg) node.links
+    Array.iter (fun neighbour -> BitcoinNetwork.send node.id neighbour msg) node.links
 
   let add_to_chain (node:t) block =
     node.state <- block

@@ -279,7 +279,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
         begin node.data.nextvotes <- node.data.nextvotes @ [msg]; (node, false) end
 
   let send_to_neighbours (node:t) msg =
-    List.iter (fun neighbour -> AlgorandNetwork.send node.id neighbour msg) node.links;
+    Array.iter (fun neighbour -> AlgorandNetwork.send node.id neighbour msg) node.links;
     let (new_state, _) = add_no_duplicate node msg in
     new_state
 

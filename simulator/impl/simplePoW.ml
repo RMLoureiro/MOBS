@@ -57,7 +57,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     }
   
   let send_to_neighbours (node:t) msg =
-    List.iter (fun neighbour -> SimpleNetwork.send node.id neighbour msg) node.links
+    Array.iter (fun neighbour -> SimpleNetwork.send node.id neighbour msg) node.links
 
   let add_to_chain (node:t) block =
     node.state <- block

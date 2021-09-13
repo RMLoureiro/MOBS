@@ -163,7 +163,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
     }
 
     let send_to_neighbours (node:t) (msg:tenderbake_msg) =
-      List.iter (
+      Array.iter (
         fun neighbour -> 
           if not (neighbour = node.id) && not (neighbour = msg.creator) then 
             TenderbakeNetwork.send node.id neighbour msg

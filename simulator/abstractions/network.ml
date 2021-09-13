@@ -1,4 +1,4 @@
-type links         = int list
+type links         = int array
 type network_links = links array
 type region        = int
 type regions       = int array
@@ -56,7 +56,7 @@ let can_add_neighbor id nid outbound_links inbound_links :bool =
   (not same_node) && (not already_outbound) && (not already_inbound) && (not outbound_limit) && ((not inbound_limit) || last_node) && valid_nodes
 
 (** select neighbors for node with id = <id>, taking the link limitations in consideration *)
-let select_neighbors id nodes (inbound_links:network_links) (outbound_links:network_links) =
+let select_neighbors id nodes (inbound_links:(int list array)) (outbound_links:(int list array)) =
   let num_links = !Parameters.General.num_links in
   let candidates = shuffle_array nodes in 
   for i = 0 to (Array.length candidates)-1 do
@@ -75,12 +75,12 @@ let select_neighbors id nodes (inbound_links:network_links) (outbound_links:netw
 let node_links () : network_links =
   let num_nodes = !Parameters.General.num_nodes in
   let nodes = Array.init num_nodes (fun c -> c) in
-  let inbound_links:(network_links) = Array.make num_nodes [] in
-  let outbound_links:(network_links) = Array.make num_nodes [] in
+  let inbound_links:(int list array) = Array.make num_nodes [] in
+  let outbound_links:(int list array) = Array.make num_nodes [] in
   for i = 0 to num_nodes-1 do
     select_neighbors i nodes inbound_links outbound_links 
   done;
-  Array.map (fun x -> List.map (fun y -> y+1) x) outbound_links (* node id's start at 1 *)
+  Array.map (fun x -> Array.of_list (List.map (fun y -> y+1) x)) outbound_links (* node id's start at 1 *)
 
 (*******************************)
 
@@ -106,20 +106,25 @@ module Make(Events: Simulator.Events.Event)
           (Message : Simulator.Events.Message with type t = Events.msg) : (Network with type msg=Events.msg) =
 struct
 
-  type msg = Events.msg
-
+  type msg   = Events.msg
+  type paths = (int * int list * int) array array
 
   let regions = (node_regions ())
   let links   = (node_links ())
+  let shortest_paths:(paths option ref) = ref None
 
   (***** Latency Calculation Operations *****)
+
+  let get_mean_latency sender receiver =
+    let region_sender   = regions.(sender-1) in     (* id's start at 1 *)
+    let region_receiver = regions.(receiver-1) in   (* id's start at 1 *)
+    let mean_latency    = (!Parameters.General.latency_table.(region_sender)).(region_receiver) in
+    mean_latency
 
   (* from SimBlock -> latency according to 20% variance pallet distribution *)
   (* https://dsg-titech.github.io/simblock/ *)
   let get_latency sender receiver = 
-    let region_sender   = regions.(sender-1) in     (* id's start at 1 *)
-    let region_receiver = regions.(receiver-1) in   (* id's start at 1 *)
-    let mean_latency    = (!Parameters.General.latency_table.(region_sender)).(region_receiver) in
+    let mean_latency    = get_mean_latency sender receiver in
     let shape           = 0.2 *. (float_of_int mean_latency)  in
     let scale           = float_of_int (mean_latency - 5) in
     int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
@@ -145,7 +150,71 @@ struct
   let get_neighbours node =
     links.(node)
 
+  (* !!!!! NOTE: WHEN ACCESSING THE SHORTEST_PATHS, SUBTRACT 1 TO THE NODE'S ID !!!!! *)
+
+  (* Floyd Warshall's Algorithm for computing the shortest path between every pair of nodes *)
+  (* https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm *)
+  let compute_shortest_paths () =
+    let num_nodes = !Parameters.General.num_nodes in
+    (* the distance of one node to itself is 0 *)
+    (* the starting distance of one node to all others is infinity - represented by -1 *)
+    let shortest_paths = 
+      Array.init num_nodes (fun x -> Array.init num_nodes (fun y -> if x=y then (0,[],0) else (-1,[],-1)))
+    in
+    (* initialize the distance between each pair of nodes that possess a link, with the weight of the link *)
+    for i=0 to num_nodes-1 do
+      for j=0 to (Array.length links.(i)-1) do
+        let neighbour = links.(i).(j) in
+        let latency = get_mean_latency (i+1) (neighbour) in
+        let bandwidth = get_bandwidth (i+1) (neighbour) in
+        shortest_paths.(i).(neighbour-1) <- (latency,[bandwidth],1)
+      done
+    done;
+    for k=0 to num_nodes-1 do
+      for i=0 to num_nodes-1 do
+        for j=0 to num_nodes-1 do
+          let (l1,b1,n1) = shortest_paths.(i).(k) in
+          let (l2,b2,n2) = shortest_paths.(k).(j) in
+          let (l,_,_)    = shortest_paths.(i).(j) in
+          if (l1 > -1) && (l2 > -1) then
+            (
+              if (l > l1 + l2)
+                || (l = -1)
+              then
+                shortest_paths.(i).(j) <- (l1+l2,b1@b2,n1+n2)
+            )
+        done
+      done
+    done;
+    shortest_paths
+
   let gossip sender msg =
+    let msg_size = Simulator.Size.to_bits (Message.get_size msg) in
+    let delay bandwidth =
+      (msg_size / (bandwidth / 1000) + (Message.processing_time msg))
+    in
+    let num_nodes = !Parameters.General.num_nodes in
+    let sp = 
+      begin
+        match !shortest_paths with
+        | None -> 
+          let p = compute_shortest_paths () in
+          shortest_paths := Some(p);p
+        | Some(p) -> p
+      end
+    in
+    let node_index = sender-1 in
+    for i=0 to num_nodes do
+      if not (i = node_index) then
+      (
+        let (l,b,_) = sp.(node_index).(i) in
+        let time_elapsed_bandwidth = ref 0 in
+        List.iter (fun x -> time_elapsed_bandwidth := !time_elapsed_bandwidth + (delay x)) b;
+        let arrival_time = (Simulator.Clock.get_timestamp ()) + l + !time_elapsed_bandwidth in
+        let msg_event = Events.Message(sender,i+1,arrival_time,msg) in
+        Queue.add_event msg_event;
+      )
+    done;
     ()
 
 end

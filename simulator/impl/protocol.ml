@@ -37,7 +37,7 @@ module Make(Event : Simulator.Events.Event)
     let log_links links = 
       Array.iteri (
         fun i l -> 
-          (List.iter (
+          (Array.iter (
             fun j -> Logger.log_event (Event.AddLink(i+1, j))
           ) l)
         ) links
