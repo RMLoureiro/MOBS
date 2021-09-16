@@ -204,7 +204,7 @@ struct
       end
     in
     let node_index = sender-1 in
-    for i=0 to num_nodes do
+    for i=0 to num_nodes-1 do
       if not (i = node_index) then
       (
         let (l,b,_) = sp.(node_index).(i) in
