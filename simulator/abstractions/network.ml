@@ -129,6 +129,11 @@ struct
     let scale           = float_of_int (mean_latency - 5) in
     int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
 
+  let extract_latency mean_latency =
+    let shape           = 0.2 *. (float_of_int mean_latency)  in
+    let scale           = float_of_int (mean_latency - 5) in
+    int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
+
   let get_bandwidth sender receiver =
     let region_sender      = regions.(sender-1) in     (* id's start at 1 *)
     let region_receiver    = regions.(receiver-1) in   (* id's start at 1 *)
@@ -155,6 +160,8 @@ struct
   (* Floyd Warshall's Algorithm for computing the shortest path between every pair of nodes *)
   (* https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm *)
   let compute_shortest_paths () =
+    let t = Sys.time () in
+    print_endline "\t\t Computing shortest-paths between every pair of nodes...";
     let num_nodes = !Parameters.General.num_nodes in
     (* the distance of one node to itself is 0 *)
     (* the starting distance of one node to all others is infinity - represented by -1 *)
@@ -186,6 +193,9 @@ struct
         done
       done
     done;
+    let elapsed_time = Sys.time () -. t in
+    let s = Printf.sprintf "\t\t [DONE] Computed shortest-paths in %.2f seconds." elapsed_time in
+    print_endline s;
     shortest_paths
 
   let gossip sender msg =
@@ -208,9 +218,10 @@ struct
       if not (i = node_index) then
       (
         let (l,b,_) = sp.(node_index).(i) in
+        let latency = extract_latency l in
         let time_elapsed_bandwidth = ref 0 in
         List.iter (fun x -> time_elapsed_bandwidth := !time_elapsed_bandwidth + (delay x)) b;
-        let arrival_time = (Simulator.Clock.get_timestamp ()) + l + !time_elapsed_bandwidth in
+        let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + !time_elapsed_bandwidth in
         let msg_event = Events.Message(sender,i+1,arrival_time,msg) in
         Queue.add_event msg_event;
       )
