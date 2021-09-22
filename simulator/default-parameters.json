@@ -1,10 +1,10 @@
 {
     "general": {
-        "num-nodes":20,
+        "num-nodes":250,
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
-        "seed":123,
+        "seed":12345,
         "pow_target_interval":600000,
         "avg_mining_power":400000,
         "stdev_mining_power":100000,
@@ -39,9 +39,9 @@
         "lambda-stepvar":5000,
         "lambda-priority":5000,
         "lambda-block":60000,
-        "committee-size":9,
-        "num-proposers":1,
-        "majority-votes":5,
-        "block-size-mb":1
+        "committee-size":50,
+        "num-proposers":2,
+        "majority-votes":31,
+        "block-size-mb":8
     }
 }
