@@ -1,5 +1,5 @@
 (library
- (name example)
+ (name simplepow)
  (libraries parameters simulator abstractions implementation))
 (env
  (dev
