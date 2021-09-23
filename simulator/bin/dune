@@ -1,4 +1,4 @@
 (executable
  (name main)
- (libraries simulator parameters abstractions implementation)
+ (libraries simulator parameters abstractions implementation algorand bitcoin example tenderbake)
  (modes byte exe))

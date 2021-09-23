@@ -28,6 +28,8 @@ let committee_size  = Parameters.Protocol.get_int_parameter "committee-size";;
 let majority_votes  = Parameters.Protocol.get_int_parameter "majority-votes";;
 let round0_duration = 3000;
 
+open Implementation
+
 type block_contents = {
   (* Note: the level is included in the block's header, as HEIGHT *)
   mutable round : int; (* the round of the block *)

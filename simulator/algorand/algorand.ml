@@ -8,6 +8,7 @@ let num_proposers         = Parameters.Protocol.get_int_parameter "num-proposers
 let majority_votes        = Parameters.Protocol.get_int_parameter "majority-votes";;
 let block_size            = Parameters.Protocol.get_int_parameter "block-size-mb";;
 
+open Implementation
 
 type alg_msg = 
     Priority of int * int * int * int * signature  (* round, period, step, priority, creator_signature *)
