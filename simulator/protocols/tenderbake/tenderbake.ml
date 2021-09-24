@@ -26,7 +26,8 @@
 
 let committee_size  = Parameters.Protocol.get_int_parameter "committee-size";;
 let majority_votes  = Parameters.Protocol.get_int_parameter "majority-votes";;
-let round0_duration = 3000;
+let round0_duration = 3000;;
+let block_size      = Parameters.Protocol.get_int_parameter "block-size-mb";;
 
 open Implementation
 
@@ -91,8 +92,8 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
     Printf.sprintf "{\"level\":%d,\"round\":%d,\"creator\":%d,\"prev_block\":%d,\"payload\":%s}" level round creator prev_block payload
 
   let get_size (msg:t) =
-    match msg with
-    | _ -> Simulator.Size.Bit(10000) (* TODO *)
+    (* TODO : get accurate values *)
+    Simulator.Size.Byte(132)
 
   let processing_time (_:t) =
     10
@@ -165,11 +166,12 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
     }
 
     let send_to_neighbours (node:t) (msg:tenderbake_msg) =
-      Array.iter (
+      TenderbakeNetwork.gossip node.id msg
+      (* Array.iter (
         fun neighbour -> 
           if not (neighbour = node.id) && not (neighbour = msg.creator) then 
             TenderbakeNetwork.send node.id neighbour msg
-        ) node.links
+        ) node.links *)
 
         (* type, creator, level, round, block_id *)
     let check_duplicate (node:t) (msg:tenderbake_msg) =
@@ -515,13 +517,11 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
       let message_valid = check_message_lrh message node in
       if message_valid then
         begin
-          let _ = match message.payload with
+          match message.payload with
             | Propose(_) -> rcv_propose message.payload creator node
             | Preendorse(_) -> rcv_preendorse message.payload node
             | Endorse(_) -> rcv_endorse message.payload node
             | Preendorsements(_) -> rcv_preendorsements message.payload message.round node
-          in
-          if not (check_duplicate node message) then send_to_neighbours node message (* propagate non-duplicate message *)
         end
 
     let send_proposal (node:t) =
@@ -642,14 +642,41 @@ module TenderbakeStatistics : (Protocol.Statistics with type ev = TenderbakeEven
   type ev = TenderbakeEvent.t
   type value = TenderbakeBlock.block
 
-  let consensus_reached _ _ =
-    ()
+  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
+  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
+
+  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
+  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+
+
+  let consensus_reached nodeID _ =
+    let current_time = (Simulator.Clock.get_timestamp ()) in
+    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
+    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
+    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
+
 
   let process _ =
     ()
 
   let get () =
-    "{}"
+    let per_node_average avg_list = 
+      fun x ->
+        let sum = ref 0 in
+        List.iter (fun y -> sum := !sum + y) x;
+        if List.length x > 0 then
+          avg_list := !avg_list@[!sum / (List.length x)]
+    in
+    let avg_total avg_per_node =
+      let sum = ref 0 in
+      List.iter (fun x -> sum := !sum + x) !avg_per_node;
+      !sum / (List.length !avg_per_node)
+    in
+    let avg_consensus_time_per_node = ref [] in
+    List.iter (per_node_average avg_consensus_time_per_node) !node_time_between_blocks;
+    let avg_decision_time_ms = avg_total avg_consensus_time_per_node in
+    let avg_decision_time_s  = (float_of_int avg_decision_time_ms) /. 1000.0 in
+    Printf.sprintf "{\"avg-decision-time\":%.2f}" avg_decision_time_s
 
 end
 
