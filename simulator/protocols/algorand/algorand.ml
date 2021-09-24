@@ -106,10 +106,8 @@ module AlgorandStatistics = struct
     last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
     node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
 
-  let process event =
-    match event with
-    | AlgorandEvent.Message(_,_,_,_) -> total_messages := !total_messages +1
-    | _ -> ()
+  let process _ =
+    ()
 
   let get () =
     let per_node_average avg_list = 
