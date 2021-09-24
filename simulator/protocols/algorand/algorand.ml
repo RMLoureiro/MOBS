@@ -140,7 +140,7 @@ module AlgorandStatistics = struct
     List.iter (per_node_average avg_majority_sv_time_per_node) !majority_soft_vote_time;
     let avg_consensus_time = median_value !avg_consensus_time_per_node in
     let avg_block_proposal_time = highest_value !avg_block_proposal_time_per_node in
-    let avg_majority_sv_time = highest_value !avg_majority_sv_time_per_node in
+    let avg_majority_sv_time = median_value !avg_majority_sv_time_per_node in
     Printf.sprintf "{\"final-step\":%.2f,\"block-proposal\":%.2f,\"majority-softvotes\":%.2f}" avg_consensus_time avg_block_proposal_time avg_majority_sv_time
 
 end
