@@ -119,11 +119,11 @@ For now, a user must change [main.ml](/simulator/bin/main.ml) to use the newly i
 
 Examples:
 
-- [SimplePoW](/simulator/impl/simplePoW.ml) contains a very simple example of how to implement a protocol in the simulator. 
+- [SimplePoW](/simulator/protocols/simplepow) contains a very simple example of how to implement a protocol in the simulator. 
 
-- [Bitcoin](/simulator/impl/bitcoin.ml) contains an implementation of the Bitcoin protocol. It is a more detailed example than ```SimplePoW```, taking advantage of some more abstractions provided by the simulator.
+- [Bitcoin](/simulator/protocols/bitcoin) contains an implementation of the Bitcoin protocol. It is a more detailed example than ```SimplePoW```, taking advantage of some more abstractions provided by the simulator.
 
-- [Algorand](/simulator/impl/algorand.ml) contains an implementation of the Algorand Agreement protocol, with some simplifications, as an example for a Proof of Stake protocol.
+- [Algorand](/simulator/protocols/algorand) contains an implementation of the Algorand Agreement protocol, with some simplifications to cryptography operations, as an example for a Proof of Stake protocol.
 
 
 ## Simulator Abstractions
