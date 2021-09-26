@@ -112,7 +112,7 @@ module TenderbakePoS     = Abstractions.Pos.Make(TenderbakeLogger)(TenderbakeBlo
 
 
 
-module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type value=TenderbakeBlock.block) = struct
+module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t and type value=TenderbakeBlock.block) = struct
 
   type value = TenderbakeBlock.block
 
@@ -120,7 +120,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
     type v = value
   end
 
-  include Abstract.MakeBaseNode(V)
+  include Protocol.MakeBaseNode(V)
 
   type ev = TenderbakeEvent.t
 
@@ -137,7 +137,7 @@ module TenderbakeNode : (Protocol.Node with type ev=TenderbakeEvent.t and type v
   | Collecting_preendorsements of { acc : preendorsement list }
   | Collecting_endorsements of { pqc : preendorsement list; acc : endorsement list; }
 
-  type t = (node_data, value) Abstract.template
+  type t = (node_data, value) Protocol.template
 
   let init id links region : (t) =
     let initial_block =
@@ -624,7 +624,7 @@ end
 
 
 
-module TenderbakeInitializer : (Abstract.Initializer with type node=TenderbakeNode.t and type ev=TenderbakeEvent.t) = struct
+module TenderbakeInitializer : (Protocol.Initializer with type node=TenderbakeNode.t and type ev=TenderbakeEvent.t) = struct
   type node = TenderbakeNode.t
 
   type ev = TenderbakeEvent.t
@@ -682,7 +682,7 @@ end
 
 
 
-module TenderbakeProtocol = Protocol.Make(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
+module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
 
 
 

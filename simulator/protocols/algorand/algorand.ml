@@ -145,7 +145,7 @@ end
 
 
 
-module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value=AlgorandBlock.block) = struct
+module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and type value=AlgorandBlock.block) = struct
 
   type value = AlgorandBlock.block
 
@@ -153,7 +153,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     type v = value
   end
 
-  include Abstract.MakeBaseNode(V)
+  include Protocol.MakeBaseNode(V)
 
   type ev = AlgorandEvent.t
 
@@ -175,7 +175,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
     mutable highest_block_id : int
   }
 
-  type t = (node_data, value) Abstract.template
+  type t = (node_data, value) Protocol.template
 
   let init id links region : (t) =
     let cert = {certificate=[];prev_block_certificate=[]} in
@@ -723,7 +723,7 @@ module AlgorandNode : (Protocol.Node with type ev=AlgorandEvent.t and type value
 end
 
 
-module AlgorandInitializer : (Abstract.Initializer with type node=AlgorandNode.t and type ev=AlgorandEvent.t) = struct
+module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t and type ev=AlgorandEvent.t) = struct
   type node = AlgorandNode.t
 
   type ev = AlgorandEvent.t
@@ -735,4 +735,4 @@ module AlgorandInitializer : (Abstract.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandProtocol = Protocol.Make(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandTimer)(AlgorandNode)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;
+module AlgorandProtocol = Protocol.Make.Blockchain(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandTimer)(AlgorandNode)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;

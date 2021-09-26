@@ -102,7 +102,7 @@ module BitcoinStatistics = struct
 end
 
 
-module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=BitcoinBlock.block) = struct
+module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and type value=BitcoinBlock.block) = struct
   
   type value = BitcoinBlock.block
 
@@ -110,7 +110,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
     type v = value
   end
 
-  include Abstract.MakeBaseNode(V)
+  include Protocol.MakeBaseNode(V)
 
   type ev = BitcoinEvent.t
 
@@ -121,7 +121,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
     mutable sending : bool;
   }
 
-  type t = (node_data, value) Abstract.template
+  type t = (node_data, value) Protocol.template
 
   let init id links region : (t) =
     {
@@ -227,7 +227,7 @@ module BitcoinNode : (Protocol.Node with type ev=BitcoinEvent.t and type value=B
 
 end
 
-module BitcoinInitializer : (Abstract.Initializer with type node=BitcoinNode.t and type ev=BitcoinEvent.t) = struct
+module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t and type ev=BitcoinEvent.t) = struct
   type node = BitcoinNode.t
 
   type ev = BitcoinEvent.t
@@ -238,7 +238,7 @@ module BitcoinInitializer : (Abstract.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
+module BitcoinProtocol = Protocol.Make.Blockchain(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
 
 
 

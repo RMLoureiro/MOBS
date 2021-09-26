@@ -30,14 +30,14 @@ module SimpleBlock   = Simulator.Block.Make(SimpleLogger)(BlockContents);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
 
-module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=SimpleBlock.block) = struct
+module SimpleNode : (Protocol.BlockchainNode with type ev=SimpleEvent.t and type value=SimpleBlock.block) = struct
   type value = SimpleBlock.block
   
   module V = struct
     type v = value
   end
 
-  include Abstract.MakeBaseNode(V)
+  include Protocol.MakeBaseNode(V)
 
   type ev = SimpleEvent.t
 
@@ -45,7 +45,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
     mutable received_blocks : int list;
   }
 
-  type t = (node_data, value) Abstract.template
+  type t = (node_data, value) Protocol.template
 
   let init id links region : (t) =
     {
@@ -100,7 +100,7 @@ module SimpleNode : (Protocol.Node with type ev=SimpleEvent.t and type value=Sim
 
 end
 
-module SimpleInitializer : (Abstract.Initializer with type node=SimpleNode.t and type ev=SimpleEvent.t) = struct
+module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and type ev=SimpleEvent.t) = struct
   type node = SimpleNode.t
 
   type ev = SimpleEvent.t
@@ -127,7 +127,7 @@ module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and 
 
 end
 
-module SimpleProtocol = Protocol.Make(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
+module SimpleProtocol = Protocol.Make.Blockchain(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
 
 
 
