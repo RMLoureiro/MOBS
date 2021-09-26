@@ -42,7 +42,9 @@ let interval           = ref 600000
 let avg_mining_power   = ref 400000
 let stdev_mining_power = ref 100000
 
-
+(* adversary parameters *)
+let num_bad_nodes = ref 0
+let become_bad_timestamp = ref 0
 
 
 
@@ -72,6 +74,8 @@ let () =
   stdev_coins := get_general_param json "stdev_coins" |> to_int;
   max_timestamp := get_general_param json "timestamp-limit" |> to_int;
   verbose := get_general_param json "verbose-output" |> to_bool;
+  num_bad_nodes := get_general_param json "bad_nodes" |> to_int;
+  become_bad_timestamp := get_general_param json "become_bad_timestamp" |> to_int;
   if !max_timestamp > 0 then timestamp_limit := true;
   region_distribution := Array.of_list (get_network_param json "region-distribution" |> to_list |> filter_float);
   degree_distribution := Array.of_list (get_network_param json "degree-distribution" |> to_list |> filter_float);

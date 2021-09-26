@@ -682,7 +682,7 @@ end
 
 
 
-module TenderbakeProtocol = Protocol.Make(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
+module TenderbakeProtocol = Protocol.Make(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
 
 
 

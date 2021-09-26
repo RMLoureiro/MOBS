@@ -10,7 +10,9 @@
         "stdev_mining_power":100000,
         "avg_coins":4000,
         "stdev_coins":2000,
-        "reward":0.01
+        "reward":0.01,
+        "bad_nodes":0,
+        "become_bad_timestamp":0
     },
     "network": {
         "num-regions":12,

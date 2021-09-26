@@ -238,7 +238,7 @@ module BitcoinInitializer : (Abstract.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
+module BitcoinProtocol = Protocol.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
 
 
 

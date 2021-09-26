@@ -18,19 +18,49 @@ module Make(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Block : Simulator.Block.BlockSig)
            (Timer : Abstractions.Timer.Timer)
-           (Node : Node with type ev = Event.t and type value = Block.block) 
-           (Initializer : Abstract.Initializer with type node = Node.t and type ev = Event.t)
+           (GoodNode : Node with type ev = Event.t and type value = Block.block)
+           (BadNode : Node with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data)
+           (Initializer : Abstract.Initializer with type node = GoodNode.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
            (Statistics : Statistics with type ev=Event.t and type value=Block.block) : Abstract.Protocol
            = struct
 
-  module NodeMap = Map.Make(Int)
+  module NodeMap  = Map.Make(Int)
 
-  (*let dump_links_stdout links =
-    print_endline "";
-    Array.iter (fun x -> print_string "["; List.iter (fun y -> print_int y;print_string ",") x; print_endline "]") links;
-    print_endline "";
-    ()*)
+  module MakeStep(Node: Node with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
+    
+    let step ts e nodes max_height =
+      begin
+        Logger.log_event e;
+        Statistics.process e;
+        Simulator.Clock.set_timestamp ts;
+        let index = Event.target e in
+        match index with
+        | None -> ()
+        | Some i -> 
+          let node_state = Hashtbl.find nodes i in
+          let old_chain_head = Node.state node_state in
+          let new_state = Node.handle node_state e in
+            begin 
+              if Node.chain_height new_state > !max_height then
+                begin
+                max_height := Node.chain_height new_state;
+                let s = Printf.sprintf "\t Longest Chain Height Observed: %d" !max_height in
+                print_endline s
+                end
+            end;
+            begin
+              let new_chain_head = Node.state new_state in
+              if not (Block.equals old_chain_head new_chain_head) then
+                begin
+                  Logger.print_new_chain_head i (Block.minter new_chain_head) (Block.id new_chain_head);
+                  Statistics.consensus_reached i new_chain_head
+                end
+            end;
+            Hashtbl.replace nodes i new_state
+      end
+
+  end
 
   (** create the nodes to be used in the simulation, and produce the node and link creation JSON logs *)
   let create_nodes () =
@@ -54,13 +84,26 @@ module Make(Event : Simulator.Events.Event)
     for i = 1 to num_nodes do
       let node_links = links.(i-1) in
       let node_region = regions.(i-1) in
-      let node = Node.init i node_links node_region in
+      let node = GoodNode.init i node_links node_region in
       Hashtbl.add nodes i node;
       Logger.log_event (Event.AddNode(i, node_region))
     done;
     print_endline "\t [DONE] Initializing nodes";
     log_links links;
     nodes
+
+    let initialize_malicious_node_data () =
+      let malicious:((bool*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (false,0)) in
+      let num_malicious_nodes = !Parameters.General.num_bad_nodes in
+      let become_malicious_timestamp = !Parameters.General.become_bad_timestamp in
+      let selected_nodes = ref 0 in
+      while !selected_nodes < num_malicious_nodes do
+        let i = (Random.int !Parameters.General.num_nodes)+1 in
+        match malicious.(i) with
+        | (false,_) -> malicious.(i) <- (true, become_malicious_timestamp); selected_nodes := !selected_nodes +1
+        | _ -> ()
+      done;
+      malicious
 
     (** create the initial events that jumpstart the simulation loop *)
     let initial_events nodes =
@@ -69,10 +112,11 @@ module Make(Event : Simulator.Events.Event)
     let run () =
       Logger.init ();
       print_endline "Parsing simulation parameters...";
-      Logger.log_parameters (Node.parameters ());
+      Logger.log_parameters (GoodNode.parameters ());
       print_endline "[DONE] Parsing simulation parameters";
       print_endline "Creating nodes...";
       let nodes            = create_nodes () in
+      let malicious_data   = initialize_malicious_node_data () in
       print_endline "[DONE] Creating nodes";
       print_endline "Creating initial events...";
       let _                = initial_events nodes in
@@ -82,36 +126,16 @@ module Make(Event : Simulator.Events.Event)
       let end_block_height = !Parameters.General.end_block_height in
       let max_timestamp    = !Parameters.General.max_timestamp in
       let timestamp_limit  = !Parameters.General.timestamp_limit in
-      let step ts e =
-        begin
-          Logger.log_event e;
-          Statistics.process e;
-          Simulator.Clock.set_timestamp ts;
-          let index = Event.target e in
-          match index with
-          | None -> ()
-          | Some i -> 
-            let node_state = Hashtbl.find nodes i in
-            let old_chain_head = Node.state node_state in
-            let new_state = Node.handle node_state e in
-              begin 
-                if Node.chain_height new_state > !max_height then
-                  begin
-                  max_height := Node.chain_height new_state;
-                  let s = Printf.sprintf "\t Longest Chain Height Observed: %d" !max_height in
-                  print_endline s
-                  end
-              end;
-              begin
-                let new_chain_head = Node.state new_state in
-                if not (Block.equals old_chain_head new_chain_head) then
-                  begin
-                    Logger.print_new_chain_head i (Block.minter new_chain_head) (Block.id new_chain_head);
-                    Statistics.consensus_reached i new_chain_head
-                  end
-              end;
-              Hashtbl.replace nodes i new_state
-        end
+      let module GoodStep  = MakeStep(GoodNode) in
+      let module BadStep   = MakeStep(BadNode) in
+      let step ts e = 
+        let index = Event.target e in
+        match index with
+        | None -> ()
+        | Some i -> 
+          match malicious_data.(i) with
+          | (true,t) -> if t >= ts then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
+          | _ -> GoodStep.step ts e nodes max_height
       in
       while Queue.has_event () && !max_height < end_block_height && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
         let ev = Queue.get_event () in

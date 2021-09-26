@@ -127,7 +127,7 @@ module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and 
 
 end
 
-module SimpleProtocol = Protocol.Make(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
+module SimpleProtocol = Protocol.Make(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
 
 
 
