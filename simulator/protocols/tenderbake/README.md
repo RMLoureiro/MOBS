@@ -14,6 +14,9 @@ The main **goal** was to demonstrate the added functionalities that this simulat
 ---
 
 The main differences between this implementation and the one referenced above are:
+- the round is kept in the node's state, instead of being stored and updated in the blocks
+    - the block only stores the round when it was created
+- messages for future rounds are stored in a buffer to be processed later, as opposed to being ignored
 - proposer and committee members are selected through stake-based sortition
 - more network customization - for example, the network is **not** fully linked (although it can be)
 - simplified hashes and signatures

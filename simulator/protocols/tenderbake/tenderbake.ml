@@ -65,9 +65,10 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
     let payload = Printf.sprintf "{\"kind\":\"%s\",\"block\":%d}" kind id in
     Printf.sprintf "{\"level\":%d,\"round\":%d,\"creator\":%d,\"prev_block\":%d,\"payload\":%s}" level round creator prev_block payload
 
-  let get_size (msg:t) =
-    (* TODO : get accurate values *)
+  let get_size (_:t) =
+    (* TODO : get accurate data *)
     Simulator.Size.Byte(132)
+    
 
   let processing_time (_:t) =
     10
@@ -104,7 +105,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
     mutable proposal_state : proposal_state;
     mutable endorsable     : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
     mutable locked         : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
-    mutable seen_msgs      : (int * int * int * int * int) list (* type, creator, level, round, block_id *)
+    mutable msg_buffer     : tenderbake_msg list (* type, creator, level, round, block_id *)
   }
   and proposal_state =
   | No_proposal
@@ -136,34 +137,12 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         proposal_state = No_proposal;
         endorsable = None;
         locked = None;
-        seen_msgs = [];
+        msg_buffer = [];
       }
     }
 
     let send_to_neighbours (node:t) (msg:tenderbake_msg) =
       TenderbakeNetwork.gossip node.id msg
-
-    (* type, creator, level, round, block_id *)
-    let check_duplicate (node:t) (msg:tenderbake_msg) =
-      let round = msg.round in
-      let level = msg.level in
-      let creator = msg.creator in
-      let tp,blk_id = 
-        match msg.payload with
-        | Propose([]) -> 1,-1
-        | Propose(blk::_) -> 1,blk.header.id
-        | Preendorse(Preendorsement(blk,_)) -> 2,blk.id
-        | Endorse(Endorsement(blk,_),_) -> 3,blk.id
-        | Preendorsements(blk,_) -> 4,blk.header.id
-      in
-      let v = (tp, creator, level, round, blk_id) in
-      if List.exists (fun x -> x=v) node.data.seen_msgs then
-        true
-      else 
-        begin
-          node.data.seen_msgs <- [v]@node.data.seen_msgs;
-          false
-        end
 
     let chain_height (node:t) =
       node.state.header.height
@@ -219,6 +198,14 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       | None -> ()
       | Some(old_round, _, _) -> 
         if round > old_round then node.data.endorsable <- Some(round, block, pqc)
+
+    (* check if message if for a future level/round *)
+    let future_message (msg:tenderbake_msg) (node:t) =
+      let level_of_proposal = msg.level in
+      let round_of_proposal = msg.round in
+      let level = head_level node.data.chain in
+      let round = current_round node in
+      level_of_proposal > level || (level_of_proposal = level && round_of_proposal > round)
 
     (* Check if message has corrent data *)
     let check_message_lrh (msg:tenderbake_msg) (node:t) =
@@ -490,10 +477,13 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       if valid_pqc then
         set_endorsable node round block pqc
     
+    
+
     let process_msg (node:t) (message:tenderbake_msg) =
       (* TODO : signature check? *)
       let creator = message.creator in
       let message_valid = check_message_lrh message node in
+      let future = future_message message node in
       if message_valid then
         begin
           match message.payload with
@@ -502,6 +492,30 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
             | Endorse(_) -> rcv_endorse message.payload node
             | Preendorsements(_) -> rcv_preendorsements message.payload message.round node
         end
+      else
+        begin
+          if future then
+            begin
+              node.data.msg_buffer <- node.data.msg_buffer@[message]
+            end
+        end
+
+    let process_msg_buffer (node:t) =
+      let futures  = ref [] in
+      let currents = ref [] in
+      let filter (message:tenderbake_msg) =
+        let valid  = check_message_lrh message node in
+        let future = future_message message node in
+        if valid then
+          currents := !currents@[message]
+        else
+          begin 
+            if future then futures := !futures@[message]
+          end
+      in
+      List.iter filter node.data.msg_buffer;
+      List.iter (fun msg -> process_msg node msg) !currents;
+      node.data.msg_buffer <- !futures
 
     let send_proposal (node:t) =
       let proposed_level = (decided_level node) + 1 in
@@ -531,7 +545,8 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         node.data.chain <- new_block::rest;
         node.data.proposal_state <- No_proposal;
         node.data.round <- node.data.round+1;
-        schedule_wakeup node new_block.contents.rtimestamp (current_round node)
+        schedule_wakeup node new_block.contents.rtimestamp (current_round node);
+        process_msg_buffer node
 
     let attempt_to_decide_head (node:t) =
       match node.data.chain with
@@ -558,7 +573,8 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               node.data.endorsable <- None;
               node.data.locked <- None;
               node.data.round <- 0;
-              schedule_wakeup node new_block.contents.rtimestamp 0
+              schedule_wakeup node new_block.contents.rtimestamp 0;
+              process_msg_buffer node
             end
           else
             increment_round node
