@@ -7,7 +7,7 @@ open Implementation
 
 type block_contents = {
   (* Note: the level is included in the block's header, as HEIGHT *)
-  mutable round : int; (* the round of the block *)
+  round : int; (* the round when the block was created *)
   mutable predecessor_eqc : endorsement list; (* endorsement quorum certificate of previous block *)
   mutable previously_proposed : (int * preendorsement list) option; (* whether the block has been previously proposed *)
   mutable rtimestamp : int; (* the timestamp when the current round began *)
@@ -99,7 +99,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
   type ev = TenderbakeEvent.t
 
   type node_data = {
-    (*private_key:Signature.private_key;*)
+    mutable round          : int;    
     mutable chain          : value list;
     mutable proposal_state : proposal_state;
     mutable endorsable     : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
@@ -131,6 +131,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       links = links;
       state = initial_block;
       data = {
+        round = 0;
         chain = [initial_block];
         proposal_state = No_proposal;
         endorsable = None;
@@ -208,7 +209,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       match chain with block :: _ -> block.header.height | _ -> 0
 
     let current_round (node:t) =
-      match node.data.chain with block :: _ -> block.contents.round | _ -> 0
+      node.data.round
 
     let last_decided_block_hash (node:t) =
       match node.data.chain with block :: _ -> block.header.parent | _ -> None (* TODO : not an hash *)
@@ -336,7 +337,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
           let endorsement = Endorsement(block.header, Signature(node.id)) in
           let msg = {
             level = block.header.height;
-            round = block.contents.round;
+            round = node.data.round;
             previous_block_hash;
             creator = node.id;
             payload = Endorse(endorsement, pqc);
@@ -421,7 +422,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       if valid_proposer && valid_previously_proposed_pqc && valid_chain candidate_chain && better_chain candidate_chain node
       then
         begin
-          schedule_wakeup node candidate.contents.rtimestamp candidate.contents.round;
+          schedule_wakeup node candidate.contents.rtimestamp node.data.round;
           node.data.chain <- candidate_chain;
           node.data.proposal_state <- No_proposal;
           if head_level candidate_chain > head_level node.data.chain then
@@ -523,24 +524,13 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         let new_block =
           match node.data.endorsable with
           | None -> 
-            let data = {
-              round = old_block.contents.round+1;
-              rtimestamp = Simulator.Clock.get_timestamp ();
-              predecessor_eqc = old_block.contents.predecessor_eqc;
-              previously_proposed = None;
-            } in
-            {old_block with contents=data}
+            {old_block with contents = {old_block.contents with previously_proposed = None}}
           | Some(round, block, pqc) -> 
-            let data = {
-              round = block.contents.round+1;
-              rtimestamp = Simulator.Clock.get_timestamp ();
-              predecessor_eqc = block.contents.predecessor_eqc;
-              previously_proposed = Some(round, pqc);
-            } in
-            {block with contents=data}
+            {block with contents= {old_block.contents with previously_proposed = Some(round, pqc)}}
         in
         node.data.chain <- new_block::rest;
         node.data.proposal_state <- No_proposal;
+        node.data.round <- node.data.round+1;
         schedule_wakeup node new_block.contents.rtimestamp (current_round node)
 
     let attempt_to_decide_head (node:t) =
@@ -567,6 +557,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               node.data.proposal_state <- No_proposal;
               node.data.endorsable <- None;
               node.data.locked <- None;
+              node.data.round <- 0;
               schedule_wakeup node new_block.contents.rtimestamp 0
             end
           else
