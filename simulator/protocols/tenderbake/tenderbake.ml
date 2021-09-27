@@ -1,29 +1,3 @@
-(** 
-  Main references for this implementation:
-  -> (1) https://blog.nomadic-labs.com/a-look-ahead-to-tenderbake.html
-  -> (2) https://arxiv.org/pdf/2001.11965.pdf
-  -> (3) https://gitlab.com/nomadic-labs/tenderbake-simulator/-/tree/master/src/tenderbake
-
-  At an high level, this is an adaptation of (3) for this simulator, 
-    as the overall logic is extremely similar. The main goal was to show the
-    added functionalities that this simulator offers, and not to fundamentaly
-    change an already correct and validated implementation of the protocol.
-
-  Main differences between this implementation and the one referenced above:
-  -> since we aren't considering malicious nodes:
-     -> The hash of a block is replaced by the internal ID that every block in the simulator possesses
-     -> The signature of a node is replaced by the internal ID that every node in the simulator possesses
-  -> proposer and committee members are selected through sortition based on the nodes' stakes
-  -> the network is not fully linked (although it can be)
-     -> each node sends messages to its neighbours
-     -> each node forwards incoming messages to its neighbours
-  -> mutable records are leveraged to store and update the nodes' state
-  -> can easily extend the statistics module to gather arbitrary statistics about the execution of the protocol
-     -> at the moment, the only one being extracted is the average time to decide on a block
-  -> can leverage the visualizer to run batch simulations, to analyze the gathered statistics and to monitor
-     the overall behavior of the protocol
-*)
-
 let committee_size  = Parameters.Protocol.get_int_parameter "committee-size";;
 let majority_votes  = Parameters.Protocol.get_int_parameter "majority-votes";;
 let round0_duration = 3000;;
@@ -167,13 +141,8 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
 
     let send_to_neighbours (node:t) (msg:tenderbake_msg) =
       TenderbakeNetwork.gossip node.id msg
-      (* Array.iter (
-        fun neighbour -> 
-          if not (neighbour = node.id) && not (neighbour = msg.creator) then 
-            TenderbakeNetwork.send node.id neighbour msg
-        ) node.links *)
 
-        (* type, creator, level, round, block_id *)
+    (* type, creator, level, round, block_id *)
     let check_duplicate (node:t) (msg:tenderbake_msg) =
       let round = msg.round in
       let level = msg.level in
@@ -361,17 +330,20 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       match node.data.chain with
       | [] -> ()
       | block :: _ -> 
-        let previous_block_hash = block.header.parent in
-        let endorsement = Endorsement(block.header, Signature(node.id)) in
-        let msg = {
-          level = block.header.height;
-          round = block.contents.round;
-          previous_block_hash;
-          creator = node.id;
-          payload = Endorse(endorsement, pqc);
-        } in
-        handle_endorsement node (Endorse(endorsement, pqc));
-        send_to_neighbours node msg
+        if TenderbakePoS.in_committee node.id block committee_size [head_level node.data.chain] then
+        begin
+          let previous_block_hash = block.header.parent in
+          let endorsement = Endorsement(block.header, Signature(node.id)) in
+          let msg = {
+            level = block.header.height;
+            round = block.contents.round;
+            previous_block_hash;
+            creator = node.id;
+            payload = Endorse(endorsement, pqc);
+          } in
+          handle_endorsement node (Endorse(endorsement, pqc));
+          send_to_neighbours node msg
+        end
 
     let handle_preendorsement (node:t) (Preendorse(preendorsement)) =
       let (block_header, signature) = match preendorsement with
@@ -418,26 +390,29 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       match node.data.chain with
       | [] -> ()
       | block :: _ -> 
-        let previous_block_hash = block.header.parent in
-        let preendorsement = Preendorsement(block.header, Signature(node.id)) in
-        let msg = {
-          level = block.header.height;
-          round = current_round node;
-          previous_block_hash;
-          payload = Preendorse(preendorsement);
-          creator = node.id;
-        } in
-        let _ = 
-          match block.contents.previously_proposed with
-          | None -> ()
-          | Some(round, pqc) -> set_endorsable node round block pqc
-        in
-        handle_preendorsement node (Preendorse(preendorsement));
-        send_to_neighbours node msg
+        if TenderbakePoS.in_committee node.id block committee_size [head_level node.data.chain] then
+        begin
+          let previous_block_hash = block.header.parent in
+          let preendorsement = Preendorsement(block.header, Signature(node.id)) in
+          let msg = {
+            level = block.header.height;
+            round = current_round node;
+            previous_block_hash;
+            payload = Preendorse(preendorsement);
+            creator = node.id;
+          } in
+          let _ = 
+            match block.contents.previously_proposed with
+            | None -> ()
+            | Some(round, pqc) -> set_endorsable node round block pqc
+          in
+          handle_preendorsement node (Preendorse(preendorsement));
+          send_to_neighbours node msg
+        end
 
     let rcv_propose (Propose(candidate_chain)) (creator:int) (node:t) =
       let candidate = List.nth candidate_chain 0 in
-      let valid_proposer = TenderbakePoS.check_proposer creator candidate 1 [head_level node.data.chain;current_round node] in
+      let valid_proposer = TenderbakePoS.check_proposer creator candidate 1 [head_level node.data.chain] in
       let valid_previously_proposed_pqc = 
         match candidate.contents.previously_proposed with
         | None -> true
@@ -481,6 +456,9 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       let valid_preendorser = TenderbakePoS.check_committee signature node.state committee_size [head_level node.data.chain] in
       match node.data.proposal_state with
       | Collecting_preendorsements(_) -> 
+        if valid_preendorser then
+          handle_preendorsement node (Preendorse(preendorsement))
+      | No_proposal -> 
         if valid_preendorser then
           handle_preendorsement node (Preendorse(preendorsement))
       | _ -> ()
@@ -535,8 +513,8 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
           payload = Propose node.data.chain;
       } in
       node.data.proposal_state <- Collecting_preendorsements {acc = [] };
-      send_preendorse node;
-      send_to_neighbours node msg
+      send_to_neighbours node msg;
+      send_preendorse node
 
     let increment_round (node:t) =
       match node.data.chain with
@@ -601,6 +579,19 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         attempt_to_decide_head node;
         if TenderbakePoS.is_proposer node.id block 1 [head_level node.data.chain] then
             send_proposal node
+
+
+    (* let debug (node:t) =
+      let ts = Simulator.Clock.get_timestamp () in
+      let state = match node.data.proposal_state with
+      | No_proposal -> "No Proposal"
+      | Collecting_preendorsements(m) -> Printf.sprintf "Collecting Preendorsements with Count=%d" (List.length m.acc)
+      | Collecting_endorsements(m) -> Printf.sprintf "Collecting Endorsements (%d preendorsements received) with Count=%d" (List.length m.pqc) (List.length m.acc)
+      in
+      let s = 
+        Printf.sprintf "Node %d | %d | Level %d | State { %s }" node.id ts (head_level node.data.chain) state
+      in
+      print_endline s *)
 
     let handle (node:t) (event:TenderbakeEvent.t) =
       let _ = match event with
