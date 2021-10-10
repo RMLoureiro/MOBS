@@ -117,7 +117,6 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
   type node_data = {
     mutable received_blocks : BitcoinBlock.block list;
     mutable downloading_blocks : int list;
-    mutable outgoing_queue : (msg * int) list;
     mutable sending : bool;
   }
 
@@ -132,7 +131,6 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
       data  = {
         received_blocks = [];
         downloading_blocks = [];
-        outgoing_queue = [];
         sending = false;
       }
     }
@@ -181,23 +179,11 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
     else
       node
 
-  let send_next_block (node:t) =
-    match node.data.outgoing_queue with
-    | []    ->
-      node.data.sending <- false;
-      node
-    | (msg,target)::xs -> 
-      BitcoinNetwork.send node.id target msg;
-      node.data.outgoing_queue <- xs;
-      node.data.sending <- true;
-      node
-
   let process_rec (node:t) bid sender = 
     let blk = get_block node bid in
     match blk with
     | Some(b) -> 
-      node.data.outgoing_queue <- node.data.outgoing_queue@[(Block(b), sender)];
-      if not node.data.sending then send_next_block node else node
+      BitcoinNetwork.send node.id sender (Block(b)); node
     | None -> node
 
   let handle (node:t) (event:ev) : t =
@@ -216,7 +202,6 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
       | Inv(id,sender)  -> process_inv node id sender
       | Rec(id,sender)  -> process_rec node id sender
       end
-    | BitcoinEvent.Timeout(_,_,"message_sent") -> send_next_block node
     | _ -> node
 
   (* this function is the same in every blockchain-specific node, 
