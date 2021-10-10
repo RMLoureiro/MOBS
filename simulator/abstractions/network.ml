@@ -106,15 +106,27 @@ module Make(Events: Simulator.Events.Event)
           (Message : Simulator.Events.Message with type t = Events.msg) : (Network with type msg=Events.msg) =
 struct
 
+  (* required types *)
   type msg   = Events.msg
   type paths = (int * int list * int) array array
 
-  let regions = (node_regions ())
-  let links   = (node_links ())
-  let shortest_paths:(paths option ref) = ref None
+  (* required data *)
+  let regions = (node_regions ()) (* region assigned to each node *)
+  let links   = (node_links ())   (* neighbours of each node *)
+
+  (* data required for gossip abstraction *)
+  let shortest_paths:(paths option ref) = ref None (* shortest path from each node, to all other nodes *)
+
+  (* data required to handle bandwidth limits *)
+  (* to model upload bandwidth limits, we keep track of the timestamp when the bandwidth becomes available for the next message to be sent *)
+  (* Note : we assume each message uses all available bandwidth, and therefore messages are sent in sequence, per link *)
+  (* Note : bandwidth becomes available after the message is uploaded to the link *)
+  module OQ = Map.Make(struct type t = int*int let compare = compare end);;
+  let outgoing_queues = ref OQ.empty;;
 
   (***** Latency Calculation Operations *****)
 
+  (* get mean latency from the parameters *)
   let get_mean_latency sender receiver =
     let region_sender   = regions.(sender-1) in     (* id's start at 1 *)
     let region_receiver = regions.(receiver-1) in   (* id's start at 1 *)
@@ -123,17 +135,17 @@ struct
 
   (* from SimBlock -> latency according to 20% variance pallet distribution *)
   (* https://dsg-titech.github.io/simblock/ *)
-  let get_latency sender receiver = 
-    let mean_latency    = get_mean_latency sender receiver in
-    let shape           = 0.2 *. (float_of_int mean_latency)  in
-    let scale           = float_of_int (mean_latency - 5) in
-    int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
-
   let extract_latency mean_latency =
-    let shape           = 0.2 *. (float_of_int mean_latency)  in
-    let scale           = float_of_int (mean_latency - 5) in
+    let shape = 0.2 *. (float_of_int mean_latency)  in
+    let scale = float_of_int (mean_latency - 5) in
     int_of_float (Float.round (scale /. ((Random.float 1.0) ** (1.0 /. shape))))
+  
+  (* obtain a latency value between two nodes *)
+  let get_latency sender receiver = 
+    let mean_latency = get_mean_latency sender receiver in
+    extract_latency mean_latency
 
+  (* obtain bandwidth between two nodes *)
   let get_bandwidth sender receiver =
     let region_sender      = regions.(sender-1) in     (* id's start at 1 *)
     let region_receiver    = regions.(receiver-1) in   (* id's start at 1 *)
@@ -141,24 +153,45 @@ struct
     let download_bandwidth = !Parameters.General.download_bandwidth.(region_receiver) in
     min upload_bandwidth download_bandwidth
 
+  (* get time needed to upload all pending messages to the link *)
+  let pending_upload_time sender receiver =
+    let current_time = Simulator.Clock.get_timestamp () in
+    let stored_available_timestamp =
+      match OQ.find_opt (sender-1,receiver-1) !outgoing_queues with
+      | Some(ts) -> ts
+      | None -> 0
+    in
+    let next_available_timestamp = max stored_available_timestamp current_time in
+    let wait_delay   = next_available_timestamp - current_time in
+    outgoing_queues := OQ.add (sender-1,receiver-1) next_available_timestamp !outgoing_queues;
+    wait_delay
+
+  (* send a message between two nodes *)
   let send sender receiver msg =
     let latency = get_latency sender receiver in
     let bandwidth = get_bandwidth sender receiver in
     let msg_size_bits = (Simulator.Size.to_bits (Message.get_size msg)) in
     let delay = msg_size_bits / (bandwidth / 1000) + (Message.processing_time msg)  in
-    let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + delay in
+    let arrival_time = 
+      begin
+        if !Parameters.General.limited_bandwidth then
+          (
+            let wait_delay = pending_upload_time sender receiver in
+            outgoing_queues := OQ.add (sender-1,receiver-1) ((OQ.find (sender-1,receiver-1) !outgoing_queues) + delay) !outgoing_queues;
+            ((Simulator.Clock.get_timestamp ()) + latency + delay + wait_delay)
+          )
+        else
+          ((Simulator.Clock.get_timestamp ()) + latency + delay)
+      end
+    in
     let msg_event = Events.Message(sender,receiver,arrival_time,msg) in
-    Queue.add_event msg_event;
-    if msg_size_bits >= 800000 then 
-      Queue.add_event (Events.Timeout(sender, arrival_time, "message_sent")) (* "notify" the sender when it finishes sending a large message *)
+    Queue.add_event msg_event
 
+  (* get a node's neighbours *)
   let get_neighbours node =
     links.(node)
 
-  (* !!!!! NOTE: WHEN ACCESSING THE SHORTEST_PATHS, SUBTRACT 1 TO THE NODE'S ID !!!!! *)
-
-  (* Floyd Warshall's Algorithm for computing the shortest path between every pair of nodes *)
-  (* https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm *)
+  (* Floyd Warshall's Algorithm -> https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm *)
   let compute_shortest_paths () =
     let t = Sys.time () in
     print_endline "\t\t Computing shortest-paths between every pair of nodes...";
@@ -198,6 +231,8 @@ struct
     print_endline s;
     shortest_paths
 
+  (* gossip abstraction that leverages the shortest paths *)
+  (* Note : assumes unlimited bandwidth *)
   let gossip sender msg =
     let msg_size = Simulator.Size.to_bits (Message.get_size msg) in
     let delay bandwidth =

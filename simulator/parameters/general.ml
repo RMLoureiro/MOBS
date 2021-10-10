@@ -28,6 +28,7 @@ let latency_table = ref (Array.of_list (List.map (fun x -> Array.of_list x) [
 let region_distribution = ref (Array.of_list [0.3316; 0.4998; 0.0090; 0.1177; 0.0224; 0.0195])
 let degree_distribution = ref (Array.of_list [0.025; 0.050; 0.075; 0.10; 0.20; 0.30; 0.40; 0.50; 0.60; 0.70; 0.80; 0.85; 0.90; 0.95; 0.97; 0.97; 0.98; 0.99; 0.995; 1.0])
 (* bandwidths are in bits per second *)
+let limited_bandwidth = ref true
 let download_bandwidth = ref (Array.of_list [52000000; 40000000; 18000000; 22800000; 22800000; 29900000; 6000000])
 let upload_bandwidth = ref (Array.of_list [4700000; 8100000; 1800000; 5300000; 3400000; 5200000; 6000000])
 
@@ -79,6 +80,7 @@ let () =
   if !max_timestamp > 0 then timestamp_limit := true;
   region_distribution := Array.of_list (get_network_param json "region-distribution" |> to_list |> filter_float);
   degree_distribution := Array.of_list (get_network_param json "degree-distribution" |> to_list |> filter_float);
+  limited_bandwidth := get_network_param json "limited-bandwidth" |> to_bool;
   download_bandwidth := Array.of_list (get_network_param json "download-bandwidth" |> to_list |> filter_int);
   upload_bandwidth := Array.of_list (get_network_param json "upload-bandwidth" |> to_list |> filter_int);
   let latency_table_tmp = get_network_param json "latency-table" |> to_list in
