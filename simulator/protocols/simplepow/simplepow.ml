@@ -111,18 +111,14 @@ module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and
   
 end
 
-module SimpleStatistics : (Protocol.Statistics with type ev = SimpleEvent.t and type value = SimpleBlock.block) = struct
+module SimpleStatistics : (Simulator.Statistics.Stats) = struct
 
-  type ev = SimpleEvent.t
-  type value = SimpleBlock.block
+  type t = int
 
-  let consensus_reached _ _ =
+  let process _ _ =
     ()
 
-  let process _ =
-    ()
-
-  let get () =
+  let get _ =
     "{}"
 
 end

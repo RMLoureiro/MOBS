@@ -44,62 +44,13 @@ module BitcoinBlock   = Simulator.Block.Make(BitcoinLogger)(BlockContents);;
 module BitcoinPow     = Abstractions.Pow.Make(BitcoinEvent)(BitcoinQueue)(BitcoinBlock);;
 let _ = BitcoinPow.init_mining_power ();;
 
-module BitcoinStatistics = struct
 
-  type ev = BitcoinEvent.t
-  type value = BitcoinBlock.block
-
-  (* Observed Delay per Block per Node *)
-  let odpb = ref []
-
-  let received_new_block blk =
-    let delay = (Simulator.Clock.get_timestamp ()) - (BitcoinBlock.timestamp blk) in
-    let blkID = BitcoinBlock.id blk in
-    let found = ref false in
-    odpb := List.map (
-      fun (id,delays) -> 
-        if blkID = id then
-          begin
-            found := true;
-            (id, delays@[delay])
-          end
-        else
-          (id,delays)
-      ) !odpb;
-    if not !found then odpb := !odpb@[(blkID,[delay])]
-
-  let consensus_reached _ _ =
-    ()
-
-  let process _ =
-    ()
-
-  let get () =
-    if List.length !odpb > 0 then
-      let sum = ref 0 in
-      let odpb_50 = ref [] in
-      let max_odpb = List.map(
-        fun (_,delays) ->
-          let sorted_delays = List.sort compare delays in
-          let max = List.nth sorted_delays (List.length sorted_delays -1) in
-          let reach50 = List.nth sorted_delays ((List.length sorted_delays)/2) in
-          odpb_50 := !odpb_50@[reach50];
-          sum := !sum + max;
-          max
-        ) !odpb in
-      let avg_bpt = !sum / (List.length max_odpb) in
-      let sorted_odpb_50 = List.sort compare !odpb_50 in
-      let median_bpt = List.nth sorted_odpb_50 ((List.length sorted_odpb_50)/2) in
-      print_endline "";
-      print_string "MEDIAN(reach half of nodes): ";
-      print_endline (string_of_int median_bpt);
-      print_string "AVG(reach all nodes): ";
-      print_endline (string_of_int avg_bpt);
-      Printf.sprintf "{\"average-block-propagation-time\":%d,\"median-block-propagation-time\":%d}" avg_bpt median_bpt
-    else
-      "{}"
-
+module MBPTimeArg = struct
+  let label = "median-block-propagation-time"
+  let use_intervals = false
 end
+
+module BitcoinStatistics = Simulator.Statistics.Make.Median(MBPTimeArg);;
 
 
 module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and type value=BitcoinBlock.block) = struct
@@ -158,7 +109,8 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
     let already_seen = (List.exists (fun x -> BitcoinBlock.id x=(BitcoinBlock.id block)) node.data.received_blocks) in
     if is_valid_block block && not already_seen then begin
       add_to_chain node block;
-      BitcoinStatistics.received_new_block block;
+      let delay = (Simulator.Clock.get_timestamp ()) - (BitcoinBlock.timestamp block) in
+      BitcoinStatistics.process node.id delay;
       node.data.received_blocks <- node.data.received_blocks @ [block];
       send_to_neighbours node (Inv(BitcoinBlock.id block, node.id));
       (* TODO : remove block from "downloading" list *)

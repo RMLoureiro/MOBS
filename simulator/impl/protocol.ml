@@ -81,28 +81,6 @@ module type Initializer = sig
   val init : (int, node) Hashtbl.t -> ev list
 end
 
-
-
-module type Statistics = sig
-
-  (** the type representing events in the simulator *)
-  type ev
-
-  (** the type of the values for which consensus is achieved *)
-  type value
-
-  (** receives an event and processes it, updating statistics *)
-  val process : ev -> unit
-
-  (** returns a JSON string containing the statistics and respective values *)
-  val get : unit -> string
-
-  (** node has seen consensus for a value *)
-  val consensus_reached : int -> value -> unit
-
-end
-
-
 module type Protocol = sig 
   (** the main loop of the protocol *)
   val run : unit -> unit
@@ -151,10 +129,6 @@ module Make = struct
 
   end
 
-
-
-
-
   let initialize_malicious_node_data () =
     let malicious:((bool*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (false,0)) in
     let num_malicious_nodes = !Parameters.General.num_bad_nodes in
@@ -169,6 +143,11 @@ module Make = struct
     malicious
 
 
+  module ConsensusArg = struct
+    let label = "avg_consensus_time"
+    let use_intervals = true
+  end
+
   (*********************************************************************************)
 
 
@@ -179,17 +158,17 @@ module Make = struct
            (BadNode : AbstractNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data)
            (Initializer : Initializer with type node = GoodNode.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Statistics with type ev=Event.t and type value = GoodNode.value) : Protocol
+           (Statistics : Simulator.Statistics.Stats) : Protocol
            = struct
 
   module NodeMap = Map.Make(Int)
+  module ConsensusStats = Simulator.Statistics.Make.Average(ConsensusArg)
 
   module MakeStep(Node: AbstractNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
 
     let step ts e nodes =
       begin
         Logger.log_event e;
-        Statistics.process e;
         Simulator.Clock.set_timestamp ts;
         let index = Event.target e in
         match index with
@@ -203,7 +182,7 @@ module Make = struct
               if not (old_value = new_value) then
                 begin
                   Logger.print_new_chain_head i i (Node.state_id new_state);
-                  Statistics.consensus_reached i new_value
+                  ConsensusStats.process i (Simulator.Clock.get_timestamp ())
                 end
             end;
             Hashtbl.replace nodes i new_state
@@ -250,7 +229,8 @@ module Make = struct
           | _ -> step ts e
       done;
       print_endline "\t Reached stopping condition";
-      Logger.log_statistics (Statistics.get ());
+      let module FinalStatistics = Simulator.Statistics.Compose(ConsensusStats)(Statistics) in
+      Logger.log_statistics (FinalStatistics.get 1);
       Logger.terminate ()
 
   end
@@ -266,17 +246,17 @@ module Make = struct
            (BadNode : BlockchainNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data)
            (Initializer : Initializer with type node = GoodNode.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Statistics with type ev=Event.t and type value=Block.block) : Protocol
+           (Statistics : Simulator.Statistics.Stats) : Protocol
            = struct
 
   module NodeMap  = Map.Make(Int)
+  module ConsensusStats = Simulator.Statistics.Make.Average(ConsensusArg)
 
   module MakeStep(Node: BlockchainNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
     
     let step ts e nodes max_height =
       begin
         Logger.log_event e;
-        Statistics.process e;
         Simulator.Clock.set_timestamp ts;
         let index = Event.target e in
         match index with
@@ -298,7 +278,7 @@ module Make = struct
               if not (Block.equals old_chain_head new_chain_head) then
                 begin
                   Logger.print_new_chain_head i (Block.minter new_chain_head) (Block.id new_chain_head);
-                  Statistics.consensus_reached i new_chain_head
+                  ConsensusStats.process i (Simulator.Clock.get_timestamp ())
                 end
             end;
             Hashtbl.replace nodes i new_state
@@ -347,7 +327,8 @@ module Make = struct
           | _ -> step ts e
       done;
       print_endline "\t Reached stopping condition";
-      Logger.log_statistics (Statistics.get ());
+      let module FinalStatistics = Simulator.Statistics.Compose(ConsensusStats)(Statistics) in
+      Logger.log_statistics (FinalStatistics.get 1);
       Logger.terminate ()
 
   end

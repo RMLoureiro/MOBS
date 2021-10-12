@@ -72,8 +72,7 @@ module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
 
 module AlgorandStatistics = struct
 
-  type ev = AlgorandEvent.t
-  type value = AlgorandBlock.block
+  type t = int
 
   (* total messages exchanged during the simulation *)
   let total_messages = ref 0
@@ -106,10 +105,10 @@ module AlgorandStatistics = struct
     last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
     node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
 
-  let process _ =
+  let process _ _ =
     ()
 
-  let get () =
+  let get _ =
     let per_node_average avg_list = 
       fun x ->
         let sum = ref 0 in
@@ -130,16 +129,13 @@ module AlgorandStatistics = struct
       let v = List.nth (List.sort compare list) index in
       to_seconds v
     in
-    let avg_consensus_time_per_node = ref [] in
-    List.iter (per_node_average avg_consensus_time_per_node) !node_time_between_blocks;
     let avg_block_proposal_time_per_node = ref [] in
     List.iter (per_node_average avg_block_proposal_time_per_node) !block_proposal_time;
     let avg_majority_sv_time_per_node = ref [] in
     List.iter (per_node_average avg_majority_sv_time_per_node) !majority_soft_vote_time;
-    let avg_consensus_time = median_value !avg_consensus_time_per_node in
     let avg_block_proposal_time = highest_value !avg_block_proposal_time_per_node in
     let avg_majority_sv_time = median_value !avg_majority_sv_time_per_node in
-    Printf.sprintf "{\"final-step\":%.2f,\"block-proposal\":%.2f,\"majority-softvotes\":%.2f}" avg_consensus_time avg_block_proposal_time avg_majority_sv_time
+    Printf.sprintf "{\"block-proposal\":%.2f,\"majority-softvotes\":%.2f}" avg_block_proposal_time avg_majority_sv_time
 
 end
 
@@ -218,6 +214,7 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
 
   let add_to_chain (node:t) block =
     node.state <- block;
+    AlgorandStatistics.consensus_reached node.id 0;
     let tmp = List.filter (
       fun msg ->
         match msg with

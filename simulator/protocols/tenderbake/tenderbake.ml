@@ -636,45 +636,14 @@ end
 
 
 
-module TenderbakeStatistics : (Protocol.Statistics with type ev = TenderbakeEvent.t and type value = TenderbakeBlock.block) = struct
-  type ev = TenderbakeEvent.t
-  type value = TenderbakeBlock.block
+module TenderbakeStatistics : (Simulator.Statistics.Stats) = struct
+  type t = int
 
-  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
-  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
-
-  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
-  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
-
-
-  let consensus_reached nodeID _ =
-    let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
-    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
-    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
-
-
-  let process _ =
+  let process _ _ =
     ()
 
-  let get () =
-    let per_node_average avg_list = 
-      fun x ->
-        let sum = ref 0 in
-        List.iter (fun y -> sum := !sum + y) x;
-        if List.length x > 0 then
-          avg_list := !avg_list@[!sum / (List.length x)]
-    in
-    let avg_total avg_per_node =
-      let sum = ref 0 in
-      List.iter (fun x -> sum := !sum + x) !avg_per_node;
-      !sum / (List.length !avg_per_node)
-    in
-    let avg_consensus_time_per_node = ref [] in
-    List.iter (per_node_average avg_consensus_time_per_node) !node_time_between_blocks;
-    let avg_decision_time_ms = avg_total avg_consensus_time_per_node in
-    let avg_decision_time_s  = (float_of_int avg_decision_time_ms) /. 1000.0 in
-    Printf.sprintf "{\"avg-decision-time\":%.2f}" avg_decision_time_s
+  let get _ =
+    "{}"
 
 end
 
