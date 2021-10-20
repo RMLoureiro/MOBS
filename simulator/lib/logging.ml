@@ -40,7 +40,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let write_to_file str = 
     let out_chan = open_out_gen [Open_append; Open_creat] 0o666 !log_file in
-    Printf.fprintf out_chan "%s," str;
+    Printf.fprintf out_chan "%s,\n" str;
     close_out out_chan
 
   let init () = 
