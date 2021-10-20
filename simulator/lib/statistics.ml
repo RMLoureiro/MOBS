@@ -130,6 +130,16 @@ module Make = struct
 
 end
 
+module Empty = struct 
+  type t = int
+
+  let process _ _ =
+    ()
+
+  let get _ =
+    "{}"
+end
+
 module Compose(A:Stats)(B:Stats) : Stats = struct
   
   type t = int
@@ -143,6 +153,9 @@ module Compose(A:Stats)(B:Stats) : Stats = struct
     let s2 = B.get format in
     let sub1 = String.sub s1 0 ((String.length s1) -1) in
     let sub2 = String.sub s2 1 ((String.length s2) -1) in
-    Printf.sprintf "%s,%s" sub1 sub2
+    if String.length sub2 > 1 then
+      Printf.sprintf "%s,%s" sub1 sub2
+    else
+      Printf.sprintf "%s%s" sub1 sub2
 
 end

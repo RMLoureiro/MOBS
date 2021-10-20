@@ -111,19 +111,7 @@ module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and
   
 end
 
-module SimpleStatistics : (Simulator.Statistics.Stats) = struct
-
-  type t = int
-
-  let process _ _ =
-    ()
-
-  let get _ =
-    "{}"
-
-end
-
-module SimpleProtocol = Protocol.Make.Blockchain(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(SimpleStatistics);;
+module SimpleProtocol = Protocol.Make.Blockchain(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(Simulator.Statistics.Empty);;
 
 
 
