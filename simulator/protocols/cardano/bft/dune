@@ -1,0 +1,6 @@
+(library
+ (name bft)
+ (libraries parameters simulator abstractions implementation praos))
+(env
+ (dev
+   (flags (:standard -warn-error -A))))
