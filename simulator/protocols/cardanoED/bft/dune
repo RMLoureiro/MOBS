@@ -1,0 +1,6 @@
+(library
+ (name bftED)
+ (libraries parameters simulator abstractions implementation praosED))
+(env
+ (dev
+   (flags (:standard -warn-error -A))))
