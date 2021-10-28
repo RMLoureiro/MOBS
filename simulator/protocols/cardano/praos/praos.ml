@@ -8,7 +8,7 @@ type slot = Slot of int
 and epoch = {first:slot; last:slot}
 
 module BlockContents = struct
-  type t = { slot:int; epoch:epoch } (* the previous block's hash is already included in the block *)
+  type t = { slot:int; epoch:epoch; credential:Abstractions.Pos.credential } (* the previous block's hash is already included in the block *)
 end
 
 type cardano_msg =
@@ -66,7 +66,7 @@ module CardanoPoS     = Abstractions.Pos.Make(CardanoLogger)(CardanoBlock);;
 
 module CardanoState = struct
 
-  let genesis_block = CardanoBlock.genesis_pos 0 {slot=0;epoch={first=Slot(0);last=Slot(r)}}
+  let genesis_block = CardanoBlock.genesis_pos 0 {slot=0;epoch={first=Slot(0);last=Slot(r)};credential=Credential(Node(-1),Block(-1),Selections(-1),Priority(-1),Params([]))}
 
   type value = CardanoBlock.block
 
@@ -155,14 +155,14 @@ module Proposal = struct
       CardanoTimer.set node.id slot_duration "inc_slot";
       node.data.internal_step <- Scheduled(node.data.slot);
       let slot = match node.data.slot with Slot(x) -> x in
-      if CardanoPoS.is_proposer node.id node.data.epoch_seed num_proposers [slot;node.data.nonce] then
-      (
-        let new_blk = CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch} in
-        let node_sig = Signature(node.data.slot, State(CardanoBlock.id node.state), node.id) in
-        Some(Block(new_blk, node_sig))
-      )
-      else
-        None
+      match CardanoPoS.is_proposer node.id node.data.epoch_seed num_proposers [slot;node.data.nonce] with
+      | Some(cred) ->
+        (
+          let new_blk = CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch;credential=cred} in
+          let node_sig = Signature(node.data.slot, State(CardanoBlock.id node.state), node.id) in
+          Some(Block(new_blk, node_sig))
+        )
+      | None -> None
     )
     else
       None
@@ -179,7 +179,7 @@ module Validation = struct
     let valid_block (blk:CardanoState.value) =
       let epoch_start = match blk.contents.epoch.first with Slot(x) -> x in
       let epoch_seed = Aux.find_epoch_seed c epoch_start in
-      if (!validity) && CardanoPoS.check_proposer (CardanoBlock.minter blk) epoch_seed num_proposers [blk.contents.slot;nonce] then
+      if (!validity) && CardanoPoS.valid_proposer (CardanoBlock.minter blk) epoch_seed num_proposers [blk.contents.slot;nonce] blk.contents.credential then
         validity := true
       else
         validity := false
@@ -192,7 +192,7 @@ module Validation = struct
     | Block(blk,signature) -> 
       (
         let slot,(*prev_head*)_,leader = match signature with Signature(Slot(s),State(prev),node_id) -> s,prev,node_id in
-        let valid_leader = CardanoPoS.check_proposer leader node.data.epoch_seed num_proposers [slot;node.data.nonce] in
+        let valid_leader = CardanoPoS.valid_proposer leader node.data.epoch_seed num_proposers [slot;node.data.nonce] blk.contents.credential in
         let longer_chain = (CardanoBlock.height blk) > (CardanoBlock.height node.state) in
         blk.contents.slot = slot && valid_leader && (CardanoBlock.minter blk) = leader && longer_chain
       )

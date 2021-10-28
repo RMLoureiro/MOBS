@@ -11,16 +11,16 @@ let block_size            = Parameters.Protocol.get_int_parameter "block-size-mb
 open Implementation
 
 type alg_msg = 
-    Priority of int * int * int * int * signature  (* round, period, step, priority, creator_signature *)
-  | Proposal of int * int * int * (certificate Simulator.Block.t) * signature (* round, period, step, block, creator_signature *)
-  | SoftVote of int * int * int * int * signature  (* round, period, step, block_id, creator_signature *)
-  | CertVote of int * int * int * int * signature  (* round, period, step, block_id, creator_signature *)
-  | NextVote of int * int * int * int * signature  (* round, period, step, block_id, creator_signature *)
+    Priority of int * int * int * int * credential  (* round, period, step, priority, creator_signature *)
+  | Proposal of int * int * int * (certificate Simulator.Block.t) * credential (* round, period, step, block, creator_signature *)
+  | SoftVote of int * int * int * int * credential  (* round, period, step, block_id, creator_signature *)
+  | CertVote of int * int * int * int * credential  (* round, period, step, block_id, creator_signature *)
+  | NextVote of int * int * int * int * credential  (* round, period, step, block_id, creator_signature *)
 and certificate = {
-  mutable certificate: signature list;
-  prev_block_certificate: signature list;
+  mutable certificate: credential list;
+  prev_block_certificate: credential list;
 }
-and signature = Signature of int
+and credential = Abstractions.Pos.credential
 
 module BlockContents = struct
   type t = certificate
@@ -35,13 +35,17 @@ module AlgorandMsg : (Simulator.Events.Message with type t = alg_msg) = struct
     else
       Printf.sprintf "{\"kind\":\"%s\",\"round\":%d,\"period\":%d,\"step\":%d,\"block_id\":%d,\"creator\":%d}" kind round period step v creator_id
 
+  let get_creator cred =
+    match cred with
+    | Abstractions.Pos.Credential(Node(id),_,_,_,_) -> id
+
   let to_json (m:t) : string =
     match m with
-    | Priority(round,period,step,priority,Signature(id)) -> json "priority" round period step priority id true
-    | Proposal(round,period,step,blk,Signature(id))      -> json "proposal" round period step (Simulator.Block.id blk) id false
-    | SoftVote(round,period,step,blk_id,Signature(id))   -> json "softvote" round period step blk_id id false
-    | CertVote(round,period,step,blk_id,Signature(id))   -> json "certvote" round period step blk_id id false
-    | NextVote(round,period,step,blk_id,Signature(id))   -> json "nextvote" round period step blk_id id false
+    | Priority(round,period,step,priority,cred) -> json "priority" round period step priority (get_creator cred) true
+    | Proposal(round,period,step,blk,cred)      -> json "proposal" round period step (Simulator.Block.id blk) (get_creator cred) false
+    | SoftVote(round,period,step,blk_id,cred)   -> json "softvote" round period step blk_id (get_creator cred) false
+    | CertVote(round,period,step,blk_id,cred)   -> json "certvote" round period step blk_id (get_creator cred) false
+    | NextVote(round,period,step,blk_id,cred)   -> json "nextvote" round period step blk_id (get_creator cred) false
 
   let get_size (msg:t) =
     match msg with
@@ -206,8 +210,8 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
   let is_proposer (node:t) =
     AlgorandPoS.is_proposer node.id node.state num_proposers [node.data.round]
   
-  let proposer_priority (node:t) =
-    AlgorandPoS.proposer_priority node.id node.state num_proposers [node.data.round]
+  let proposer_priority (node:t) (credential:credential) =
+    AlgorandPoS.proposer_priority node.id node.state num_proposers [node.data.round] credential
 
   let in_committee (node:t) =
     AlgorandPoS.in_committee node.id node.state committee_size [node.data.round]
@@ -224,7 +228,7 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
       fun msg -> 
         match msg with
         | CertVote(_,_,_,_,signature) -> signature
-        | _ -> Signature(-1) (* Since we filter first, this case will never be used *)
+        | _ -> Abstractions.Pos.Credential(Node(-1),Block(-1),Selections(-1),Priority(-1),Params([])) (* Since we filter first, this case will never be used *)
       ) tmp in
     node.state.contents.certificate <- certificate
 
@@ -269,7 +273,7 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
     let leader_proposal : AlgorandBlock.block option ref = ref None in
     let find_leader proposal =
       match proposal with
-      | Proposal(_,_,_,blk,Signature(creator)) -> 
+      | Proposal(_,_,_,blk,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> 
         begin
           match node.data.highest_priority with
           | Some(_,node_id) -> 
@@ -304,11 +308,11 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
 
   let get_creator msg =
     match msg with
-    | Priority(_,_,_,_,Signature(creator)) -> creator
-    | Proposal(_,_,_,_,Signature(creator)) -> creator
-    | SoftVote(_,_,_,_,Signature(creator)) -> creator
-    | CertVote(_,_,_,_,Signature(creator)) -> creator
-    | NextVote(_,_,_,_,Signature(creator)) -> creator
+    | Priority(_,_,_,_,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> creator
+    | Proposal(_,_,_,_,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> creator
+    | SoftVote(_,_,_,_,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> creator
+    | CertVote(_,_,_,_,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> creator
+    | NextVote(_,_,_,_,Abstractions.Pos.Credential(Node(creator),_,_,_,_)) -> creator
 
   let rec contains_msg list msg =
     match list with
@@ -344,7 +348,7 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
       if get_creator elem = get_creator msg then most_recent msg elem else elem
     in
     match msg with
-    | Priority(_,_,_,priority,Signature(creator_id)) ->
+    | Priority(_,_,_,priority,Abstractions.Pos.Credential(Node(creator_id),_,_,_,_)) ->
       begin
         match node.data.highest_priority with
         | None      -> node.data.highest_priority <- Some(priority, creator_id); (node, false)
@@ -471,16 +475,16 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
       end
     | _ -> (node, false)
 
-  let create_and_propose_block (node:t) =
+  let create_and_propose_block (node:t) (credential:credential) =
     let cert = {certificate=[];prev_block_certificate=node.state.contents.certificate} in
     let blk = AlgorandBlock.create node.id node.state cert in
-    let priority = proposer_priority node in
+    let priority = proposer_priority node credential in
     node.data.starting_value <- Some (blk);
     node.data.highest_priority <- Some(priority, node.id);
     node.data.highest_block_id <- max node.data.highest_block_id (Simulator.Block.id blk);
     let s = register_block node (Some(blk)) in
-    let ns = send_to_neighbours s (Priority(node.data.round, node.data.period, node.data.step, priority, Signature(node.id))) in
-    send_to_neighbours ns (Proposal(node.data.round, node.data.period, node.data.step, blk, Signature(node.id)))
+    let ns = send_to_neighbours s (Priority(node.data.round, node.data.period, node.data.step, priority, credential)) in
+    send_to_neighbours ns (Proposal(node.data.round, node.data.period, node.data.step, blk, credential))
 
   (* step 0 *)
   let valueProposal (node:t) =
@@ -488,10 +492,11 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
       begin
         match node.data.period with 
         | 1 -> 
-            if is_proposer node then
-                create_and_propose_block node
-            else
-                node
+          (
+            match is_proposer node with
+            | Some(cred) -> create_and_propose_block node cred
+            | None -> node
+          )
         | _ ->
           begin
             match most_voted node node.data.prev_nextvotes with
@@ -500,14 +505,24 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
                 let blk = get_block node id in
                 match blk with
                 | Some(b) -> 
-                  if in_committee node then 
-                    send_to_neighbours node (Proposal(node.data.round, node.data.period, node.data.step, b, Signature(node.id)))
-                  else
-                    node
-                | None -> if is_proposer node then create_and_propose_block node else node
+                  (
+                    match in_committee node with
+                    | Some(cred) -> send_to_neighbours node (Proposal(node.data.round, node.data.period, node.data.step, b, cred))
+                    | None -> node
+                  )
+                | None -> 
+                  (
+                    match is_proposer node with
+                    | Some(cred) -> create_and_propose_block node cred
+                    | None -> node
+                  )
               end
             | _ ->
-              if is_proposer node then create_and_propose_block node else node
+              (
+                match is_proposer node with
+                | Some(cred) -> create_and_propose_block node cred
+                | None -> node
+              )
           end
       end
     in
@@ -524,26 +539,28 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
   (* step 2 *)
   let filteringStep (node:t) =
     let new_state = 
-      if in_committee node then
-        begin
-          if node.data.period >= 2 then
-            begin
-              match most_voted node node.data.prev_nextvotes with
-              | (Some bid, true) ->
-                begin
-                  match get_block node bid with
-                  | Some(_) -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, bid, Signature(node.id)))
-                  | None -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, Signature(node.id)))
-                end
-              | _ -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, Signature(node.id)))
-            end
-          else
-            begin
-              send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, Signature(node.id)))
-            end
-        end
-      else
-        node
+      (
+        match in_committee node with
+        | Some(cred) -> 
+          (
+            if node.data.period >= 2 then
+              begin
+                match most_voted node node.data.prev_nextvotes with
+                | (Some bid, true) ->
+                  begin
+                    match get_block node bid with
+                    | Some(_) -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, bid, cred))
+                    | None -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, cred))
+                  end
+                | _ -> send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, cred))
+              end
+            else
+              begin
+                send_to_neighbours node (SoftVote(node.data.round, node.data.period, node.data.step, find_leader_proposal node, cred))
+              end
+          )
+        | None -> node
+      )
     in
     AlgorandStatistics.completed_step2 node.id;
     inc_step new_state lambda_step
@@ -551,74 +568,84 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
   (* step 3 *)
   let certifyingStep (node:t) =
     let new_state =
-      if in_committee node then
-        begin
-        match most_voted node node.data.softvotes with 
-        | (Some bid, true) -> 
-          begin
-            match get_block node bid with
-            | Some(_) ->
+      (
+        match in_committee node with
+        | Some(cred) -> 
+          (
+            match most_voted node node.data.softvotes with 
+            | (Some bid, true) -> 
               begin
-                node.data.cert_voted <- get_block node bid;
-                send_to_neighbours node (CertVote(node.data.round, node.data.period, node.data.step, bid, Signature(node.id)))
+                match get_block node bid with
+                | Some(_) ->
+                  begin
+                    node.data.cert_voted <- get_block node bid;
+                    send_to_neighbours node (CertVote(node.data.round, node.data.period, node.data.step, bid, cred))
+                  end
+                | None -> node
               end
-            | None -> node
-          end
-        | _ -> node
-        end
-      else node
+            | _ -> node
+          )
+        | None -> node
+      )
     in
     inc_step new_state lambda_step
 
   (* step 4 *)
   let finishingStep1 (node:t) =
     let new_state =
-      if in_committee node then 
-        begin
-          match node.data.cert_voted with
-          | (Some blk) ->
-            send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, Simulator.Block.id blk, Signature(node.id)))
-          | None  -> 
-            begin
-              match most_voted node node.data.nextvotes with
-              | (Some -1, true) -> 
-                if node.data.period >= 2 then
-                  send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, -1, Signature(node.id)))
-                else
-                  node
-              | _ -> 
-                let b_id =
-                match node.data.starting_value with
-                | Some blk -> Simulator.Block.id blk
-                | None -> -1
-                in
-                send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, b_id, Signature(node.id)))
-            end
-        end
-      else node
+      (
+        match in_committee node with
+        | Some(cred) -> 
+          (
+            match node.data.cert_voted with
+            | (Some blk) ->
+              send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, Simulator.Block.id blk, cred))
+            | None  -> 
+              begin
+                match most_voted node node.data.nextvotes with
+                | (Some -1, true) -> 
+                  if node.data.period >= 2 then
+                    send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, -1, cred))
+                  else
+                    node
+                | _ -> 
+                  let b_id =
+                  match node.data.starting_value with
+                  | Some blk -> Simulator.Block.id blk
+                  | None -> -1
+                  in
+                  send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, b_id, cred))
+              end
+          )
+        | None -> node
+      )
     in
     inc_step new_state lambda_step
     
   (* step 5 *)
   let finishingStep2 (node:t) =
-    if in_committee node then
-      begin
-        begin
-          match most_voted node node.data.softvotes with
-          | (Some -1, _)  -> ()
-          | (Some bid, true) -> 
-            let _ = send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, bid, Signature(node.id))) in ()
-          | _ -> ()
-        end;
-        begin
-          if (node.data.period >= 2) && (node.data.cert_voted = None) then
-            begin
-              match most_voted node node.data.prev_nextvotes with
-              | (Some -1, true) -> let _ = send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, -1, Signature(node.id))) in ()
-              | _ -> ()
-            end
-        end;
-      end;
+    (
+      match in_committee node with
+      | Some(cred) -> 
+        (
+          begin
+            match most_voted node node.data.softvotes with
+            | (Some -1, _)  -> ()
+            | (Some bid, true) -> 
+              let _ = send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, bid, cred)) in ()
+            | _ -> ()
+          end;
+          begin
+            if (node.data.period >= 2) && (node.data.cert_voted = None) then
+              begin
+                match most_voted node node.data.prev_nextvotes with
+                | (Some -1, true) -> let _ = send_to_neighbours node (NextVote(node.data.round, node.data.period, node.data.step, -1, cred)) in ()
+                | _ -> ()
+              end
+          end;
+        )
+      | None -> ()
+    );
     match halting_condition node with
     | (new_state, true) -> new_state
     | (_, false) -> 

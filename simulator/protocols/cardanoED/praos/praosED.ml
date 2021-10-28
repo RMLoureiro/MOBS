@@ -52,7 +52,7 @@ type slot = Slot of int
 and epoch = {first:slot; last:slot}
 
 module BlockContents = struct
-  type t = { slot:int; epoch:epoch } (* the previous block's hash is already included in the block *)
+  type t = { slot:int; epoch:epoch; credential:Abstractions.Pos.credential } (* the previous block's hash is already included in the block *)
 end
 
 type cardano_msg =
@@ -121,7 +121,7 @@ module CardanoNode : (Protocol.BlockchainNode with type ev=CardanoEvent.t and ty
 
   type ev = CardanoEvent.t
 
-  let genesis_block = CardanoBlock.genesis_pos 0 {slot=0;epoch={first=Slot(0);last=Slot(r)}}
+  let genesis_block = CardanoBlock.genesis_pos 0 {slot=0;epoch={first=Slot(0);last=Slot(r)};credential=Credential(Node(-1),Block(-1),Selections(-1),Priority(-1),Params([]))}
 
   type node_data = {
     mutable best_chain : value list;
@@ -168,7 +168,7 @@ module CardanoNode : (Protocol.BlockchainNode with type ev=CardanoEvent.t and ty
     let valid_block (blk:value) =
       let epoch_start = match blk.contents.epoch.first with Slot(x) -> x in
       let epoch_seed = find_epoch_seed c epoch_start in
-      if (!validity) && CardanoPoS.check_proposer (CardanoBlock.minter blk) epoch_seed num_proposers [blk.contents.slot;nonce] then
+      if (!validity) && CardanoPoS.valid_proposer (CardanoBlock.minter blk) epoch_seed num_proposers [blk.contents.slot;nonce] (blk.contents.credential) then
         validity := true
       else
         validity := false
@@ -191,24 +191,25 @@ module CardanoNode : (Protocol.BlockchainNode with type ev=CardanoEvent.t and ty
 
   let check_slot_leader (node:t) =
     let slot = match node.data.slot with Slot(x) -> x in
-    if CardanoPoS.is_proposer node.id node.data.epoch_seed num_proposers [slot;node.data.nonce] then
+    match CardanoPoS.is_proposer node.id node.data.epoch_seed num_proposers [slot;node.data.nonce] with
+    | Some(cred) -> 
       (
-        let new_blk = CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch} in
+        let new_blk = CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch;credential=cred} in
         let node_sig = Signature(node.data.slot, State(CardanoBlock.id node.state), node.id) in
         node.data.best_chain <- [new_blk]@node.data.best_chain;
         node.state <- new_blk;
         CardanoNetwork.gossip node.id (Block(new_blk, node_sig));
         node
       )
-    else
-      node
+    | None -> node
 
   let process_msg (node:t) (msg:cardano_msg) (sender:int) =
     match msg with
     | Block(blk,signature) -> 
       (
         let slot,(*prev_head*)_,leader = match signature with Signature(Slot(s),State(prev),node_id) -> s,prev,node_id in
-        let valid_leader = CardanoPoS.check_proposer leader node.data.epoch_seed num_proposers [slot;node.data.nonce] in
+        let cred = blk.contents.credential in
+        let valid_leader = CardanoPoS.valid_proposer leader node.data.epoch_seed num_proposers [slot;node.data.nonce] cred in
         let longer_chain = (CardanoBlock.height blk) > (CardanoBlock.height node.state) in
         if blk.contents.slot = slot && valid_leader && (CardanoBlock.minter blk) = leader && longer_chain then
           (

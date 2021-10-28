@@ -1,16 +1,24 @@
+type credential = Credential of node_id * block_id * num_selections * priority * params
+  and node_id = Node of int
+  and block_id = Block of int
+  and num_selections = Selections of int
+  and priority = Priority of int
+  and params = Params of int list
+
 module type PoS = sig
 
   val sortition : 'a Simulator.Block.t -> int -> int list -> int list
 
-  val in_committee : int -> 'a Simulator.Block.t -> int -> int list -> bool
+  val in_committee : int -> 'a Simulator.Block.t -> int -> int list -> credential option
 
-  val is_proposer : int -> 'a Simulator.Block.t -> int -> int list -> bool
+  val is_proposer : int -> 'a Simulator.Block.t -> int -> int list -> credential option
 
-  val check_proposer : int -> 'a Simulator.Block.t -> int -> int list -> bool
+  val valid_proposer : int -> 'a Simulator.Block.t -> int -> int list -> credential -> bool
 
-  val check_committee : int -> 'a Simulator.Block.t -> int -> int list -> bool
+  val valid_committee_member : int -> 'a Simulator.Block.t -> int -> int list -> credential -> bool
 
-  val proposer_priority : int -> 'a Simulator.Block.t -> int -> int list -> int
+  val proposer_priority : int -> 'a Simulator.Block.t -> int -> int list -> credential -> int
+
 
 end
 
@@ -52,20 +60,27 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     Random.set_state r_state;
     !selected_nodes
 
-  let check_credential node_id head num params =
-    let selections = sortition head num params in
+  let get_credential node_id head num_selections params =
+    let selections = sortition head num_selections params in
     if List.exists (fun id -> id = node_id) selections then
-      begin
-        true
-      end
+    (
+      let res = ref (-1) in
+      List.iteri (fun i id -> if id=node_id then res := i) selections;
+      let prio = !res in
+      Some(Credential(Node(node_id), Block(Simulator.Block.id head), Selections(num_selections), Priority(prio), Params(params)))
+    )
     else
-      false
+      None
 
-  let check_proposer node_id head num_proposers params = 
-    check_credential node_id head num_proposers params
+  let valid_proposer node_id head num_proposers params credential = 
+    match credential with
+    | Credential(Node(id),Block(block_id),Selections(num_selections),Priority(_),Params(p)) -> 
+      node_id = id && (Simulator.Block.id head) = block_id && num_proposers = num_selections && params = p
 
-  let check_committee node_id head committee_size params =
-    check_credential node_id head committee_size params
+  let valid_committee_member node_id head committee_size params credential =
+    match credential with
+    | Credential(Node(id),Block(block_id),Selections(num_selections),Priority(_),Params(p)) -> 
+      node_id = id && (Simulator.Block.id head) = block_id && committee_size = num_selections && params = p
 
   (** 
     * check if the node with <node_id> was selected by sortition of size <committee_size>
@@ -73,12 +88,9 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     * <params> is a list of integer parameters that identify the committee
   *)
   let in_committee node_id head committee_size params =
-    if check_committee node_id head committee_size params then
-      (
-        Logger.print_in_committee node_id ((Block.height head)+1);
-        true
-      )
-    else false
+    match get_credential node_id head committee_size params with
+    | Some(cred) -> Logger.print_in_committee node_id ((Block.height head)+1); Some(cred)
+    | _ -> None
 
   (** 
     * check if the node with <node_id> was selected by sortition of size <num_proposers>
@@ -86,19 +98,18 @@ module Make(Logger : Simulator.Logging.Logger)(Block : Simulator.Block.BlockSig)
     * <params> is a list of integer parameters that identify the committee
   *)
   let is_proposer node_id head num_proposers params =
-    if check_proposer node_id head num_proposers params then
-      (
-        Logger.print_is_proposer node_id ((Block.height head)+1);
-        true
-      )
-    else
-      false
+    match get_credential node_id head num_proposers params with
+    | Some(cred) -> Logger.print_is_proposer node_id ((Block.height head)+1); Some(cred)
+    | _ -> None
 
   (** obtain the priority associated with a user that was selected to propose a block *)
-  let proposer_priority node_id head num_proposers params =
-    let selections = sortition head num_proposers params in
-    let res = ref (-1) in
-    List.iteri (fun i id -> if id=node_id then res := i) selections;
-    !res
+  let proposer_priority node_id head num_proposers params credential =
+    if valid_proposer node_id head num_proposers params credential then
+    (
+      match credential with
+      | Credential(_,_,_,Priority(prio),_) -> prio
+    )
+    else
+      -1
 
 end

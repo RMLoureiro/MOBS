@@ -4,6 +4,9 @@ let num_proposers = 1
 
 open Implementation
 
+(* credentials not needed for this version of protocol, but we keep them to reuse as much code as possible from praos version *)
+let null_cred = Abstractions.Pos.Credential(Node(-1),Block(-1),Selections(-1),Priority(-1),Params([]))
+
 let check_proposer id slot =
    id-1 = ((slot-1) mod !Parameters.General.num_nodes)
 
@@ -23,7 +26,7 @@ module Proposal = struct
       let slot = match node.data.slot with Slot(x) -> x in
       if check_proposer node.id slot then
       (
-        let new_blk = Praos.CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch} in
+        let new_blk = Praos.CardanoBlock.create node.id node.state {slot=slot;epoch=node.data.epoch;credential=null_cred} in
         let node_sig = Praos.Signature(node.data.slot, State(Praos.CardanoBlock.id node.state), node.id) in
         Some(Block(new_blk, node_sig))
       )
