@@ -204,7 +204,7 @@
 
 </script>
 
-<style>
+<style scoped>
     .container {
         width: 80vw;
         text-align: center;

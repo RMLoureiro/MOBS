@@ -13,7 +13,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
   * {
     text-transform: none !important;
   }

@@ -13,6 +13,9 @@
                 <router-link to="/parameters">Parameters</router-link>
             </h4>
             <h4 class="nav__link">
+                <router-link to="/topology">Topology</router-link>
+            </h4>
+            <h4 class="nav__link">
                 <router-link to="/visualizer">Visualizer</router-link>
             </h4>
             <h4 class="nav__link">

@@ -248,7 +248,7 @@
 
 </script>
 
-<style>
+<style scoped>
 
     .statistics {
         width: 100vw;
