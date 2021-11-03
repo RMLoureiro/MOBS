@@ -79,7 +79,7 @@
                 }
             },
             delHandler : function(event) {
-                if(event.code == "Backspace") { // Delete selected node or link
+                if(event.code == "KeyD") { // Delete selected node or link
                     if(this.selected.type == "node" && this.selected.target !== null) {
                         this.deleteNode(this.selected.target);
                     }
@@ -220,6 +220,13 @@
                     }
                 }
                 return null;
+            },
+            updateNode : function(newNodeState) {
+                if(this.selected.target.id == newNodeState.id) {
+                    this.selected.target.region = newNodeState.region;
+                    this.selected.target.hPower = newNodeState.hPower;
+                    this.selected.target.stake = newNodeState.stake;
+                }
             }
         }
     }

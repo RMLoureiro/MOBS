@@ -4,11 +4,12 @@
             <div v-if="isNode() == true" class="fos">
                 <h1>Node {{selected.target.id}}</h1>
                 <p class="pwrap">
-                    <span class="sp">Region: {{selected.target.region}}</span>
-                    <span class="sp">HashPower: {{selected.target.hPower}}</span>
-                    <span class="sp">Stake: {{selected.target.stake}}</span>
+                    <span class="sp">Region: <input type="number" id="region" v-bind:value="selected.target.region"></span>
+                    <span class="sp">HashPower: <input type="number" id="hpower" v-bind:value="selected.target.hPower"></span>
+                    <span class="sp">Stake: <input type="number" id="stake" v-bind:value="selected.target.stake"></span>
                     <span class="sp">Links: {{selected.target.links}}</span>
                 </p>
+                <button @click="handleUpdateClick">Update</button>
             </div>
             <div v-if="isLink() == true" class="fos">
                 <h1>Link from {{selected.target.from.id}} to {{selected.target.to.id}}</h1>
@@ -38,6 +39,12 @@
             },
             isLink: function() {
                 return this.selected.type == "link";
+            },
+            handleUpdateClick : function() {
+                let region = parseInt(document.getElementById("region").value);
+                let hPower = parseInt(document.getElementById("hpower").value);
+                let stake  = parseInt(document.getElementById("stake").value);
+                this.$parent.updateNode({id:this.selected.target.id, region:region, hPower:hPower, stake:stake});
             }
         }
     }
