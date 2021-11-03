@@ -107,6 +107,14 @@ export class TNode {
         }
     }
 
+    decrementIds(removedId) {
+        for(let i = 0; i < this.links.length; i++) {
+            if(this.links[i] > removedId) {
+                this.links[i] = this.links[i] - 1;
+            }
+        }
+    }
+
     collide(mouseX, mouseY) {
         const dSq =
             (this.x - mouseX) * (this.x - mouseX) + (this.y - mouseY) * (this.y - mouseY);
