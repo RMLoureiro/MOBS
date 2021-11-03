@@ -46,11 +46,6 @@
             canvas = document.getElementById("topologyCanvas");
             this.draw();
             this.intervalDraw = setInterval(this.draw, 1000);
-            // REMOVE LATER
-            this.nodes.push(new TNode(this.nextNodeId++,50,50,[],0,0));
-            this.nodes.push(new TNode(this.nextNodeId++,150,150,[],0,0));
-            this.links.push(new TLink(this.nextLinkId++,this.nodes[0],this.nodes[1]));
-            // END REMOVE LATER
             window.addEventListener("keydown", this.delHandler);
             window.addEventListener("mouseup", this.clickHandler);
         },
@@ -155,7 +150,7 @@
                 this.intervalDraw = "";
             },
             createNode : function(x,y) {
-                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,0));
+                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,0,0));
                 this.draw();
             },
             createLink : function(from,to) {
@@ -192,8 +187,8 @@
                 this.draw();
             },
             deleteLink : function(l) {
-                l.from.removeLink(l.to);
-                l.to.removeLink(l.from);
+                l.from.removeLink(l.to.id);
+                l.to.removeLink(l.from.id);
                 for(let i = 0; i < this.links.length; i++) {
                     if(this.links[i].from.id == l.from.id && this.links[i].to.id == l.to.id) {
                         this.links.splice(i,1);

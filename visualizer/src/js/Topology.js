@@ -60,13 +60,14 @@ export class TLink {
 
 export class TNode {
 
-    constructor(id, x, y, links, region, hPower) {
+    constructor(id, x, y, links, region, hPower, stake) {
         this.id       = id;
         this.x        = x;
         this.y        = y;
         this.links    = links;
         this.region   = region;
         this.hPower   = hPower;
+        this.stake    = stake;
         this.selected = false;
     }
 
@@ -98,9 +99,9 @@ export class TNode {
         this.links.push(link);
     }
 
-    removeLink(linkId) {
+    removeLink(target) {
         for(let i = 0; i < this.links.length; i++) {
-            if(this.links[i].id == linkId) {
+            if(this.links[i] == target) {
                 this.links.splice(i,1);
                 break;
             }
