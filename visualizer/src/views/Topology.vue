@@ -88,6 +88,7 @@
                     }
                     this.creatingLink = {status:0,start:null,end:null};
                     this.selected = {type:"node", target:null};
+                    this.draw();
                 }
             },
             clickHandler : function(event) {
@@ -121,6 +122,9 @@
                             this.createNode(x,y);
                         }
                         this.creatingLink = {status:0,start:null,end:null};
+                        if(this.selected.target != null) {
+                                this.selected.target.unselect();
+                            }
                         this.selected = {type:"node", target:null};
                     }
                 }
@@ -134,9 +138,13 @@
                             this.creatingLink.end = node;
                             this.createLink(this.creatingLink.start, this.creatingLink.end);
                             this.creatingLink = {status:0,start:null,end:null};
+                            if(this.selected.target != null) {
+                                this.selected.target.unselect();
+                            }
                         }
                     }
                 }
+                this.draw();
             },
             clearData : function() {
                 this.nodes = [];

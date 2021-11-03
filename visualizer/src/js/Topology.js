@@ -6,6 +6,7 @@ function color(id) {
 }
 
 const radius = 25;
+const selectedRadius = 30;
 
 export class TLink {
 
@@ -19,6 +20,7 @@ export class TLink {
     show(ctx) {
         ctx.beginPath();
         ctx.fillStyle = 'rgb(0,0,0)';
+        ctx.lineWidth = this.selected ? 2 : 1;
         ctx.moveTo(this.from.x,this.from.y);
         ctx.lineTo(this.to.x,this.to.y);
         ctx.stroke();
@@ -37,8 +39,8 @@ export class TLink {
         this.selected = false;
     }
 
-    collide(mouseX, mouseY, timestamp) {
-        const threshold = 3;
+    collide(mouseX, mouseY) {
+        const threshold = 5;
         const P = {x:mouseX, y:mouseY};
         const A = {x:this.from.x, y:this.from.y};
         const B = {x:this.to.x, y:this.to.y};
@@ -74,12 +76,13 @@ export class TNode {
     show(ctx) {
         ctx.beginPath();
         ctx.fillStyle = 'rgb(0,0,0)';
-        ctx.arc(this.x, this.y, radius+2, 0, 2 * Math.PI);
+        let r = this.selected ? selectedRadius : radius;
+        ctx.arc(this.x, this.y, r+2, 0, 2 * Math.PI);
         ctx.fill();
         ctx.closePath();
         ctx.beginPath();
         ctx.fillStyle = color(this.region);
-        ctx.arc(this.x, this.y, radius, 0, 2 * Math.PI);
+        ctx.arc(this.x, this.y, r, 0, 2 * Math.PI);
         ctx.fill();
         ctx.font = '24px serif';
         ctx.fillStyle = 'rgb(0,0,0)';
