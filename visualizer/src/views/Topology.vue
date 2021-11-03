@@ -1,5 +1,6 @@
 <template>
     <section class="topology">
+        <p>Usage: Left click on the canvas to add a new node. Right click two nodes to add a link between them. Press D to delete a selected node or link.</p>
         <canvas id="topologyCanvas"></canvas>
         <topology-form :selected="selected"></topology-form>
     </section>
@@ -57,7 +58,7 @@
                 if(canvas) {
                     // Scale canvas
                     canvas.style.width ='100%';
-                    canvas.style.height='80%';
+                    canvas.style.height='75%';
                     canvas.width  = canvas.offsetWidth;
                     canvas.height = canvas.offsetHeight;
                     
@@ -235,6 +236,12 @@
                     this.selected.target.hPower = newNodeState.hPower;
                     this.selected.target.stake = newNodeState.stake;
                 }
+            },
+            toJSON : function() {
+                
+            },
+            fromJSON : function() {
+
             }
         }
     }
@@ -245,10 +252,6 @@
 
 <style scoped>
 
-    h1 {
-        color: green;
-    }
-
     .topology {
         position: absolute;
         height: 98%;
@@ -257,7 +260,7 @@
 
     canvas {
         width: 100%;
-        height: 80%;
+        height: 75%;
     }
 
 </style>

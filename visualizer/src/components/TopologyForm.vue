@@ -2,17 +2,17 @@
     <div>
         <div v-if="hasSelection() == true">
             <div v-if="isNode() == true" class="fos">
-                <h1>Node {{selected.target.id}}</h1>
-                <p class="pwrap">
+                <h3>Node {{selected.target.id}}</h3>
+                <div class="pwrap">
                     <span class="sp">Region: <input type="number" id="region" v-bind:value="selected.target.region"></span>
                     <span class="sp">HashPower: <input type="number" id="hpower" v-bind:value="selected.target.hPower"></span>
                     <span class="sp">Stake: <input type="number" id="stake" v-bind:value="selected.target.stake"></span>
                     <span class="sp">Links: {{selected.target.links}}</span>
-                </p>
+                </div>
                 <button @click="handleUpdateClick">Update</button>
             </div>
             <div v-if="isLink() == true" class="fos">
-                <h1>Link from {{selected.target.from.id}} to {{selected.target.to.id}}</h1>
+                <h3>Link from {{selected.target.from.id}} to {{selected.target.to.id}}</h3>
             </div>
         </div>
 
@@ -52,6 +52,21 @@
 
 </script>
 
-<style>
+<style scoped>
+
+    h3 {
+        margin: 0;
+    }
+
+    .pwrap {
+        width: 100%;
+        text-align: center;
+        padding-bottom: 5px;
+    }
+
+    .sp {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
 
 </style>
