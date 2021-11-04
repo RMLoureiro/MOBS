@@ -159,7 +159,7 @@
                 this.intervalDraw = "";
             },
             createNode : function(x,y) {
-                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,0,0));
+                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,0,0,{from:0,to:0},{isbad:false,start:0}));
                 this.draw();
             },
             createLink : function(from,to) {
@@ -238,6 +238,8 @@
                     this.selected.target.region = newNodeState.region;
                     this.selected.target.hPower = newNodeState.hPower;
                     this.selected.target.stake = newNodeState.stake;
+                    this.selected.target.offline = newNodeState.offline;
+                    this.selected.target.malicious = newNodeState.malicious;
                 }
             },
             getNode : function(id) {
@@ -262,7 +264,7 @@
                         let n = json.nodes[i];
                         let d = json.guidata[i];
                         if(n.id != d.id) { alert("Error: node-data and gui-data do not match."); }
-                        this.nodes.push(new TNode(n.id,d.pos.x,d.pos.y,[],n.region,n.hPower,n.stake));
+                        this.nodes.push(new TNode(n.id,d.pos.x,d.pos.y,[],n.region,n.hPower,n.stake,n.offline,n.malicious));
                     }
                     // after adding all the nodes, loop again to add all the links
                     for(let i = 0; i < json.nodes.length; i++) {

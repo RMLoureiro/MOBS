@@ -8,6 +8,11 @@
                     <span class="sp">HashPower: <input type="number" id="hpower" v-bind:value="selected.target.hPower"></span>
                     <span class="sp">Stake: <input type="number" id="stake" v-bind:value="selected.target.stake"></span>
                     <span class="sp">Links: {{selected.target.links}}</span>
+                    <br>
+                    <span class="sp">IsMalicious: <input type="checkbox" id="isbad" v-bind:checked="selected.target.malicious.isbad"></span>
+                    <span class="sp">BecomeMaliciousTimestamp: <input type="number" id="becomebadts" v-bind:value="selected.target.malicious.start"></span>
+                    <span class="sp">OfflineFrom: <input type="number" id="offstart" v-bind:value="selected.target.offline.from"></span>
+                    <span class="sp">OfflineUntil: <input type="number" id="offend" v-bind:value="selected.target.offline.to"></span>
                 </div>
                 <button @click="handleUpdateClick">Update</button>
             </div>
@@ -44,7 +49,11 @@
                 let region = parseInt(document.getElementById("region").value);
                 let hPower = parseInt(document.getElementById("hpower").value);
                 let stake  = parseInt(document.getElementById("stake").value);
-                this.$parent.updateNode({id:this.selected.target.id, region:region, hPower:hPower, stake:stake});
+                let isMalicious = document.getElementById("isbad").checked;
+                let badTs  = parseInt(document.getElementById("becomebadts").value);
+                let offS   = parseInt(document.getElementById("offstart").value);
+                let offE   = parseInt(document.getElementById("offend").value);
+                this.$parent.updateNode({id:this.selected.target.id, region:region, hPower:hPower, stake:stake, offline:{from:offS,to:offE}, malicious:{isbad:isMalicious,start:badTs}});
             }
         }
     }

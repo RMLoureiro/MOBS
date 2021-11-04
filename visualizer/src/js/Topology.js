@@ -62,15 +62,17 @@ export class TLink {
 
 export class TNode {
 
-    constructor(id, x, y, links, region, hPower, stake) {
-        this.id       = id;
-        this.x        = x;
-        this.y        = y;
-        this.links    = links;
-        this.region   = region;
-        this.hPower   = hPower;
-        this.stake    = stake;
-        this.selected = false;
+    constructor(id, x, y, links, region, hPower, stake, offline, malicious) {
+        this.id        = id;
+        this.x         = x;
+        this.y         = y;
+        this.links     = links;
+        this.region    = region;
+        this.hPower    = hPower;
+        this.stake     = stake;
+        this.selected  = false;
+        this.offline   = offline;
+        this.malicious = malicious;
     }
 
     show(ctx) {
@@ -126,7 +128,7 @@ export class TNode {
     }
 
     toJSON() {
-        let nodedata = {id:this.id, region:this.region, stake:this.stake, hPower:this.hPower, links:this.links};
+        let nodedata = {id:this.id, region:this.region, stake:this.stake, hPower:this.hPower, links:this.links, offline:this.offline, malicious:this.malicious};
         let guidata  = {id:this.id, pos:{x:this.x, y:this.y}};
         return {node:nodedata, gui:guidata};
     }
