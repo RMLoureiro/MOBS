@@ -31,7 +31,20 @@ let rec node_regions_step l i acc =
 
 (** uses the network parameters to return a list of integers, representing the region each node is assigned to *)
 let node_regions () : regions =
-  shuffle_array (Array.of_list (node_regions_step [] 0 0.0))
+  if !Parameters.General.use_topology_file then
+    (
+      let open Yojson.Basic.Util in
+        let ret = ref [] in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let region = node |> member "region" |> to_int in
+            ret := !ret@[region];
+        ) node_data;
+        Array.of_list !ret
+    )
+  else
+    shuffle_array (Array.of_list (node_regions_step [] 0 0.0))
 
 
 (***** Create Links between Nodes *****)
@@ -74,13 +87,29 @@ let select_neighbors id nodes (inbound_links:(int list array)) (outbound_links:(
 (** uses the network parameters to return a list of int lists, representing the links each node has *)
 let node_links () : network_links =
   let num_nodes = !Parameters.General.num_nodes in
-  let nodes = Array.init num_nodes (fun c -> c) in
-  let inbound_links:(int list array) = Array.make num_nodes [] in
-  let outbound_links:(int list array) = Array.make num_nodes [] in
-  for i = 0 to num_nodes-1 do
-    select_neighbors i nodes inbound_links outbound_links 
-  done;
-  Array.map (fun x -> Array.of_list (List.map (fun y -> y+1) x)) outbound_links (* node id's start at 1 *)
+  if !Parameters.General.use_topology_file then
+    (
+      let open Yojson.Basic.Util in
+        let ret = ref [] in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let links = node |> member "links" |> to_list in
+            ret := !ret@[Array.of_list (List.map (fun x -> x |> to_int) links)];
+        ) node_data;
+        Array.of_list !ret
+    )
+  else
+    (
+      let nodes = Array.init num_nodes (fun c -> c) in
+      let inbound_links:(int list array) = Array.make num_nodes [] in
+      let outbound_links:(int list array) = Array.make num_nodes [] in
+      for i = 0 to num_nodes-1 do
+        select_neighbors i nodes inbound_links outbound_links 
+      done;
+      Array.map (fun x -> Array.of_list (List.map (fun y -> y+1) x)) outbound_links (* node id's start at 1 *)
+    )
+  
 
 (*******************************)
 

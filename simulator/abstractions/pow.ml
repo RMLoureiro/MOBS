@@ -22,16 +22,28 @@ module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue
 
   let init_mining_power () =
     let num_nodes = !Parameters.General.num_nodes in
-    for _ = 0 to num_nodes do 
-      let r = Random.float 1. in
-      let b = Random.bool () in
-      let power = 
-        match b with
-        | true  -> int_of_float (float_of_int(!Parameters.General.avg_mining_power) +. (r *. float_of_int(!Parameters.General.stdev_mining_power)))
-        | false -> int_of_float (float_of_int(!Parameters.General.avg_mining_power) -. (r *. float_of_int(!Parameters.General.stdev_mining_power)))
-      in
-      mining_power := !mining_power @ [max power 1]
-    done
+    if !Parameters.General.use_topology_file then
+      (
+        let open Yojson.Basic.Util in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let hPower   = node |> member "hPower" |> to_int in
+            mining_power := !mining_power@[hPower];
+        ) node_data
+      )
+    else (
+      for _ = 0 to num_nodes do 
+        let r = Random.float 1. in
+        let b = Random.bool () in
+        let power = 
+          match b with
+          | true  -> int_of_float (float_of_int(!Parameters.General.avg_mining_power) +. (r *. float_of_int(!Parameters.General.stdev_mining_power)))
+          | false -> int_of_float (float_of_int(!Parameters.General.avg_mining_power) -. (r *. float_of_int(!Parameters.General.stdev_mining_power)))
+        in
+        mining_power := !mining_power @ [max power 1]
+      done
+    )
 
   let get_mining_power nodeID =
     List.nth !mining_power (nodeID - 1) (* IDs start at 1 *)

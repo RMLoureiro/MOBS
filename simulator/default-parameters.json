@@ -4,7 +4,8 @@
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
-        "use-topology-file": true,
+        "use-topology-file": false,
+        "topology-file":"../topology_files/topology.json",
         "seed":12345,
         "pow_target_interval":600000,
         "avg_mining_power":400000,
@@ -13,7 +14,10 @@
         "stdev_coins":2000,
         "reward":0.01,
         "bad_nodes":0,
-        "become_bad_timestamp":0
+        "become_bad_timestamp":0,
+        "offline_nodes":0,
+        "become_offline_timestamp":0,
+        "become_online_timestamp":0
     },
     "network": {
         "num-regions":12,

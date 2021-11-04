@@ -147,15 +147,31 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
   let balances block = block.header.balances
 
   let gen_balances =
-    let gen_bal id =
-      let r = Random.float 1.0 in
-      let coins = max (r *. (float_of_int !Parameters.General.stdev_coins) +. (float_of_int !Parameters.General.avg_coins)) 0.0 in
-      (id+1, coins)
-    in 
-    let r_state = Random.get_state () in
-    let ret = List.init !Parameters.General.num_nodes gen_bal in
-    Random.set_state r_state;
-    ret
+    if !Parameters.General.use_topology_file then
+      (
+        let open Yojson.Basic.Util in
+        let ret = ref [] in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let node_id = node |> member "id" |> to_int in
+            let stake   = node |> member "stake" |> to_number in
+            ret := !ret@[(node_id,stake)];
+        ) node_data;
+        !ret
+      )
+    else
+      (
+      let gen_bal id =
+        let r = Random.float 1.0 in
+        let coins = max (r *. !Parameters.General.stdev_coins +. !Parameters.General.avg_coins) 0.0 in
+        (id+1, coins)
+      in 
+      let r_state = Random.get_state () in
+      let ret = List.init !Parameters.General.num_nodes gen_bal in
+      Random.set_state r_state;
+      ret
+      )
 
   let total_coins block = 
     let rec total bal sum =

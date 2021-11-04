@@ -129,19 +129,71 @@ module Make = struct
 
   end
 
+  let initialize_offline_node_data () =
+    let offline:((int*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (0,0)) in
+    if !Parameters.General.use_topology_file then
+      (
+        let open Yojson.Basic.Util in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let node_id = node |> member "id" |> to_int in
+            let offline_struct = node |> member "offline" in
+            let offline_from = offline_struct |> member "from" |> to_int in
+            let offline_to = offline_struct |> member "to" |> to_int in
+            offline.(node_id) <- (offline_from, offline_to)
+        ) node_data;
+        offline
+      )
+    else
+      (
+        let num_offline_nodes = !Parameters.General.num_offline_nodes in
+        let become_offline_timestamp = !Parameters.General.become_offline_timestamp in
+        let become_online_timestamp = !Parameters.General.become_online_timestamp in
+        let selected_nodes = ref 0 in
+        let selected = ref [] in
+        while !selected_nodes < num_offline_nodes do
+          let i = (Random.int !Parameters.General.num_nodes)+1 in
+          if not (List.exists (fun x -> x=i) !selected) then
+            (
+              offline.(i) <- (become_offline_timestamp, become_online_timestamp);
+              selected_nodes := !selected_nodes +1
+            )
+        done;
+        offline
+      )
+
   let initialize_malicious_node_data () =
     let malicious:((bool*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (false,0)) in
-    let num_malicious_nodes = !Parameters.General.num_bad_nodes in
-    let become_malicious_timestamp = !Parameters.General.become_bad_timestamp in
-    let selected_nodes = ref 0 in
-    while !selected_nodes < num_malicious_nodes do
-      let i = (Random.int !Parameters.General.num_nodes)+1 in
-      match malicious.(i) with
-      | (false,_) -> malicious.(i) <- (true, become_malicious_timestamp); selected_nodes := !selected_nodes +1
-      | _ -> ()
-    done;
-    malicious
+    if !Parameters.General.use_topology_file then
+      (
+        let open Yojson.Basic.Util in
+        let node_data = Parameters.General.parse_topology_file !Parameters.General.topology_filename in
+        List.iter (
+          fun node ->
+            let node_id = node |> member "id" |> to_int in
+            let malicious_struct = node |> member "malicious" in
+            let is_malicious = malicious_struct |> member "isbad" |> to_bool in
+            let malicious_ts = malicious_struct |> member "start" |> to_int in
+            malicious.(node_id) <- (is_malicious, malicious_ts)
+        ) node_data;
+        malicious
+      )
+    else
+      (
+        let num_malicious_nodes = !Parameters.General.num_bad_nodes in
+        let become_malicious_timestamp = !Parameters.General.become_bad_timestamp in
+        let selected_nodes = ref 0 in
+        while !selected_nodes < num_malicious_nodes do
+          let i = (Random.int !Parameters.General.num_nodes)+1 in
+          match malicious.(i) with
+          | (false,_) -> malicious.(i) <- (true, become_malicious_timestamp); selected_nodes := !selected_nodes +1
+          | _ -> ()
+        done;
+        malicious
+      )
 
+  
 
   module ConsensusArg = struct
     let label = "avg_consensus_time"
@@ -199,6 +251,7 @@ module Make = struct
       let module Aux = Auxiliary(Event)(Queue)(Logger) in
       let nodes            = Aux.create_nodes GoodNode.init in
       let malicious_data   = initialize_malicious_node_data () in
+      let offline_data     = initialize_offline_node_data () in
       print_endline "[DONE] Creating nodes";
       print_endline "Creating initial events...";
       let _                = Aux.add_initial_events (Initializer.init nodes) in
@@ -213,9 +266,17 @@ module Make = struct
         match index with
         | None -> ()
         | Some i -> 
-          match malicious_data.(i) with
-          | (true,t) -> if t >= ts then BadStep.step ts e nodes else GoodStep.step ts e nodes
-          | _ -> GoodStep.step ts e nodes
+          (
+            match offline_data.(i) with
+            | (bg,ed) -> 
+              if ts <= bg || ts >= ed then
+                (
+                  match malicious_data.(i) with
+                  | (true,t) -> if t >= ts then BadStep.step ts e nodes else GoodStep.step ts e nodes
+                  | _ -> GoodStep.step ts e nodes
+                )
+          )
+          
       in
       while Queue.has_event () && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
         let ev = Queue.get_event () in
@@ -295,6 +356,7 @@ module Make = struct
       let module Aux = Auxiliary(Event)(Queue)(Logger) in
       let nodes            = Aux.create_nodes GoodNode.init in
       let malicious_data   = initialize_malicious_node_data () in
+      let offline_data     = initialize_offline_node_data () in
       print_endline "[DONE] Creating nodes";
       print_endline "Creating initial events...";
       let _                = Aux.add_initial_events (Initializer.init nodes) in
@@ -311,9 +373,16 @@ module Make = struct
         match index with
         | None -> ()
         | Some i -> 
-          match malicious_data.(i) with
-          | (true,t) -> if t >= ts then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
-          | _ -> GoodStep.step ts e nodes max_height
+          (
+            match offline_data.(i) with
+            | (bg,ed) -> 
+              if ts <= bg || ts >= ed then
+                (
+                  match malicious_data.(i) with
+                  | (true,t) -> if t >= ts then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
+                  | _ -> GoodStep.step ts e nodes max_height
+                )
+          )
       in
       while Queue.has_event () && !max_height < end_block_height && ((not timestamp_limit) || (Simulator.Clock.get_timestamp () <= max_timestamp)) do
         let ev = Queue.get_event () in
