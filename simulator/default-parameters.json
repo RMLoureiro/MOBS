@@ -4,6 +4,7 @@
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
+        "use-topology-file": true,
         "seed":12345,
         "pow_target_interval":600000,
         "avg_mining_power":400000,
