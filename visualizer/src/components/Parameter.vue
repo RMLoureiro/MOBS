@@ -8,14 +8,14 @@
                     <input type="text" 
                         v-bind:value="parameter.value"
                         v-bind:id="parameter.label"
-                        v-if="this.parameter.value != 'true' && this.parameter.value != 'false'"
+                        v-if="this.parameter.value != 'true' && this.parameter.value != 'false' && this.parameter.value !== true && this.parameter.value !== false"
                     >
                     <input type="checkbox"
                         v-bind:id="parameter.label"
                         v-model="this.checkboxval"
                         true-value="true"
                         false-value="false"
-                        v-if="this.parameter.value == 'true' || this.parameter.value == 'false'"
+                        v-if="this.parameter.value == 'true' || this.parameter.value == 'false' || this.parameter.value === true || this.parameter.value === false"
                     >
                 </span>
             </p>
@@ -37,13 +37,15 @@
             }
         },
         mounted() {
-            this.checkboxval = this.parameter.value == 'true';
+            if(this.parameter.value == 'true' || this.parameter.value === true) {
+                this.checkboxval = true;
+            }
+            else {
+                this.checkboxval = false;
+            }
         },
         watch: {
             checkboxval: function(newValue) {
-                console.log(newValue);
-                console.log(document.getElementById(this.parameter.label).value);
-                console.log(document.getElementById(this.parameter.label).checked);
                 document.getElementById(this.parameter.label).value = newValue;
             }
         }

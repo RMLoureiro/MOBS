@@ -175,8 +175,6 @@
             storeAsDefault: function() {
                 this.gParams.forEach(element => {
                     let stringVal = document.getElementById(element.label).value;
-                    console.log("param value:")
-                    console.log(stringVal);
                     element.value = JSON.stringify(JSON.parse(stringVal));
                 });
                 this.nParams.forEach(element => {
