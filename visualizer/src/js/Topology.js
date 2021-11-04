@@ -126,7 +126,9 @@ export class TNode {
     }
 
     toJSON() {
-        // TODO : convert the contents of the node to JSON notation
+        let nodedata = {id:this.id, region:this.region, stake:this.stake, hPower:this.hPower, links:this.links};
+        let guidata  = {id:this.id, pos:{x:this.x, y:this.y}};
+        return {node:nodedata, gui:guidata};
     }
 
 }

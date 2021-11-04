@@ -292,7 +292,32 @@
                 input.click();
             },
             saveTopology : function() {
-                console.log("saving");
+                let nodes = [];
+                let guidata = [];
+                for(let i = 0; i < this.nodes.length; i++) {
+                    let n = this.nodes[i].toJSON();
+                    guidata.push(n.gui);
+                    nodes.push(n.node);
+                }
+                let json = JSON.stringify({nodes:nodes, guidata:guidata});
+                let file = new Blob([json], {type:"application/json"});
+                let filename = "topology.json";
+                if (window.navigator.msSaveOrOpenBlob) { // IE10+
+                    window.navigator.msSaveOrOpenBlob(file, filename);
+                }
+                else { // Others
+                    console.log("here");
+                    let a = document.createElement("a"),
+                            url = URL.createObjectURL(file);
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(function() {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);  
+                    }, 0); 
+                }
             }
         }
     }
