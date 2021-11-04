@@ -1,5 +1,6 @@
 #Input and Output files
 /input_files/*.json
 /output_files/*.json
+/topology_files/*.json
 visualizer/yarn.lock
 simulator/tmp.txt

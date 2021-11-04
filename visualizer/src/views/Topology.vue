@@ -1,15 +1,15 @@
 <template>
     <section class="topology">
         <p>Usage: Left click on the canvas to add a new node. Right click two nodes to add a link between them. Press D to delete a selected node or link.</p>
+        <div class="button-wrapper"><button @click="loadTopology">Load Topology</button><button @click="saveTopology">Save Topology</button></div>
         <canvas id="topologyCanvas"></canvas>
         <topology-form :selected="selected"></topology-form>
     </section>
 </template>
 
 <script>
-    import { mapActions, mapMutations, mapState } from "vuex";
     import TopologyForm from '../components/TopologyForm.vue';
-
+    const fs = require('fs');
 
     import {TNode, TLink} from "../js/Topology.js";
 
@@ -211,6 +211,9 @@
                     if(this.links[i].from.id == n1.id && this.links[i].to.id == n2.id) {
                         return true;
                     }
+                    if(this.links[i].from.id == n2.id && this.links[i].to.id == n1.id) {
+                        return true;
+                    }
                 }
                 return false;
             },
@@ -237,11 +240,59 @@
                     this.selected.target.stake = newNodeState.stake;
                 }
             },
-            toJSON : function() {
-                
+            getNode : function(id) {
+                for(let i = 0; i < this.nodes.length; i++) {
+                    if(this.nodes[i].id == id) {
+                        return this.nodes[i];
+                    }
+                }
+                return null;
             },
-            fromJSON : function() {
-
+            parseJSONFile : function(file) {
+                this.clearData();
+                let rawData = fs.readFileSync(file.path)
+                let json = JSON.parse(rawData);
+                if(json.nodes.length != json.guidata.length) {
+                    alert("Error: node-data and gui-data do not match.")
+                }
+                else {
+                    this.nextNodeId = json.nodes.length + 1;
+                    // create all the nodes
+                    for(let i = 0; i < json.nodes.length; i++) {
+                        let n = json.nodes[i];
+                        let d = json.guidata[i];
+                        if(n.id != d.id) { alert("Error: node-data and gui-data do not match."); }
+                        this.nodes.push(new TNode(n.id,d.pos.x,d.pos.y,[],n.region,n.hPower,n.stake));
+                    }
+                    // after adding all the nodes, loop again to add all the links
+                    for(let i = 0; i < json.nodes.length; i++) {
+                        let n = json.nodes[i];
+                        let node1 = this.getNode(n.id);
+                        for(let j = 0; j < n.links.length; j++) {
+                            let n2id = n.links[j];
+                            let node2 = this.getNode(n2id);
+                            if(node1 != null && node2 != null) {
+                                this.createLink(node1, node2);
+                            }
+                        }
+                    }
+                }
+                this.draw();
+            },
+            loadTopology : function() {
+                let input = document.createElement("input");
+                input.type = "file";
+                input.onchange = _ => {
+                    let files = Array.from(input.files);
+                    if(files.length > 0) {
+                        let jsonFile = files[0];
+                        this.parseJSONFile(jsonFile);
+                    }
+                };
+                input.click();
+            },
+            saveTopology : function() {
+                console.log("saving");
             }
         }
     }
