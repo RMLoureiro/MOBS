@@ -105,7 +105,7 @@ module CardanoQueue   = Simulator.Events.MakeQueue(CardanoEvent);;
 module CardanoTimer   = Abstractions.Timer.Make(CardanoEvent)(CardanoQueue);;
 module CardanoNetwork = Abstractions.Network.Make(CardanoEvent)(CardanoQueue)(CardanoMsg);;
 module CardanoLogger  = Simulator.Logging.Make(CardanoMsg)(CardanoEvent);;
-module CardanoBlock   = Simulator.Block.Make(CardanoLogger)(BlockContents);;
+module CardanoBlock   = Simulator.Block.Make(CardanoLogger)(BlockContents)(Simulator.Block.BaseRewards);;
 module CardanoPoS     = Abstractions.Pos.Make(CardanoLogger)(CardanoBlock);;
 
 

@@ -26,7 +26,7 @@ module SimpleQueue   = Simulator.Events.MakeQueue(SimpleEvent);;
 module SimpleNetwork = Abstractions.Network.Make(SimpleEvent)(SimpleQueue)(SimpleMsg);;
 module SimpleLogger  = Simulator.Logging.Make(SimpleMsg)(SimpleEvent);;
 module SimpleTimer   = Abstractions.Timer.Make(SimpleEvent)(SimpleQueue);;
-module SimpleBlock   = Simulator.Block.Make(SimpleLogger)(BlockContents);;
+module SimpleBlock   = Simulator.Block.Make(SimpleLogger)(BlockContents)(Simulator.Block.BaseRewards);;
 module SimplePow     = Abstractions.Pow.Make(SimpleEvent)(SimpleQueue)(SimpleBlock);;
 let _ = SimplePow.init_mining_power ();;
 

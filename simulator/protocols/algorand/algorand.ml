@@ -70,7 +70,7 @@ module AlgorandQueue   = Simulator.Events.MakeQueue(AlgorandEvent);;
 module AlgorandTimer   = Abstractions.Timer.Make(AlgorandEvent)(AlgorandQueue);;
 module AlgorandNetwork = Abstractions.Network.Make(AlgorandEvent)(AlgorandQueue)(AlgorandMsg);;
 module AlgorandLogger  = Simulator.Logging.Make(AlgorandMsg)(AlgorandEvent);;
-module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger)(BlockContents);;
+module AlgorandBlock   = Simulator.Block.Make(AlgorandLogger)(BlockContents)(Simulator.Block.BaseRewards);;
 module AlgorandPoS     = Abstractions.Pos.Make(AlgorandLogger)(AlgorandBlock);;
 
 

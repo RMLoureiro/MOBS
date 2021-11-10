@@ -82,7 +82,7 @@ module TenderbakeQueue   = Simulator.Events.MakeQueue(TenderbakeEvent);;
 module TenderbakeTimer   = Abstractions.Timer.Make(TenderbakeEvent)(TenderbakeQueue);;
 module TenderbakeNetwork = Abstractions.Network.Make(TenderbakeEvent)(TenderbakeQueue)(TenderbakeMessage);;
 module TenderbakeLogger  = Simulator.Logging.Make(TenderbakeMessage)(TenderbakeEvent);;
-module TenderbakeBlock   = Simulator.Block.Make(TenderbakeLogger)(BlockContents);;
+module TenderbakeBlock   = Simulator.Block.Make(TenderbakeLogger)(BlockContents)(Simulator.Block.NoRewards);;
 module TenderbakePoS     = Abstractions.Pos.Make(TenderbakeLogger)(TenderbakeBlock);;
 
 
@@ -588,7 +588,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
                 rtimestamp=Simulator.Clock.get_timestamp ()
               } in
               let new_block = 
-                TenderbakeBlock.create ~reward:false node.id block block_data
+                TenderbakeBlock.create node.id block block_data
               in
               let new_chain = new_block::node.data.chain in
               node.data.chain <- new_chain;

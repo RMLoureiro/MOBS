@@ -24,13 +24,40 @@ type 'a t =
 
 let id (block:'a t) = block.header.id
 
+module type BlockRewards = sig
+
+  (* given the minter of the block and the balances, and produce the resulting balances *)
+  val reward : int -> balances -> balances
+
+end
+
+module NoRewards = struct
+
+  let reward _ balances =
+    balances
+
+end
+
+module BaseRewards = struct
+
+  let reward minter balances =
+    let gets_reward (id,bal) =
+      if id = minter then
+        (id, bal +. (bal *. !Parameters.General.reward))
+      else
+        (id, bal)
+      in
+    List.map gets_reward balances
+
+end
+
 module type BlockSig = sig
   type block_contents
 
   type block = block_contents t
 
   (** construct a new block, given the minter_id and parent block and block data *)
-  val create : ?reward:bool -> node_id -> block -> block_contents -> block
+  val create : node_id -> block -> block_contents -> block
 
   (** returns the null block *)
   val null : block_contents -> block
@@ -80,7 +107,7 @@ module type BlockContent = sig
 end
 
 
-module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with type block_contents = BlockContent.t and type block = BlockContent.t t) = struct
+module Make(Logger : Logging.Logger)(BlockContent:BlockContent)(Rewards:BlockRewards) : (BlockSig with type block_contents = BlockContent.t and type block = BlockContent.t t) = struct
 
   type block_contents = BlockContent.t
 
@@ -88,20 +115,10 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent) : (BlockSig with
 
   let latest_id = ref 0
 
-  (* TODO : add the ability to quickly hotswap how nodes are rewarded (functor receives another module?) *)
-  let reward minter balances =
-    let gets_reward (id,bal) =
-      if id = minter then
-        (id, bal +. (bal *. !Parameters.General.reward))
-      else
-        (id, bal)
-      in
-    List.map gets_reward balances
-
-  let create ?reward:(r=true) minter (parent:block) (data:block_contents) =
+  let create minter (parent:block) (data:block_contents) =
     latest_id := !latest_id + 1;
     Logger.print_create_block minter !latest_id;
-    let bal = if r then reward minter parent.header.balances else parent.header.balances in
+    let bal = Rewards.reward minter parent.header.balances in
     {
       header = {
         id               = !latest_id;
