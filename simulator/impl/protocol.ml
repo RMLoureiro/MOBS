@@ -99,7 +99,7 @@ module Make = struct
         Array.iteri (
           fun i l -> 
             (Array.iter (
-              fun j -> Logger.log_event (Event.AddLink(i+1, j))
+              fun j -> Logger.log_add_link (i+1) j
             ) l)
           ) links
       in
@@ -117,7 +117,7 @@ module Make = struct
         let node_region = regions.(i-1) in
         let node = init i node_links node_region in
         Hashtbl.add nodes i node;
-        Logger.log_event (Event.AddNode(i, node_region))
+        Logger.log_add_node i  node_region
       done;
       print_endline "\t [DONE] Initializing nodes";
       log_links links;

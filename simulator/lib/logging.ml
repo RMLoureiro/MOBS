@@ -26,6 +26,15 @@ module type Logger = sig
   (** receives a JSON string with the statistics and logs them *)
   val log_statistics : string -> unit
 
+  (** log the addition of a node *)
+  val log_add_node : int -> int -> unit
+
+  (** log the addition of a link *)
+  val log_add_link : int -> int -> unit
+
+  (** log the removal of a link *)
+  val log_remove_link : int -> int -> unit
+
 end
 
 module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t) : (Logger with type ev = Event.t) = struct
@@ -99,12 +108,18 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     let data = Printf.sprintf "{\"kind\":\"add-block\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"block-id\":%d,\"owner-id\":%d}}" (Clock.get_timestamp ()) nodeID blockID ownerID in
     log_json data
 
+  let log_add_node nodeID regionID =
+    log_json (addnode_json nodeID regionID)
+
+  let log_add_link beginNodeID endNodeID =
+    log_json (addlink_json beginNodeID endNodeID)
+
+  let log_remove_link beginNodeID endNodeID =
+    log_json (removelink_json beginNodeID endNodeID)
+
   let log_event (event: ev) =
     let event_json = match event with
     | Message(node_id_from, node_id_to, timestamp, msg) -> message_json node_id_from node_id_to timestamp msg 
-    | AddNode(node_id, region_id) -> addnode_json node_id region_id
-    | AddLink(begin_node_id, end_node_id) -> addlink_json begin_node_id end_node_id
-    | RemoveLink(begin_node_id, end_node_id) -> removelink_json begin_node_id end_node_id
     | MintBlock(_,_) -> ""
     | Timeout(_, _, _) -> ""
     in log_json event_json

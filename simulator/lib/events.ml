@@ -27,9 +27,6 @@ module type Event = sig
   (** the type of the events processed during the simulation *)
   type t = 
   Message of int * int * Clock.t * msg       (* nodeID(sender), nodeID(receiver), timestamp, msg *)
-  | AddNode of int * int                     (* nodeID, regionID *)
-  | AddLink of int * int                     (* nodeID, nodeID *)
-  | RemoveLink of int * int                  (* nodeID, nodeID *)
   | MintBlock of int * Clock.t               (* nodeID, timestamp *)
   | Timeout of int * Clock.t * timeout_label (* nodeID, timestamp, label *)
 
@@ -54,27 +51,18 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
 
   type t =
   Message of int * int * Clock.t * msg
-  | AddNode of int * int
-  | AddLink of int * int
-  | RemoveLink of int * int
   | MintBlock of int * Clock.t
   | Timeout of int * Clock.t * timeout_label
 
   let timestamp (e:t) : Clock.t =
   match e with
   | Message(_,_,timestamp,_) -> timestamp
-  | AddNode(_,_) -> Clock.zero
-  | AddLink(_,_) -> Clock.zero
-  | RemoveLink(_,_) -> Clock.zero
   | MintBlock(_,timestamp) -> timestamp
   | Timeout(_,timestamp,_) -> timestamp
 
   let target (e:t) : int option =
   match e with
   | Message(_,receiver,_,_) -> Some receiver
-  | AddNode(_,_) -> None
-  | AddLink(_,_) -> None
-  | RemoveLink(_,_) -> None
   | MintBlock(node,_) -> Some node
   | Timeout(node,_,_) -> Some node
 
