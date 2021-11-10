@@ -25,8 +25,7 @@
                 nextNodeId: 1,
                 nextLinkId: 1,
                 selected: {type:"node", target:null},
-                creatingLink: {status:0,start:null,end:null}, // (status: 0=idle, 1=first_selected, 2=done)
-                intervalDraw: "",
+                creatingLink: {status:0,start:null,end:null} // (status: 0=idle, 1=first_selected, 2=done)
             };
         },
         components: {
@@ -36,7 +35,6 @@
 
         },
         beforeUnmount() {
-            clearInterval(this.intervalDraw);
             this.clearData();
             window.removeEventListener("keydown", this.delHandler);
             window.removeEventListener("mouseup", this.clickHandler);
@@ -46,7 +44,6 @@
             this.clearData();
             canvas = document.getElementById("topologyCanvas");
             this.draw();
-            this.intervalDraw = setInterval(this.draw, 1000);
             window.addEventListener("keydown", this.delHandler);
             window.addEventListener("mouseup", this.clickHandler);
         },
@@ -241,6 +238,7 @@
                     this.selected.target.offline = newNodeState.offline;
                     this.selected.target.malicious = newNodeState.malicious;
                 }
+                this.draw();
             },
             getNode : function(id) {
                 for(let i = 0; i < this.nodes.length; i++) {
@@ -308,7 +306,6 @@
                     window.navigator.msSaveOrOpenBlob(file, filename);
                 }
                 else { // Others
-                    console.log("here");
                     let a = document.createElement("a"),
                             url = URL.createObjectURL(file);
                     a.href = url;
