@@ -159,7 +159,7 @@
                 this.intervalDraw = "";
             },
             createNode : function(x,y) {
-                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,0,0,{from:0,to:0},{isbad:false,start:0}));
+                this.nodes.push(new TNode(this.nextNodeId++,x,y,[],0,100,100,{from:0,to:0},{isbad:false,start:0}));
                 this.draw();
             },
             createLink : function(from,to) {
