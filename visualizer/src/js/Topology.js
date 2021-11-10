@@ -77,9 +77,18 @@ export class TNode {
 
     show(ctx) {
         ctx.beginPath();
-        ctx.fillStyle = 'rgb(0,0,0)';
+        let borderColor = 'rgb(0,0,0)';
+        if(this.malicious.isbad == true) {
+            borderColor = 'rgb(255,0,0)';
+        }
+        ctx.fillStyle = borderColor;
         let r = this.selected ? selectedRadius : radius;
         ctx.arc(this.x, this.y, r+2, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.closePath();
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(75, 75, 75, 1)';
+        ctx.arc(this.x, this.y, r, 0, 2 * Math.PI);
         ctx.fill();
         ctx.closePath();
         ctx.beginPath();
