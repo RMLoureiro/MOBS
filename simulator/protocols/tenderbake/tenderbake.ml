@@ -1,6 +1,6 @@
 let committee_size  = Parameters.Protocol.get_int_parameter "committee-size";;
 let majority_votes  = Parameters.Protocol.get_int_parameter "majority-votes";;
-let round0_duration = 3000;;
+let round0_duration = Parameters.Protocol.get_int_parameter "round0-duration";;
 let block_size      = Parameters.Protocol.get_int_parameter "block-size-mb";;
 
 open Implementation
@@ -65,9 +65,13 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
     let payload = Printf.sprintf "{\"kind\":\"%s\",\"block\":%d}" kind id in
     Printf.sprintf "{\"level\":%d,\"round\":%d,\"creator\":%d,\"prev_block\":%d,\"payload\":%s}" level round creator prev_block payload
 
-  let get_size (_:t) =
-    (* TODO : get accurate data *)
-    Simulator.Size.Byte(132)
+  let get_size (m:t) =
+    match m.payload with
+    | Propose(_) -> Simulator.Size.Megabyte(block_size)
+    | Preendorsements(_,l) -> Simulator.Size.Bit(Simulator.Size.to_bits (Simulator.Size.Megabyte(block_size)) + Simulator.Size.to_bits (Simulator.Size.Byte(132 * (List.length l))))
+    | _ -> Simulator.Size.Byte(132)
+    (* TODO : get more accurate data *)
+    
     
 
   let processing_time (_:t) =
@@ -75,7 +79,24 @@ module TenderbakeMessage : (Simulator.Events.Message with type t = tenderbake_ms
 
 end
 
+module PEQTime = struct
+  let label = "average-preendorsement-quorum-time"
+  let use_intervals = false
+end
 
+module EQTime = struct
+  let label = "average-endorsement-quorum-time"
+  let use_intervals = false
+end
+
+module BPTime = struct
+  let label = "average-block-propagation-time"
+  let use_intervals = false
+end
+
+module AveragePEQTime = Simulator.Statistics.Make.Average(PEQTime);;
+module AverageEQTime  = Simulator.Statistics.Make.Average(EQTime);;
+module AverageBPTime  = Simulator.Statistics.Make.Average(BPTime);;
 
 module TenderbakeEvent   = Simulator.Events.MakeEvent(TenderbakeMessage);;
 module TenderbakeQueue   = Simulator.Events.MakeQueue(TenderbakeEvent);;
@@ -100,12 +121,13 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
   type ev = TenderbakeEvent.t
 
   type node_data = {
-    mutable round          : int;    
-    mutable chain          : value list;
-    mutable proposal_state : proposal_state;
-    mutable endorsable     : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
-    mutable locked         : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
-    mutable msg_buffer     : tenderbake_msg list (* type, creator, level, round, block_id *)
+    mutable round              : int;    
+    mutable chain              : value list;
+    mutable proposal_state     : proposal_state;
+    mutable endorsable         : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
+    mutable locked             : (int * (block_contents Simulator.Block.t) * preendorsement list) option;
+    mutable msg_buffer         : tenderbake_msg list (* type, creator, level, round, block_id *);
+    mutable proposals_received : tenderbake_msg list 
   }
   and proposal_state =
   | No_proposal
@@ -138,6 +160,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         endorsable = None;
         locked = None;
         msg_buffer = [];
+        proposals_received = [];
       }
     }
 
@@ -156,8 +179,10 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
     let schedule_wakeup (node:t) (round_start:int) (round_num:int) =
       let target_timestmap = round_start + (round_duration round_num) in
       let delay = target_timestmap - (Simulator.Clock.get_timestamp ()) in
-      TenderbakeTimer.cancel node.id "wake"; (* cancel preexisting wakeups, if they exist *)
-      TenderbakeTimer.set node.id delay "wake"
+      if delay > 0 then (
+        TenderbakeTimer.cancel node.id "wake"; (* cancel preexisting wakeups, if they exist *)
+        TenderbakeTimer.set node.id delay "wake"
+      )
 
     let qc_complete (l:'a list) =
       List.length l >= majority_votes
@@ -217,7 +242,13 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       let round_of_proposal = msg.round in
       let level = head_level node.data.chain in
       let round = current_round node in
-      level_of_proposal > level || (level_of_proposal = level && round_of_proposal > round)
+      let is_proposal = match msg.payload with Propose(_) -> true | _ -> false in
+      let can_process = 
+        match node.data.proposal_state with
+        | No_proposal -> is_proposal
+        | _ -> true
+      in
+      level_of_proposal > level || (level_of_proposal = level && round_of_proposal > round) || (not can_process)
 
     (* Check if message has corrent data *)
     let check_message_lrh (msg:tenderbake_msg) (node:t) =
@@ -322,7 +353,8 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
           if (block_header.id = block.header.id) && not (qc_complete m.acc) then
             begin
               let new_acc = add_to_acc endorsement m.acc in
-              node.data.proposal_state <- Collecting_endorsements{m with acc=new_acc}
+              node.data.proposal_state <- Collecting_endorsements{m with acc=new_acc};
+              if List.length new_acc == majority_votes then (AverageEQTime.process node.id ((Simulator.Clock.get_timestamp ()) - (TenderbakeBlock.timestamp block)))
             end
         | _ -> ()
 
@@ -365,6 +397,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               begin
                 n.data.proposal_state <- Collecting_endorsements{pqc = m.acc; acc=[]};
                 set_endorsable n (current_round n) block m.acc;
+                AveragePEQTime.process node.id ((Simulator.Clock.get_timestamp ()) - (TenderbakeBlock.timestamp block));
                 n.data.locked <- Some(current_round n, block, m.acc);
                 send_endorse n m.acc
               end
@@ -435,18 +468,30 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               node.data.locked <- None;
             end;
           match node.data.locked with
-          | None -> send_preendorse node
+          | None -> (
+            AverageBPTime.process node.id ((Simulator.Clock.get_timestamp ()) - (TenderbakeBlock.timestamp candidate));
+            node.data.proposal_state <- Collecting_preendorsements({acc=[]});
+            send_preendorse node
+            )
           | Some(locked_round, locked_block, pqc) -> 
             begin
               if TenderbakeBlock.equals locked_block candidate then
-                send_preendorse node
+                (
+                  AverageBPTime.process node.id ((Simulator.Clock.get_timestamp ()) - (TenderbakeBlock.timestamp candidate));
+                  node.data.proposal_state <- Collecting_preendorsements({acc=[]});
+                  send_preendorse node
+                )
               else
                 match candidate.contents.previously_proposed with
                 | None -> send_preendorsements node pqc
                 | Some(endorsable_round, _) ->
                   begin
                     if locked_round < endorsable_round then
-                      send_preendorse node
+                      (
+                        AverageBPTime.process node.id ((Simulator.Clock.get_timestamp ()) - (TenderbakeBlock.timestamp candidate));
+                        node.data.proposal_state <- Collecting_preendorsements({acc=[]});
+                        send_preendorse node
+                      )
                     else
                       send_preendorsements node pqc
                   end
@@ -461,9 +506,6 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       let valid_preendorser = TenderbakePoS.valid_committee_member signature node.state committee_size [head_level node.data.chain] cred in
       match node.data.proposal_state with
       | Collecting_preendorsements(_) -> 
-        if valid_preendorser then
-          handle_preendorsement node (Preendorse(preendorsement))
-      | No_proposal -> 
         if valid_preendorser then
           handle_preendorsement node (Preendorse(preendorsement))
       | _ -> ()
@@ -507,21 +549,19 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       let creator = message.creator in
       let message_valid = check_message_lrh message node in
       let future = future_message message node in
+      if future then
+        (
+          node.data.msg_buffer <- node.data.msg_buffer@[message]
+        )
+      else
       if message_valid then
-        begin
+        (
           match message.payload with
             | Propose(_) -> rcv_propose message.payload creator node
             | Preendorse(_) -> rcv_preendorse message.payload node
             | Endorse(_) -> rcv_endorse message.payload node
             | Preendorsements(_) -> rcv_preendorsements message.payload message.round node
-        end
-      else
-        begin
-          if future then
-            begin
-              node.data.msg_buffer <- node.data.msg_buffer@[message]
-            end
-        end
+        )
 
     let process_msg_buffer (node:t) =
       let futures  = ref [] in
@@ -529,11 +569,11 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       let filter (message:tenderbake_msg) =
         let valid  = check_message_lrh message node in
         let future = future_message message node in
-        if valid then
-          currents := !currents@[message]
+        if future then futures := !futures@[message]
         else
-          begin 
-            if future then futures := !futures@[message]
+          begin
+            if valid then
+              currents := !currents@[message]
           end
       in
       List.iter filter node.data.msg_buffer;
@@ -561,9 +601,9 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         let new_block =
           match node.data.endorsable with
           | None -> 
-            {old_block with contents = {old_block.contents with previously_proposed = None}}
+            {old_block with contents = {old_block.contents with previously_proposed = None; rtimestamp = Simulator.Clock.get_timestamp ()}}
           | Some(round, block, pqc) -> 
-            {block with contents= {old_block.contents with previously_proposed = Some(round, pqc)}}
+            {block with contents= {old_block.contents with previously_proposed = Some(round, pqc); rtimestamp = Simulator.Clock.get_timestamp ()}}
         in
         node.data.chain <- new_block::rest;
         node.data.proposal_state <- No_proposal;
@@ -613,7 +653,19 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         | None -> ()
 
 
-    (*let debug (node:t) =
+    (*
+    let debug (node:t) (ev:TenderbakeEvent.t) =
+      let kind msg = match msg.payload with 
+        | Propose(_) -> "PROPOSE"
+        | Preendorse(_) -> "PREENDORSE"
+        | Endorse(_) -> "ENDORSE"
+        | Preendorsements(_) -> "PREENDORSEMENTS"
+      in
+      let ev = match ev with
+      | TenderbakeEvent.Message(_,_,_,msg) -> kind msg
+      | TenderbakeEvent.Timeout(_,_,label) -> label
+      | _ -> ""
+      in
       let ts = Simulator.Clock.get_timestamp () in
       let state = match node.data.proposal_state with
       | No_proposal -> "No Proposal"
@@ -621,9 +673,10 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       | Collecting_endorsements(m) -> Printf.sprintf "Collecting Endorsements (%d preendorsements received) with Count=%d" (List.length m.pqc) (List.length m.acc)
       in
       let s = 
-        Printf.sprintf "Node %d | %d | Level %d | State { %s }" node.id ts (head_level node.data.chain) state
+        Printf.sprintf "Node %d | %d | %s | Level %d | State { %s }" node.id ts ev (head_level node.data.chain) state
       in
-      print_endline s*)
+      print_endline s
+      *)
 
     let handle (node:t) (event:TenderbakeEvent.t) =
       let _ = match event with
@@ -641,10 +694,10 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         | Some(blk) -> blk
         | None -> node.state
       in
+      process_msg_buffer node;
       node.state <- updated_decided_state; node
 
 end
-
 
 
 module TenderbakeInitializer : (Protocol.Initializer with type node=TenderbakeNode.t and type ev=TenderbakeEvent.t) = struct
@@ -660,21 +713,8 @@ module TenderbakeInitializer : (Protocol.Initializer with type node=TenderbakeNo
 end
 
 
-
-module TenderbakeStatistics : (Simulator.Statistics.Stats) = struct
-  type t = int
-
-  let process _ _ =
-    ()
-
-  let get _ =
-    "{}"
-
-end
-
+module TenderbakeStatistics = Simulator.Statistics.Compose(AverageBPTime)(Simulator.Statistics.Compose(AveragePEQTime)(AverageEQTime));;
 
 
 module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
-
-
 
