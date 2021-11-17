@@ -1,6 +1,6 @@
 {
     "general": {
-        "num-nodes":50,
+        "num-nodes":100,
         "end-block-height":10,
         "timestamp-limit":0,
         "verbose-output":true,
@@ -48,8 +48,9 @@
         "lambda-priority":5000,
         "lambda-block":60000,
         "committee-size":50,
-        "num-proposers":2,
-        "majority-votes":31,
-        "block-size-mb":8
+        "num-proposers":1,
+        "majority-votes":33,
+        "block-size-mb":1,
+        "round0-duration":45000
     }
 }
