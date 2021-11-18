@@ -111,7 +111,7 @@ module SimpleInitializer : (Protocol.Initializer with type node=SimpleNode.t and
   
 end
 
-module SimpleProtocol = Protocol.Make.Blockchain(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(Simulator.Statistics.Empty);;
+module SimpleProtocol = Protocol.Make.Blockchain(SimpleEvent)(SimpleQueue)(SimpleBlock)(SimpleTimer)(SimpleNode)(SimpleNode)(SimpleInitializer)(SimpleLogger)(Simulator.Statistics.Empty)(SimpleNetwork);;
 
 
 

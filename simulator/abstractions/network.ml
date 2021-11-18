@@ -49,10 +49,6 @@ let node_regions () : regions =
 
 (***** Create Links between Nodes *****)
 
-(* given a list of links, adds a link from i to j *)
-let add_link i j links =
-  Array.mapi (fun x y -> if x = i then [j]@y else y) links
-
 (** condition for node with <nid> to be added as an outbound neighbor to node with <id> *)
 let can_add_neighbor id nid outbound_links inbound_links :bool =
   let num_links        = !Parameters.General.num_links in
@@ -116,6 +112,9 @@ let node_links () : network_links =
 module type Network = sig
   type msg
 
+  module MessagesExchanged : Simulator.Statistics.Stats
+  module MegabytesExchanged : Simulator.Statistics.Stats
+
   (** send a message to another node
       used when we need more fine-tuned
       control of message exchanges *)
@@ -134,6 +133,18 @@ module Make(Events: Simulator.Events.Event)
           (Queue: Simulator.Events.EventQueue with type ev = Events.t)
           (Message : Simulator.Events.Message with type t = Events.msg) : (Network with type msg=Events.msg) =
 struct
+
+  module ME = struct
+    let label = "total-messages-exchanged"
+    let use_intervals = false
+  end
+  module MessagesExchanged = Simulator.Statistics.Make.CountAll(ME);;
+
+  module MBE = struct
+    let label = "megabytes-exchanged"
+    let use_intervals = false
+  end
+  module MegabytesExchanged = Simulator.Statistics.Make.CountAllF(MBE);;
 
   (* required types *)
   type msg   = Events.msg
@@ -214,6 +225,8 @@ struct
       end
     in
     let msg_event = Events.Message(sender,receiver,arrival_time,msg) in
+    MessagesExchanged.process sender 1;
+    MegabytesExchanged.process sender (Simulator.Size.to_megabytes (Message.get_size msg));
     Queue.add_event msg_event
 
   (* get a node's neighbours *)

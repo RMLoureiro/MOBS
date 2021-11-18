@@ -26,6 +26,9 @@ module type Logger = sig
   (** receives a JSON string with the statistics and logs them *)
   val log_statistics : string -> unit
 
+  (** receives a JSON string with the per node statistics and logs them (the format differs from log_statistics) *)
+  val log_per_node_statistics : string -> unit
+
   (** log the addition of a node *)
   val log_add_node : int -> int -> unit
 
@@ -78,6 +81,10 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
   let log_statistics stats_json =
     let str = (Printf.sprintf "{\"kind\":\"statistics\",\"content\":%s}" stats_json) in
     write_to_file str
+
+  let log_per_node_statistics stats_json =
+    let str = (Printf.sprintf "{\"kind\":\"per-node-statistics\",\"content\":%s}" stats_json) in
+    write_to_file str 
 
   let print_in_committee node_id round =
     let data = Printf.sprintf "{\"kind\":\"node-committee\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"round\":%d}}" (Clock.get_timestamp ()) node_id round in

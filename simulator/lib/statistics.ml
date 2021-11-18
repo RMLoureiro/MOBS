@@ -128,6 +128,54 @@ module Make = struct
       Printf.sprintf "{\"%s\":%s}" X.label res
   end
 
+  module CountPerNode(X:Arg) : (Stats with type t = int) = struct
+    type t = int
+
+    let c = Array.init (!Parameters.General.num_nodes) (fun _ -> 0) 
+
+    let process (node:int) (num:t) =
+      c.(node-1) <- c.(node-1) + num
+
+    let get _ =
+      let rec arr_to_str str arr =
+        match arr with
+        | [] -> Printf.sprintf "%s]" str
+        | x::[] -> arr_to_str (Printf.sprintf "%s%d" str x) []
+        | x::xs -> arr_to_str (Printf.sprintf "%s%d," str x) xs
+      in
+      let res = arr_to_str "[" (Array.to_list c) in
+      Printf.sprintf "{\"%s\":%s}" X.label res
+
+  end
+
+  module CountAll(X:Arg) : (Stats with type t = int) = struct
+    type t = int
+
+    let c = ref 0
+
+    let process (_:int) (num:t) =
+      c := !c + num
+
+    let get _ =
+      let res = string_of_int (!c) in
+      Printf.sprintf "{\"%s\":%s}" X.label res
+
+  end
+
+  module CountAllF(X:Arg) : (Stats with type t = float) = struct
+    type t = float
+
+    let c = ref 0.0
+
+    let process (_:int) (num:t) =
+      c := !c +. num
+
+    let get _ =
+      let res = Printf.sprintf "%.2f" (!c) in 
+      Printf.sprintf "{\"%s\":%s}" X.label res
+
+  end
+
 end
 
 module Empty = struct 

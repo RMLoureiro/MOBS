@@ -12,6 +12,9 @@ val node_links : unit -> network_links
 module type Network = sig
     type msg
 
+    module MessagesExchanged : Simulator.Statistics.Stats
+    module MegabytesExchanged : Simulator.Statistics.Stats
+
     (** send a message to another node
         used when we need more fine-tuned
         control of message exchanges *)

@@ -14,3 +14,11 @@ let to_bits (s:t) : int =
   | Megabyte(n) -> 8388608*n
   | Gigabyte(n) -> 8589934592*n
 
+let to_megabytes (s:t) : float =
+  match s with
+  | Bit(n) -> (float_of_int n) /. 8388608.0
+  | Byte(n) -> (float_of_int n) /. 1048576.0
+  | Kilobyte(n) -> (float_of_int n) /. 1024.0
+  | Megabyte(n) -> (float_of_int n)
+  | Gigabyte(n) -> (float_of_int n) *. 1024.0
+

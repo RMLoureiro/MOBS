@@ -210,4 +210,4 @@ module CardanoInitializer : (Protocol.Initializer with type node=CardanoNode.t a
   
 end
 
-module CardanoProtocol = Protocol.Make.Blockchain(CardanoEvent)(CardanoQueue)(CardanoBlock)(CardanoTimer)(CardanoNode)(CardanoNode)(CardanoInitializer)(CardanoLogger)(Simulator.Statistics.Empty);;
+module CardanoProtocol = Protocol.Make.Blockchain(CardanoEvent)(CardanoQueue)(CardanoBlock)(CardanoTimer)(CardanoNode)(CardanoNode)(CardanoInitializer)(CardanoLogger)(Simulator.Statistics.Empty)(CardanoNetwork);;

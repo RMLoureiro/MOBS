@@ -175,7 +175,7 @@ module BitcoinInitializer : (Protocol.Initializer with type node=BitcoinNode.t a
   
 end
 
-module BitcoinProtocol = Protocol.Make.Blockchain(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics);;
+module BitcoinProtocol = Protocol.Make.Blockchain(BitcoinEvent)(BitcoinQueue)(BitcoinBlock)(BitcoinTimer)(BitcoinNode)(BitcoinNode)(BitcoinInitializer)(BitcoinLogger)(BitcoinStatistics)(BitcoinNetwork);;
 
 
 

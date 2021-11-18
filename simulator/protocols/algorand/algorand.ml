@@ -759,4 +759,4 @@ module AlgorandInitializer : (Protocol.Initializer with type node=AlgorandNode.t
   
 end
 
-module AlgorandProtocol = Protocol.Make.Blockchain(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandTimer)(AlgorandNode)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics);;
+module AlgorandProtocol = Protocol.Make.Blockchain(AlgorandEvent)(AlgorandQueue)(AlgorandBlock)(AlgorandTimer)(AlgorandNode)(AlgorandNode)(AlgorandInitializer)(AlgorandLogger)(AlgorandStatistics)(AlgorandNetwork);;

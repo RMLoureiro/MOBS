@@ -710,5 +710,5 @@ end
 module TenderbakeStatistics = Simulator.Statistics.Compose(AverageBPTime)(Simulator.Statistics.Compose(AveragePEQTime)(AverageEQTime));;
 
 
-module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
+module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics)(TenderbakeNetwork);;
 
