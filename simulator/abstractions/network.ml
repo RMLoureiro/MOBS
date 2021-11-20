@@ -137,12 +137,14 @@ struct
   module ME = struct
     let label = "total-messages-exchanged"
     let use_intervals = false
+    let format = 0
   end
   module MessagesExchanged = Simulator.Statistics.Make.CountAll(ME);;
 
   module MBE = struct
     let label = "megabytes-exchanged"
     let use_intervals = false
+    let format = 0
   end
   module MegabytesExchanged = Simulator.Statistics.Make.CountAllF(MBE);;
 

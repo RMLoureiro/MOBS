@@ -82,16 +82,19 @@ end
 module PEQTime = struct
   let label = "average-preendorsement-quorum-time"
   let use_intervals = false
+  let format = 1
 end
 
 module EQTime = struct
   let label = "average-endorsement-quorum-time"
   let use_intervals = false
+  let format = 1
 end
 
 module BPTime = struct
   let label = "average-block-propagation-time"
   let use_intervals = false
+  let format = 1
 end
 
 module AveragePEQTime = Simulator.Statistics.Make.Average(PEQTime);;

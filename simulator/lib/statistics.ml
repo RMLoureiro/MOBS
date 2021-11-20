@@ -7,8 +7,7 @@ module type Stats = sig
   val process : int -> t -> unit
 
   (** returns a JSON string containing the statistics and respective values *)
-  (* <int> format : 0 = ms; 1 = s *)
-  val get : int -> string
+  val get : unit -> string
 
   (** reset statistics *)
   val clear : unit -> unit
@@ -20,6 +19,9 @@ module Make = struct
   module type Arg = sig
     val label         : string (* label for the metric *)
     val use_intervals : bool   (* true considers the values to be timestamps and computes the average interval between "process" calls *)
+    val format        : int (* the format to be used *)
+                            (* <int> format : 0 = no format *)
+                            (* <int> format : 1 = convert ms to s, when dealing with times *)
   end
 
   module Aux = struct
@@ -33,6 +35,10 @@ module Make = struct
 
     let median lst =
       let index = (List.length lst) / 2 in
+      List.nth (List.sort compare lst) index
+
+    let percentile95 lst =
+      let index = int_of_float(floor(float_of_int(List.length lst) *. 0.95)) in
       List.nth (List.sort compare lst) index
 
     let average lst =
@@ -76,11 +82,10 @@ module Make = struct
     let process (node:int) (value:t) =
       Aux.process node value last_obs_value_per_node obs_values_per_node X.use_intervals
 
-    let get format =
-      let res_ms = Aux.average (Aux.per_node_metric obs_values_per_node Aux.average) in
-      let res_s  = Aux.to_seconds res_ms in
-      let res = if format = 1 then res_s else string_of_int res_ms in
-      Printf.sprintf "{\"%s\":%s}" X.label res
+    let get () =
+      let res = Aux.average (Aux.per_node_metric obs_values_per_node Aux.average) in
+      let resf  = if X.format = 1 then Aux.to_seconds res else string_of_int res in
+      Printf.sprintf "{\"%s\":%s}" X.label resf
 
     let clear () =
       Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
@@ -97,11 +102,30 @@ module Make = struct
     let process (node:int) (value:t) =
       Aux.process node value last_obs_value_per_node obs_values_per_node X.use_intervals
 
-    let get format =
-      let res_ms = Aux.median (Aux.per_node_metric obs_values_per_node Aux.median) in
-      let res_s  = Aux.to_seconds res_ms in
-      let res = if format = 1 then res_s else string_of_int res_ms in
-      Printf.sprintf "{\"%s\":%s}" X.label res
+    let get () =
+      let res = Aux.median (Aux.per_node_metric obs_values_per_node Aux.median) in
+      let resf  = if X.format = 1 then Aux.to_seconds res else string_of_int res in
+      Printf.sprintf "{\"%s\":%s}" X.label resf
+
+    let clear () =
+      Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
+      Array.fill obs_values_per_node 0 (!Parameters.General.num_nodes) []
+    
+  end
+
+  module Percentile95(X:Arg) : (Stats with type t = int) = struct
+    type t = int
+
+    let last_obs_value_per_node : t array  = Array.init !Parameters.General.num_nodes (fun _ -> 0)
+    let obs_values_per_node : t list array = Array.init !Parameters.General.num_nodes (fun _ -> [])
+
+    let process (node:int) (value:t) =
+      Aux.process node value last_obs_value_per_node obs_values_per_node X.use_intervals
+
+    let get () =
+      let res = Aux.percentile95 (Aux.per_node_metric obs_values_per_node Aux.percentile95) in
+      let resf  = if X.format = 1 then Aux.to_seconds res else string_of_int res in
+      Printf.sprintf "{\"%s\":%s}" X.label resf
 
     let clear () =
       Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
@@ -118,11 +142,10 @@ module Make = struct
     let process (node:int) (value:t) =
       Aux.process node value last_obs_value_per_node obs_values_per_node X.use_intervals
 
-    let get format =
-      let res_ms = Aux.max (Aux.per_node_metric obs_values_per_node Aux.max) in
-      let res_s  = Aux.to_seconds res_ms in
-      let res = if format = 1 then res_s else string_of_int res_ms in
-      Printf.sprintf "{\"%s\":%s}" X.label res
+    let get () =
+      let res = Aux.max (Aux.per_node_metric obs_values_per_node Aux.max) in
+      let resf  = if X.format = 1 then Aux.to_seconds res else string_of_int res in
+      Printf.sprintf "{\"%s\":%s}" X.label resf
 
     let clear () =
       Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
@@ -139,11 +162,10 @@ module Make = struct
     let process (node:int) (value:t) =
       Aux.process node value last_obs_value_per_node obs_values_per_node X.use_intervals
 
-    let get format =
-      let res_ms = Aux.min (Aux.per_node_metric obs_values_per_node Aux.min) in
-      let res_s  = Aux.to_seconds res_ms in
-      let res = if format = 1 then res_s else string_of_int res_ms in
-      Printf.sprintf "{\"%s\":%s}" X.label res
+    let get () =
+      let res = Aux.min (Aux.per_node_metric obs_values_per_node Aux.min) in
+      let resf  = if X.format = 1 then Aux.to_seconds res else string_of_int res in
+      Printf.sprintf "{\"%s\":%s}" X.label resf
 
     let clear () =
       Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
@@ -232,9 +254,9 @@ module Compose(A:Stats)(B:Stats) : Stats = struct
   let process _ _ =
     ()
 
-  let get format = 
-    let s1 = A.get format in
-    let s2 = B.get format in
+  let get () = 
+    let s1 = A.get () in
+    let s2 = B.get () in
     let sub1 = String.sub s1 0 ((String.length s1) -1) in
     let sub2 = String.sub s2 1 ((String.length s2) -1) in
     if String.length sub2 > 1 then

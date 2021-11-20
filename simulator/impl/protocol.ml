@@ -198,11 +198,13 @@ module Make = struct
   module ConsensusArg = struct
     let label = "avg-consensus-time"
     let use_intervals = true
+    let format = 1
   end
 
   module EventsPerNodeArg = struct
     let label = "events-processed-per-node"
     let use_intervals = true
+    let format = 0
   end
 
   (*********************************************************************************)
@@ -300,8 +302,8 @@ module Make = struct
       print_endline "\t Reached stopping condition";
       let module NetworkStats = Simulator.Statistics.Compose(Network.MessagesExchanged)(Network.MegabytesExchanged) in
       let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
-      Logger.log_statistics (FinalStatistics.get 1);
-      Logger.log_per_node_statistics (EventsPerNode.get 1);
+      Logger.log_statistics (FinalStatistics.get ());
+      Logger.log_per_node_statistics (EventsPerNode.get ());
       Logger.terminate ()
 
   end
@@ -414,8 +416,8 @@ module Make = struct
       print_endline "\t Reached stopping condition";
       let module NetworkStats = Simulator.Statistics.Compose(Network.MessagesExchanged)(Network.MegabytesExchanged) in
       let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
-      Logger.log_statistics (FinalStatistics.get 1);
-      Logger.log_per_node_statistics (EventsPerNode.get 1);
+      Logger.log_statistics (FinalStatistics.get ());
+      Logger.log_per_node_statistics (EventsPerNode.get ());
       Logger.terminate ();
       FinalStatistics.clear ();
       EventsPerNode.clear ()

@@ -48,6 +48,7 @@ let _ = BitcoinPow.init_mining_power ();;
 module MBPTimeArg = struct
   let label = "median-block-propagation-time"
   let use_intervals = false
+  let format = 1
 end
 
 module BitcoinStatistics = Simulator.Statistics.Make.Median(MBPTimeArg);;
