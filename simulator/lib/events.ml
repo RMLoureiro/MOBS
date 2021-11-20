@@ -100,6 +100,9 @@ module type EventQueue = sig
 
   (** cancels a scheduled timeout event *)
   val cancel_timer : int -> timeout_label -> unit
+
+  (** clear the queue *)
+  val clear : unit -> unit
 end
 
 module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
@@ -152,5 +155,7 @@ module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
 
   let cancel_timer nodeID label =
     event_queue := remove_timeout_event nodeID !event_queue label
+
+  let clear _ = event_queue := []
 
 end

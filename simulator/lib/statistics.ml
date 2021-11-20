@@ -10,6 +10,9 @@ module type Stats = sig
   (* <int> format : 0 = ms; 1 = s *)
   val get : int -> string
 
+  (** reset statistics *)
+  val clear : unit -> unit
+
 end
 
 module Make = struct
@@ -78,6 +81,11 @@ module Make = struct
       let res_s  = Aux.to_seconds res_ms in
       let res = if format = 1 then res_s else string_of_int res_ms in
       Printf.sprintf "{\"%s\":%s}" X.label res
+
+    let clear () =
+      Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
+      Array.fill obs_values_per_node 0 (!Parameters.General.num_nodes) []
+
   end
 
   module Median(X:Arg) : (Stats with type t = int) = struct
@@ -94,6 +102,11 @@ module Make = struct
       let res_s  = Aux.to_seconds res_ms in
       let res = if format = 1 then res_s else string_of_int res_ms in
       Printf.sprintf "{\"%s\":%s}" X.label res
+
+    let clear () =
+      Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
+      Array.fill obs_values_per_node 0 (!Parameters.General.num_nodes) []
+    
   end
 
   module Max(X:Arg) : (Stats with type t = int) = struct
@@ -110,6 +123,11 @@ module Make = struct
       let res_s  = Aux.to_seconds res_ms in
       let res = if format = 1 then res_s else string_of_int res_ms in
       Printf.sprintf "{\"%s\":%s}" X.label res
+
+    let clear () =
+      Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
+      Array.fill obs_values_per_node 0 (!Parameters.General.num_nodes) []
+      
   end
 
   module Min(X:Arg) : (Stats with type t = int) = struct
@@ -126,6 +144,11 @@ module Make = struct
       let res_s  = Aux.to_seconds res_ms in
       let res = if format = 1 then res_s else string_of_int res_ms in
       Printf.sprintf "{\"%s\":%s}" X.label res
+
+    let clear () =
+      Array.fill last_obs_value_per_node 0 (!Parameters.General.num_nodes) 0;
+      Array.fill obs_values_per_node 0 (!Parameters.General.num_nodes) []
+
   end
 
   module CountPerNode(X:Arg) : (Stats with type t = int) = struct
@@ -146,6 +169,9 @@ module Make = struct
       let res = arr_to_str "[" (Array.to_list c) in
       Printf.sprintf "{\"%s\":%s}" X.label res
 
+    let clear () =
+      Array.fill c 0 (!Parameters.General.num_nodes) 0
+
   end
 
   module CountAll(X:Arg) : (Stats with type t = int) = struct
@@ -159,6 +185,9 @@ module Make = struct
     let get _ =
       let res = string_of_int (!c) in
       Printf.sprintf "{\"%s\":%s}" X.label res
+
+    let clear () =
+      c := 0
 
   end
 
@@ -174,6 +203,9 @@ module Make = struct
       let res = Printf.sprintf "%.2f" (!c) in 
       Printf.sprintf "{\"%s\":%s}" X.label res
 
+    let clear () =
+      c := 0.0
+
   end
 
 end
@@ -186,6 +218,10 @@ module Empty = struct
 
   let get _ =
     "{}"
+
+  let clear _ =
+    ()
+
 end
 
 module Compose(A:Stats)(B:Stats) : Stats = struct
@@ -205,5 +241,8 @@ module Compose(A:Stats)(B:Stats) : Stats = struct
       Printf.sprintf "%s,%s" sub1 sub2
     else
       Printf.sprintf "%s%s" sub1 sub2
+
+  let clear () =
+    A.clear (); B.clear ()
 
 end

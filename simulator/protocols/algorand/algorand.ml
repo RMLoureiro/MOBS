@@ -78,36 +78,33 @@ module AlgorandStatistics = struct
 
   type t = int
 
-  (* total messages exchanged during the simulation *)
-  let total_messages = ref 0
-
-  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
-  let last_consensus_time = ref (List.init !Parameters.General.num_nodes (fun _ -> 0))
+  (* each index <i> contains the timestamp where node <i-1> last saw consensus being reached *)
+  let last_consensus_time = Array.init !Parameters.General.num_nodes (fun _ -> 0)
 
   (* each index <i> contains the list of time elapsed to finish the block_proposal step of the protocol, in each node <i> *)
-  let block_proposal_time = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+  let block_proposal_time = Array.init !Parameters.General.num_nodes (fun _ -> [])
 
-  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
-  let node_time_between_blocks = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i-1> *)
+  let node_time_between_blocks = Array.init !Parameters.General.num_nodes (fun _ -> [])
 
   (* each index <i> contains the list of time elapsed until a majority of soft-votes is observed *)
-  let majority_soft_vote_time = ref (List.init !Parameters.General.num_nodes (fun _ -> []))
+  let majority_soft_vote_time = Array.init !Parameters.General.num_nodes (fun _ -> [])
 
   let obs_majority_softvotes nodeID =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
-    majority_soft_vote_time := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !majority_soft_vote_time
+    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
+    majority_soft_vote_time.(nodeID-1) <- (majority_soft_vote_time.(nodeID-1))@[elapsed_time]
 
   let completed_step2 nodeID =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
-    block_proposal_time := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !block_proposal_time
+    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
+    block_proposal_time.(nodeID-1) <- (block_proposal_time.(nodeID-1))@[elapsed_time]
 
   let consensus_reached nodeID _ =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (List.nth !last_consensus_time (nodeID-1)) in
-    last_consensus_time := List.mapi (fun i x -> if i=(nodeID-1) then current_time else x) !last_consensus_time;
-    node_time_between_blocks := List.mapi (fun i x -> if i=(nodeID-1) then x@[elapsed_time] else x) !node_time_between_blocks
+    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
+    last_consensus_time.(nodeID-1) <- current_time;
+    node_time_between_blocks.(nodeID-1) <- (node_time_between_blocks.(nodeID-1))@[elapsed_time]
 
   let process _ _ =
     ()
@@ -134,12 +131,18 @@ module AlgorandStatistics = struct
       to_seconds v
     in
     let avg_block_proposal_time_per_node = ref [] in
-    List.iter (per_node_average avg_block_proposal_time_per_node) !block_proposal_time;
+    Array.iter (per_node_average avg_block_proposal_time_per_node) block_proposal_time;
     let avg_majority_sv_time_per_node = ref [] in
-    List.iter (per_node_average avg_majority_sv_time_per_node) !majority_soft_vote_time;
+    Array.iter (per_node_average avg_majority_sv_time_per_node) majority_soft_vote_time;
     let avg_block_proposal_time = highest_value !avg_block_proposal_time_per_node in
     let avg_majority_sv_time = median_value !avg_majority_sv_time_per_node in
     Printf.sprintf "{\"block-proposal\":%.2f,\"majority-softvotes\":%.2f}" avg_block_proposal_time avg_majority_sv_time
+
+  let clear () = 
+    Array.fill last_consensus_time 0 !Parameters.General.num_nodes 0;
+    Array.fill block_proposal_time 0 !Parameters.General.num_nodes [];
+    Array.fill node_time_between_blocks 0 !Parameters.General.num_nodes [];
+    Array.fill majority_soft_vote_time 0 !Parameters.General.num_nodes []
 
 end
 

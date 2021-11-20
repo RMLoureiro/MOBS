@@ -6,7 +6,10 @@ let parameters_file = ref "default-parameters.json"
 (* general parameters and default values *)
 let num_nodes = ref 10
 let end_block_height = ref 5
+let base_seed = ref 123
 let seed = ref 123
+let num_batches = ref 1
+let current_batch = ref 1
 let max_timestamp = ref 0
 let timestamp_limit = ref false
 let verbose = ref true
@@ -76,7 +79,8 @@ let () =
   let open Yojson.Basic.Util in
   num_nodes := get_general_param json "num-nodes" |> to_int;
   end_block_height := get_general_param json "end-block-height" |> to_int;
-  seed := get_general_param json "seed" |> to_int; Random.init !seed;
+  base_seed := get_general_param json "seed" |> to_int;
+  num_batches := get_general_param json "number-of-batches" |> to_int;
   num_regions := get_network_param json "num-regions" |> to_int;
   num_links := get_network_param json "num-links" |> to_int;
   interval := get_general_param json "pow_target_interval" |> to_int;

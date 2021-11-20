@@ -12,3 +12,6 @@ val zero : t
 
 (** converts a timestamp to string *)
 val to_string : t -> string
+
+(** when a new iteration begins, reset the clock *)
+val reset : unit -> unit

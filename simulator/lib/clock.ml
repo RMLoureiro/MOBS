@@ -12,3 +12,6 @@ let get_timestamp () =
 let zero = 0
 
 let to_string ts = string_of_int ts
+
+let reset _ = timestamp := 0
+

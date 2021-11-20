@@ -360,6 +360,9 @@ module Make = struct
     end
 
     let run () =
+      Simulator.Clock.reset ();
+      Timer.clear ();
+      Queue.clear ();
       Logger.init ();
       print_endline "Parsing simulation parameters...";
       Logger.log_parameters (GoodNode.parameters ());
@@ -413,7 +416,9 @@ module Make = struct
       let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
       Logger.log_statistics (FinalStatistics.get 1);
       Logger.log_per_node_statistics (EventsPerNode.get 1);
-      Logger.terminate ()
+      Logger.terminate ();
+      FinalStatistics.clear ();
+      EventsPerNode.clear ()
 
   end
 
