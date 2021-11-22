@@ -50,7 +50,8 @@ const store = createStore({
         loaded: false,
         numSimulations: 0,
         parameters:[],
-        outputs:[]
+        outputs:[],
+        per_node_outputs:[]
     },
     getters: {},
     mutations: {
@@ -135,6 +136,7 @@ const store = createStore({
             prefixes.forEach(prefix => {
                 let batch_outputs = [];
                 out_per_batch.get(prefix).forEach(out => batch_outputs.push(out['stats']));
+                // General stats
                 let avg_stat_json = {};
                 Object.keys(batch_outputs[0]).forEach(key => {
                     let avg = 0;
@@ -146,7 +148,31 @@ const store = createStore({
                     avg_stat_json[key] = avg;
                 });
                 state.outputs.push({filename:(prefix+".json"), stats:avg_stat_json});
+                // Per node stats
+                let batch_node_outputs = [];
+                let avg_per_node_stat_json = {};
+                out_per_node_per_batch.get(prefix).forEach(out => batch_node_outputs.push(out['stats']));
+                Object.keys(batch_node_outputs[0]).forEach(key => {
+                    let avg_arr = [];
+                    batch_node_outputs.forEach(output => {
+                        let arr = output[key];
+                        if(avg_arr.length == 0) {
+                            arr.forEach(elem => avg_arr.push(elem));
+                        }
+                        else {
+                            for(let i = 0; i < arr.length; i++) {
+                                avg_arr[i] += arr[i];
+                            }
+                        }
+                    });
+                    for(let i = 0; i < avg_arr.length; i++) {
+                        avg_arr[i] = avg_arr[i] / batch_node_outputs.length;
+                    }
+                    avg_per_node_stat_json[key] = avg_arr;
+                });
+                state.per_node_outputs.push({filename:(prefix+".json"), stats:avg_per_node_stat_json});
             });
+            console.log(state.per_node_outputs);
         },
         storeParamsDefault(state,params) {
             let g = params[0];
