@@ -172,7 +172,6 @@ const store = createStore({
                 });
                 state.per_node_outputs.push({filename:(prefix+".json"), stats:avg_per_node_stat_json});
             });
-            console.log(state.per_node_outputs);
         },
         storeParamsDefault(state,params) {
             let g = params[0];
