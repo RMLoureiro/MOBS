@@ -82,16 +82,19 @@ end
 module PEQTime = struct
   let label = "average-preendorsement-quorum-time"
   let use_intervals = false
+  let format = 1
 end
 
 module EQTime = struct
   let label = "average-endorsement-quorum-time"
   let use_intervals = false
+  let format = 1
 end
 
 module BPTime = struct
   let label = "average-block-propagation-time"
   let use_intervals = false
+  let format = 1
 end
 
 module AveragePEQTime = Simulator.Statistics.Make.Average(PEQTime);;
@@ -340,8 +343,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         } in
         send_to_neighbours node msg
 
-    let handle_endorsement (node:t) (Endorse(endorsement, _)) =      
-      let (block_header, signature) = match endorsement with Endorsement(bh, s) -> bh,s in
+    let handle_endorsement (node:t) (Endorsement (block_header,signature) as endorsement) =     
       match node.data.chain with 
       | [] -> ()
       | block :: _ -> 
@@ -374,15 +376,12 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               creator = node.id;
               payload = Endorse(endorsement, pqc);
             } in
-            handle_endorsement node (Endorse(endorsement, pqc));
+            handle_endorsement node endorsement;
             send_to_neighbours node msg
           end
         | None -> ()
 
-    let handle_preendorsement (node:t) (Preendorse(preendorsement)) =
-      let (block_header, signature) = match preendorsement with
-        Preendorsement(block_header, signature) -> block_header, signature
-      in
+    let handle_preendorsement (node:t) (Preendorsement(block_header,signature) as preendorsement) =
       match node.data.chain with
       | [] -> ()
       | block :: _ -> 
@@ -442,12 +441,12 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
               | None -> ()
               | Some(round, pqc) -> set_endorsable node round block pqc
             in
-            handle_preendorsement node (Preendorse(preendorsement));
+            handle_preendorsement node preendorsement;
             send_to_neighbours node msg
           end
         | None -> ()
 
-    let rcv_propose (Propose(candidate_chain,cred)) (creator:int) (node:t) =
+    let rcv_propose (candidate_chain:(block_contents Simulator.Block.t) list) (cred:signature) (creator:int) (node:t) =
       let last_decided = decided_from_chain candidate_chain in
       let candidate = List.nth candidate_chain 0 in
       let valid_proposer = TenderbakePoS.valid_proposer creator last_decided 1 [head_level node.data.chain] cred in
@@ -500,18 +499,16 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       else
         ()
 
-    let rcv_preendorse (Preendorse(preendorsement)) (node:t) =
-      let cred = match preendorsement with Preendorsement(_,cred) -> cred in
+    let rcv_preendorse (Preendorsement(_,cred) as preendorsement) (node:t) =
       let signature = match cred with Credential(Node(signature),Block(_),Selections(_),Priority(_),Params(_)) -> signature in
       let valid_preendorser = TenderbakePoS.valid_committee_member signature node.state committee_size [head_level node.data.chain] cred in
       match node.data.proposal_state with
       | Collecting_preendorsements(_) -> 
         if valid_preendorser then
-          handle_preendorsement node (Preendorse(preendorsement))
+          handle_preendorsement node preendorsement
       | _ -> ()
 
-    let rcv_endorse (Endorse(endorsement, pqc)) (node:t) =
-      let cred = match endorsement with Endorsement(_,cred) -> cred in
+    let rcv_endorse (Endorsement(_, cred) as endorsement) (pqc:preendorsement list) (node:t) =
       let signature = match cred with Credential(Node(signature),Block(_),Selections(_),Priority(_),Params(_)) -> signature in
       let valid_endorser = TenderbakePoS.valid_committee_member signature node.state committee_size [head_level node.data.chain] cred in
       match (node.data.proposal_state, node.data.chain) with
@@ -521,7 +518,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
         let valid_pqc = is_pqc_valid block (decided_from_chain node.data.chain) pqc in
         if valid_endorser && valid_pqc && correct_decided then
           (
-            handle_endorsement node (Endorse(endorsement, pqc))
+            handle_endorsement node endorsement
           )
       | Collecting_preendorsements _, block::_ ->
         let parent_id = match (TenderbakeBlock.parent block) with Some(id) -> id | None -> -1 in
@@ -534,11 +531,11 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
             set_endorsable node (current_round node) block pqc;
             node.data.locked <- Some(current_round node, block, pqc);
             send_endorse node pqc;
-            handle_endorsement node (Endorse(endorsement, pqc))
+            handle_endorsement node endorsement
           end
       | _ -> ()
 
-    let rcv_preendorsements (Preendorsements(block, pqc)) (round:int) (node:t) =
+    let rcv_preendorsements (block:block_contents Simulator.Block.t) (pqc:preendorsement list) (round:int) (node:t) =
       let decided = decided_from_chain node.data.chain in
       let valid_pqc = is_pqc_valid block decided pqc in
       if valid_pqc then
@@ -557,10 +554,10 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
       if message_valid then
         (
           match message.payload with
-            | Propose(_) -> rcv_propose message.payload creator node
-            | Preendorse(_) -> rcv_preendorse message.payload node
-            | Endorse(_) -> rcv_endorse message.payload node
-            | Preendorsements(_) -> rcv_preendorsements message.payload message.round node
+            | Propose(chain,cred) -> rcv_propose chain cred creator node
+            | Preendorse(preendorsement) -> rcv_preendorse preendorsement node
+            | Endorse(endorsement, pqc) -> rcv_endorse endorsement pqc node
+            | Preendorsements(blk,pqc) -> rcv_preendorsements blk pqc message.round node
         )
 
     let process_msg_buffer (node:t) =
@@ -716,5 +713,5 @@ end
 module TenderbakeStatistics = Simulator.Statistics.Compose(AverageBPTime)(Simulator.Statistics.Compose(AveragePEQTime)(AverageEQTime));;
 
 
-module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics);;
+module TenderbakeProtocol = Protocol.Make.Blockchain(TenderbakeEvent)(TenderbakeQueue)(TenderbakeBlock)(TenderbakeTimer)(TenderbakeNode)(TenderbakeNode)(TenderbakeInitializer)(TenderbakeLogger)(TenderbakeStatistics)(TenderbakeNetwork);;
 

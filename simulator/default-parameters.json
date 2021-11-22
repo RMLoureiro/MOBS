@@ -1,11 +1,12 @@
 {
     "general": {
         "num-nodes":100,
-        "end-block-height":10,
+        "end-block-height":25,
         "timestamp-limit":0,
         "verbose-output":true,
         "use-topology-file": false,
         "topology-file":"../topology_files/topology.json",
+        "number-of-batches":5,
         "seed":12345,
         "pow_target_interval":600000,
         "avg_mining_power":400000,
@@ -48,7 +49,7 @@
         "lambda-priority":5000,
         "lambda-block":60000,
         "committee-size":50,
-        "num-proposers":1,
+        "num-proposers":2,
         "majority-votes":33,
         "block-size-mb":1,
         "round0-duration":45000

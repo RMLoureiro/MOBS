@@ -70,4 +70,4 @@ end
 
 module FCFCardanoNode = Implementation.Fcf.Make(Praos.CardanoEvent)(Praos.CardanoState)(Proposal)(Validation)(Praos.Propagation)(Praos.Finalization);;
 
-module CardanoProtocol = Protocol.Make.Blockchain(Praos.CardanoEvent)(Praos.CardanoQueue)(Praos.CardanoBlock)(Praos.CardanoTimer)(FCFCardanoNode)(FCFCardanoNode)(Praos.CardanoInitializer)(Praos.CardanoLogger)(Simulator.Statistics.Empty);;
+module CardanoProtocol = Protocol.Make.Blockchain(Praos.CardanoEvent)(Praos.CardanoQueue)(Praos.CardanoBlock)(Praos.CardanoTimer)(FCFCardanoNode)(FCFCardanoNode)(Praos.CardanoInitializer)(Praos.CardanoLogger)(Simulator.Statistics.Empty)(Praos.CardanoNetwork);;

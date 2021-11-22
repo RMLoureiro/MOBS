@@ -15,6 +15,9 @@ module type Timer = sig
   (** checks if the timeout for nodeID, at timestamp, with label as expired *)
   val expired : int -> Simulator.Clock.t -> Simulator.Events.timeout_label -> bool
 
+  (** clear existing timers *)
+  val clear : unit -> unit
+
 end
 
 module Make(Event : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue with type ev = Event.t) : Timer = struct
@@ -37,5 +40,8 @@ module Make(Event : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue 
       (* in this case, the event is not expired because it 
       must have been created in the initialization module *)
       false 
+
+  let clear _ =
+    Array.iter (fun x -> Hashtbl.clear x) next_timers
 
 end

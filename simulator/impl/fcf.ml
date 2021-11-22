@@ -38,20 +38,20 @@ module type Finalization = sig
 end
 
 module type FCFNode = sig
-  (** the protocol specific data stored by the node *)
+  (* the protocol specific data stored by the node *)
   type node_data
-  (** the type of values for which consensus is being reached *)
+  (* the type of values for which consensus is being reached *)
   type value
   (* contents of a message *)
   type message 
-  (** the type representing a node and its state *)
+  (* the type representing a node and its state *)
   type t = (node_data, value) Protocol.template
-  (** the type of events in the simulator *)
+  (* the type of events in the simulator *)
   type ev
   
-  (** create the initial state of a node *)
+  (* create the initial state of a node *)
   val init : int -> Abstractions.Network.links -> Abstractions.Network.region -> t
-  (** obtain the height of the chain stored in the node *)
+  (* obtain the height of the chain stored in the node *)
   val chain_height : t -> int
 end
 

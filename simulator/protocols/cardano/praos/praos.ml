@@ -272,5 +272,5 @@ module CardanoInitializer : (Protocol.Initializer with type node=FCFCardanoNode.
   
 end
 
-module CardanoProtocol = Protocol.Make.Blockchain(CardanoEvent)(CardanoQueue)(CardanoBlock)(CardanoTimer)(FCFCardanoNode)(FCFCardanoNode)(CardanoInitializer)(CardanoLogger)(Simulator.Statistics.Empty);;
+module CardanoProtocol = Protocol.Make.Blockchain(CardanoEvent)(CardanoQueue)(CardanoBlock)(CardanoTimer)(FCFCardanoNode)(FCFCardanoNode)(CardanoInitializer)(CardanoLogger)(Simulator.Statistics.Empty)(CardanoNetwork);;
 

@@ -196,8 +196,15 @@ module Make = struct
   
 
   module ConsensusArg = struct
-    let label = "avg_consensus_time"
+    let label = "avg-consensus-time"
     let use_intervals = true
+    let format = 1
+  end
+
+  module EventsPerNodeArg = struct
+    let label = "events-processed-per-node"
+    let use_intervals = true
+    let format = 0
   end
 
   (*********************************************************************************)
@@ -210,11 +217,13 @@ module Make = struct
            (BadNode : AbstractNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data)
            (Initializer : Initializer with type node = GoodNode.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Simulator.Statistics.Stats) : Protocol
+           (Statistics : Simulator.Statistics.Stats)
+           (Network : Abstractions.Network.Network) : Protocol
            = struct
 
   module NodeMap = Map.Make(Int)
   module ConsensusStats = Simulator.Statistics.Make.Average(ConsensusArg)
+  module EventsPerNode = Simulator.Statistics.Make.CountPerNode(EventsPerNodeArg)
 
   module MakeStep(Node: AbstractNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
 
@@ -271,6 +280,7 @@ module Make = struct
             | (bg,ed) -> 
               if ts <= bg || ts >= ed then
                 (
+                  EventsPerNode.process i 1;
                   match malicious_data.(i) with
                   | (true,t) -> if t >= ts then BadStep.step ts e nodes else GoodStep.step ts e nodes
                   | _ -> GoodStep.step ts e nodes
@@ -290,8 +300,10 @@ module Make = struct
           | _ -> step ts e
       done;
       print_endline "\t Reached stopping condition";
-      let module FinalStatistics = Simulator.Statistics.Compose(ConsensusStats)(Statistics) in
-      Logger.log_statistics (FinalStatistics.get 1);
+      let module NetworkStats = Simulator.Statistics.Compose(Network.MessagesExchanged)(Network.MegabytesExchanged) in
+      let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
+      Logger.log_statistics (FinalStatistics.get ());
+      Logger.log_per_node_statistics (EventsPerNode.get ());
       Logger.terminate ()
 
   end
@@ -307,11 +319,13 @@ module Make = struct
            (BadNode : BlockchainNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data)
            (Initializer : Initializer with type node = GoodNode.t and type ev = Event.t)
            (Logger : Simulator.Logging.Logger with type ev = Event.t)
-           (Statistics : Simulator.Statistics.Stats) : Protocol
+           (Statistics : Simulator.Statistics.Stats)
+           (Network : Abstractions.Network.Network) : Protocol
            = struct
 
   module NodeMap  = Map.Make(Int)
   module ConsensusStats = Simulator.Statistics.Make.Average(ConsensusArg)
+  module EventsPerNode = Simulator.Statistics.Make.CountPerNode(EventsPerNodeArg)
 
   module MakeStep(Node: BlockchainNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
     
@@ -348,6 +362,9 @@ module Make = struct
     end
 
     let run () =
+      Simulator.Clock.reset ();
+      Timer.clear ();
+      Queue.clear ();
       Logger.init ();
       print_endline "Parsing simulation parameters...";
       Logger.log_parameters (GoodNode.parameters ());
@@ -378,6 +395,7 @@ module Make = struct
             | (bg,ed) -> 
               if ts <= bg || ts >= ed then
                 (
+                  EventsPerNode.process i 1;
                   match malicious_data.(i) with
                   | (true,t) -> if t >= ts then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
                   | _ -> GoodStep.step ts e nodes max_height
@@ -396,9 +414,13 @@ module Make = struct
           | _ -> step ts e
       done;
       print_endline "\t Reached stopping condition";
-      let module FinalStatistics = Simulator.Statistics.Compose(ConsensusStats)(Statistics) in
-      Logger.log_statistics (FinalStatistics.get 1);
-      Logger.terminate ()
+      let module NetworkStats = Simulator.Statistics.Compose(Network.MessagesExchanged)(Network.MegabytesExchanged) in
+      let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
+      Logger.log_statistics (FinalStatistics.get ());
+      Logger.log_per_node_statistics (EventsPerNode.get ());
+      Logger.terminate ();
+      FinalStatistics.clear ();
+      EventsPerNode.clear ()
 
   end
 
