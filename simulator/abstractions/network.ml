@@ -150,7 +150,7 @@ struct
 
   (* required types *)
   type msg   = Events.msg
-  type paths = (int * int list * int) array array
+  type paths = (int * int list * int * int) array array (* latency_sum, bandwidth_list, num_nodes_in_path, last_sender_in_path *)
 
   (* required data *)
   let regions = (node_regions ()) (* region assigned to each node *)
@@ -243,7 +243,7 @@ struct
     (* the distance of one node to itself is 0 *)
     (* the starting distance of one node to all others is infinity - represented by -1 *)
     let shortest_paths = 
-      Array.init num_nodes (fun x -> Array.init num_nodes (fun y -> if x=y then (0,[],0) else (-1,[],-1)))
+      Array.init num_nodes (fun x -> Array.init num_nodes (fun y -> if x=y then (0,[],0,-1) else (-1,[],-1,-1)))
     in
     (* initialize the distance between each pair of nodes that possess a link, with the weight of the link *)
     for i=0 to num_nodes-1 do
@@ -251,21 +251,21 @@ struct
         let neighbour = links.(i).(j) in
         let latency = get_mean_latency (i+1) (neighbour) in
         let bandwidth = get_bandwidth (i+1) (neighbour) in
-        shortest_paths.(i).(neighbour-1) <- (latency,[bandwidth],1)
+        shortest_paths.(i).(neighbour-1) <- (latency,[bandwidth],1,i)
       done
     done;
     for k=0 to num_nodes-1 do
       for i=0 to num_nodes-1 do
         for j=0 to num_nodes-1 do
-          let (l1,b1,n1) = shortest_paths.(i).(k) in
-          let (l2,b2,n2) = shortest_paths.(k).(j) in
-          let (l,_,_)    = shortest_paths.(i).(j) in
+          let (l1,b1,n1,_) = shortest_paths.(i).(k) in
+          let (l2,b2,n2,last_sender2) = shortest_paths.(k).(j) in
+          let (l,_,_,_)    = shortest_paths.(i).(j) in
           if (l1 > -1) && (l2 > -1) then
             (
               if (l > l1 + l2)
                 || (l = -1)
               then
-                shortest_paths.(i).(j) <- (l1+l2,b1@b2,n1+n2)
+                shortest_paths.(i).(j) <- (l1+l2,b1@b2,n1+n2,last_sender2)
             )
         done
       done
@@ -296,12 +296,12 @@ struct
     for i=0 to num_nodes-1 do
       if not (i = node_index) then
       (
-        let (l,b,_) = sp.(node_index).(i) in
+        let (l,b,_,last_sender) = sp.(node_index).(i) in
         let latency = extract_latency l in
         let time_elapsed_bandwidth = ref 0 in
         List.iter (fun x -> time_elapsed_bandwidth := !time_elapsed_bandwidth + (delay x)) b;
         let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + !time_elapsed_bandwidth in
-        let msg_event = Events.Message(sender,i+1,arrival_time,msg) in
+        let msg_event = Events.Message(last_sender,i+1,arrival_time,msg) in
         Queue.add_event msg_event;
       )
     done;
