@@ -1,6 +1,8 @@
 <template>
     <section class="statistics">
-        <div class="scontainer">
+        <button @click="displayGeneral">General Statistics</button>
+        <button @click="displayPerNode">Per Node Statistics</button>
+        <div v-if="generalStatistics" class="scontainer">
             <div class="ll">
                 <parameter-chart :data="data" ref="chartRef"></parameter-chart>
                 <p>
@@ -34,6 +36,18 @@
                     </p>
                 </div>
             </div>
+        </div>
+        <div v-if="perNodeStatistics" class="scontainer">
+            <parameter-chart :data="perNodeData" ref="chartRef"></parameter-chart>
+            <p>X Axis = Node IDs</p>
+            <p>
+                Result of:
+                    <select v-model="parameterFile" @change="computePerNodeData">
+                        <option v-for="v in parameter_files" v-bind:value="v" v-bind:key="v">
+                            {{v}}
+                        </option>
+                    </select>
+            </p>
         </div>
 
         <param-modal v-if="showModal" @close="showModal = false" v-bind:data="modalData"></param-modal>
@@ -80,15 +94,30 @@
                         }
                     ]
                 },
+                perNodeData: {
+                    labels: [1,2,3,4,5],
+                    datasets: [
+                        {
+                            label:"Parameter",
+                            data:[1,2,3,4,5],
+                            borderColor:'#234c75',
+                            backgroundColor:'#2f659c'
+                        }
+                    ]
+                },
                 parameter_labels:[],
                 statistic_labels:[],
                 per_statistic_data:[],
                 is_range_parameter:[],
                 range_parameter_labels:[],
+                parameter_files:[],
                 view_parameter:"",
                 other_parameters:[],
                 showModal:false,
-                modalData:null
+                modalData:null,
+                generalStatistics:true,
+                perNodeStatistics:false,
+                parameterFile:""
             };
         },
         components: {
@@ -97,7 +126,6 @@
         },
         mounted() {
             this.computeGraphInOut();
-
             Object.keys(this.parameters[0]).forEach(key => {
                 this.parameter_labels.push(key);
                 let num_equal_params = (this.parameters.filter(x => x[key] === this.parameters[0][key])).length;
@@ -145,13 +173,14 @@
                     key_index++;
                 });
                 i++;
-            })
+            });
 
             this.otherParameters();
             this.computeGraphData();
+            this.computePerNodeData();
         },
         computed: {
-            ...mapState(["parameters","outputs"]),
+            ...mapState(["parameters","outputs","per_node_outputs"]),
         },
         watch: {
             view_parameter: function() {
@@ -239,9 +268,52 @@
                 this.data.datasets = stat_dataset;
                 this.$refs["chartRef"].updateChart();
             },
+            computePerNodeData : function() {
+                let out_index = 0;
+                for(let i = 0; i < this.parameter_files.length; i++) {
+                    if(this.parameter_files[i] == this.parameterFile) {
+                        out_index = i;
+                    }
+                }
+                let stats_obj = this.per_node_outputs[out_index].stats;
+                let tC = Object.keys(stats_obj).length;
+                let c = 0;
+                let stat_dataset = [];
+                Object.keys(stats_obj).forEach(key => {
+                    let labels = [];
+                    let values = [];
+                    for(let i = 0; i < stats_obj[key].length; i++) {
+                        labels.push(i+1);
+                        values.push(stats_obj[key][i]);
+                    }
+                    this.perNodeData.labels = labels;
+                    let color = randomColor(tC,c);
+                    let data = {label:key, data:values, borderColor:color, backgroundColor:color, hidden:true};
+                    stat_dataset.push(data);
+                    c++;
+                });
+                stat_dataset[stat_dataset.length-1].hidden = false;
+                this.perNodeData.datasets = stat_dataset;
+                this.$refs["chartRef"].updateChart();
+            },
             openModal: function(data) {
                 this.modalData = data;
                 this.showModal = true;
+            },
+            displayGeneral : function() {
+                this.generalStatistics = true;
+                this.perNodeStatistics = false;
+            },
+            displayPerNode : function() {
+                this.parameter_files = [];
+                // Store all parameter file names
+                this.outputs.forEach(out => {
+                    this.parameter_files.push(out.filename.replace("output", "parameters"));
+                });
+                this.parameterFile = this.parameter_files[0];
+                this.generalStatistics = false;
+                this.perNodeStatistics = true;
+                
             }
         }
     }
