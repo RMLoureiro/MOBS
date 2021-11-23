@@ -66,6 +66,8 @@ module type Node = sig
 end
 ```
 
+Optionally, a user can implement a second ```Node``` module, encompassing the behavior of a malicious node. Nodes can then be parametrized to switch to executing the malicious node module at a given timestamp.
+
 Next, the user must provide an implementation for an ```Initializer```, which contains one function that receives the nodes and their states, and must return the list of events that kickstart the entire simulation. For example, in Algorand that list of events will be setting the timers for each node, whereas in a PoW protocol it can be selecting a random node to mint the genesis block.
 
 ```
@@ -82,21 +84,22 @@ end
 ```
 
 A user can the implement a ```Statistics``` module. The purpose of this module is to produce user-defined metrics about the execution of the protocol such as: number of messages exchanged, number of forks, block propagation time, average time to reach consensus, etc. These metrics will then be displayed in the [GUI](/visualizer).
+Note that there are predefined functions for common metrics such as average, median, 95% percentile, min, max, count, per-node count. 
 
 ```
 module type Statistics = sig
 
-  (** the type representing events in the simulator *)
-  type ev
+  (** the type of values being processed *)
+  type t
 
-  (** receives an event and processes it, updating statistics *)
-  val process : ev -> unit
+  (** node_id <int> has produced value <t>*)
+  val process : int -> t -> unit
 
   (** returns a JSON string containing the statistics and respective values *)
   val get : unit -> string
 
-  (** node has seen consensus for a block *)
-  val consensus_reached : int -> Simulator.Block.t -> unit
+  (** reset statistics *)
+  val clear : unit -> unit
 
 end
 ```
@@ -125,16 +128,18 @@ Examples:
 
 - [Algorand](/simulator/protocols/algorand) contains an implementation of the Algorand Agreement protocol, with some simplifications to cryptography operations, as an example for a Proof of Stake protocol.
 
+- [Tenderbake](/simulator/protocols/tenderbake) contains an implementation of the Tenderbake protocol, with some simplifications to cryptography operations.
+
 
 ## Simulator Abstractions
 
 
 The [abstractions directory](/simulator/abstractions) contains abstractions for some common operations used in these protocols:
 
-- ```network``` - contains abstractions for sending messages between nodes. It is important to note that, since blocks don't have negligible size, every time a block is successfully sent by a node, that node receives a ```timeout``` event with label ```"message_sent"```. A user can choose to ignore this event, but it plays an important role when we want to model that a node cannot use its entire bandwidth for each block being sent, when sending multiple blocks to its neighbors. An example of the usage of this event can be seen in [bitcoin.ml](/simulator/impl/bitcoin.ml).
+- ```network``` - contains abstractions for sending messages between nodes. Also offers an abstraction for gossip, that significantly reduces the amount of events processed during the simulation, at the cost of some precision. If a user is not using the abstraction, by default the network computes message arrival times with consideration of bandwidth limits, and keeps track of metrics such as number of messages exchanged and megabytes exchanged.
 - ```pow``` - defines an abstraction to begin and to stop minting. Essentially uses the hashing power of a node and the difficulty of a block to make an estimate of how long it takes to find the hash, and adds that event to the queue. If the node stops minting before the event is processed, it will get removed from the event queue.
-- ```pos``` - contains an abstraction for committee selection based on stakes. Using these abstractions lead to the role of a node to be displayed in the [GUI](/visualizer).
-- ```timer``` - contains an abstraction for scheduling a ```timeout``` event for a node.
+- ```pos``` - contains an abstraction for committee selection based on stakes (stake-based sortition). Using these abstractions lead to the role of a node to be displayed in the [GUI](/visualizer).
+- ```timer``` - contains an abstraction for scheduling ```timeout``` events for a node.
 
 
 ## Simulator Parameterization

@@ -22,7 +22,7 @@ The main differences between this implementation and the one referenced above ar
 - simplified hashes and signatures
 - mutable records are leveraged to store and update the nodes' state
 - can easily extend the statistics module to gather arbitrary statistics about the execution of the protocol
-    - at the moment, the only one being extracted is the average time to decide on a block
+    - at the moment, the statistics being extracted are average time to reach consensus, average time to see majority of preendorsements and average time to see majority of endorsements.
 - can leverage the **GUI** to run batch simulations, to analyze the gathered statistics and to monitor the overall behavior of the protocol
 
 
