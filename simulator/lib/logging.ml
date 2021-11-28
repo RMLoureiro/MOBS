@@ -57,7 +57,7 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let init () = 
     if Array.length Sys.argv > 2 then log_file := Sys.argv.(2) else log_file := "output1.json";
-    log_file := Printf.sprintf "%s-%d.json" (List.hd (String.split_on_char '.' !log_file)) !Parameters.General.current_batch;
+    log_file := Printf.sprintf "%s-%d.json" (String.sub !log_file 0 (String.length !log_file-5)) !Parameters.General.current_batch;
     let out_chan = open_out !log_file in
     Printf.fprintf out_chan "%s" "[";
     close_out out_chan

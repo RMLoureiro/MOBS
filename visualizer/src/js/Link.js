@@ -31,7 +31,7 @@ export default class Link {
         ctx.beginPath();
         ctx.moveTo(beginPos.x, beginPos.y);
         ctx.lineTo(endPos.x, endPos.y);
-        ctx.lineWidth = this.selected ? 1 : 0.25;
+        ctx.lineWidth = this.selected ? 1.5 : 0.75;
         const blockId = m.blockId;
         const c = u.colorForId(blockId);
         ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${0.8})`;

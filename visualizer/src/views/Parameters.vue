@@ -142,6 +142,7 @@
 
                 this.gParams.forEach(element => {
                     let stringVal = document.getElementById(element.label).value;
+                    if(stringVal === "on") { stringVal = false; }
                     element.value = JSON.stringify(JSON.parse(stringVal));
                 });
                 this.nParams.forEach(element => {
