@@ -266,6 +266,7 @@ module Make = struct
       let _                = Aux.add_initial_events (Initializer.init nodes) in
       print_endline "[DONE] Creating initial events";
       print_endline "Running simulation...";
+      Network.clear ();
       let max_timestamp    = !Parameters.General.max_timestamp in
       let timestamp_limit  = !Parameters.General.timestamp_limit in
       let module GoodStep  = MakeStep(GoodNode) in

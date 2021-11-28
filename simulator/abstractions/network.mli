@@ -28,6 +28,8 @@ module type Network = sig
     (** get the list of neighbour node_ids *)
     val get_neighbours : int -> links
 
+    val clear : unit -> unit
+
 end
 
 module Make : functor (Events: Simulator.Events.Event)(Queue: Simulator.Events.EventQueue with type ev = Events.t)(Message : Simulator.Events.Message with type t = Events.msg) -> (Network with type msg=Events.msg)

@@ -127,6 +127,9 @@ module type Network = sig
 
   (** get the list of neighbour node_ids *)
   val get_neighbours : int -> links
+
+  (** clear the outgoing queues *)
+  val clear : unit -> unit
 end
 
 module Make(Events: Simulator.Events.Event) 
@@ -306,5 +309,8 @@ struct
       )
     done;
     ()
+
+    let clear () =
+      outgoing_queues := OQ.empty;;
 
 end
