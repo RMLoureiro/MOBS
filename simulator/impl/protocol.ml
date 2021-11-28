@@ -263,10 +263,10 @@ module Make = struct
       let offline_data     = initialize_offline_node_data () in
       print_endline "[DONE] Creating nodes";
       print_endline "Creating initial events...";
+      Network.clear ();
       let _                = Aux.add_initial_events (Initializer.init nodes) in
       print_endline "[DONE] Creating initial events";
       print_endline "Running simulation...";
-      Network.clear ();
       let max_timestamp    = !Parameters.General.max_timestamp in
       let timestamp_limit  = !Parameters.General.timestamp_limit in
       let module GoodStep  = MakeStep(GoodNode) in
@@ -377,6 +377,7 @@ module Make = struct
       let offline_data     = initialize_offline_node_data () in
       print_endline "[DONE] Creating nodes";
       print_endline "Creating initial events...";
+      Network.clear ();
       let _                = Aux.add_initial_events (Initializer.init nodes) in
       print_endline "[DONE] Creating initial events";
       print_endline "Running simulation...";
