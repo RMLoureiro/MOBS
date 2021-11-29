@@ -178,7 +178,7 @@ struct
     let mean_latency    = (!Parameters.General.latency_table.(region_sender)).(region_receiver) in
     mean_latency
 
-  (* from SimBlock -> latency according to 20% variance pallet distribution *)
+  (* from SimBlock -> latency according to 20% variance pareto distribution *)
   (* https://dsg-titech.github.io/simblock/ *)
   let extract_latency mean_latency =
     let shape = 0.2 *. (float_of_int mean_latency)  in
