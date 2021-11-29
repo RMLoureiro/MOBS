@@ -279,7 +279,7 @@ struct
     shortest_paths
 
   (* gossip abstraction that leverages the shortest paths *)
-  (* Note : assumes unlimited bandwidth *)
+  (* Note : assumes limited-bandwidth=false *)
   let gossip sender msg =
     let msg_size = Simulator.Size.to_bits (Message.get_size msg) in
     let delay bandwidth =
