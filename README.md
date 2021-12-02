@@ -17,8 +17,9 @@ The simulator has the following requirements:
 
 The GUI has the following requirements:
 - an installation of NodeJS (version >= 14)
-- an installation of npm, along with yarn
+- an installation of npm, along with yarn and electron
 	- ```npm install --global yarn```
+	- ```npm install --global electron-builder```
 
 ---
 
@@ -26,7 +27,7 @@ The GUI has the following requirements:
 
 To build the simulator, run ```dune build``` in the ```/simulator``` directory. This will produce a ```_build``` directory.
 
-To build the GUI, run ```yarn install``` in the ```/visualizer``` directory.
+To build the GUI, run ```yarn install``` (or ```yarn install --no-bin-links```) in the ```/visualizer``` directory.
 
 Running a simulation can be done via the GUI, or by running ```./simulator/_build/default/bin/main.exe``` (note that dune uses the ```.exe``` extension regardless of the operating system).
 
