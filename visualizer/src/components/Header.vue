@@ -1,26 +1,18 @@
 <template>
     <header class="header">
-        <div class="logo">
-            <!--
-            <div class="logo__container">
-                <img src="../assets/logo.png" alt="News app logo" class="logo__image" />
-            </div>
-            -->
-            <h1>MOBS</h1>
-        </div>
         <nav class="nav">
-            <h4 class="nav__link">
-                <router-link to="/parameters">Parameters</router-link>
-            </h4>
-            <h4 class="nav__link">
-                <router-link to="/topology">Topology</router-link>
-            </h4>
-            <h4 class="nav__link">
-                <router-link to="/visualizer">Visualizer</router-link>
-            </h4>
-            <h4 class="nav__link">
-                <router-link to="/statistics">Statistics</router-link>
-            </h4>
+            <h2 class="nav__link">
+                <span class="header-link"><router-link to="/">Parameters</router-link></span>
+            </h2>
+            <h2 class="nav__link">
+                <span class="header-link"><router-link to="/topology">Topology</router-link></span>
+            </h2>
+            <h2 class="nav__link">
+                <span class="header-link"><router-link to="/visualizer">Visualizer</router-link></span>
+            </h2>
+            <h2 class="nav__link">
+                <span class="header-link"><router-link to="/statistics">Statistics</router-link></span>
+            </h2>
         </nav>
     </header>
 </template>
@@ -34,26 +26,19 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
-    }
-    .logo {
-        display: flex;
-        flex-wrap: nowrap;
-        justify-content: space-between;
-        align-items: center;
-        height: 50px;
-    }
-    .logo__container {
-        width: 50px;
-        height: 50px;
-    }
-    .logo__image {
-        max-width: 100%;
-        max-height: 100%;
+        text-align: center;
+        width: 100%;
+        border-bottom: 1px solid black;
     }
     .nav {
         display: flex;
         flex-wrap: wrap;
-        width: 350px;
+        width: 75%;
         justify-content: space-between;
+        margin: auto;
+    }
+    .header-link {
+        font-family: "Roboto", sans-serif;
+        color: #000000;
     }
 </style>

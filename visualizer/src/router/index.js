@@ -5,14 +5,9 @@ import Visualizer from "../views/Visualizer.vue";
 import Topology   from "../views/Topology.vue";
 
 let routes = [
-    {   
+    {
         path: "/",
         name:"landing",
-        component: Parameters,
-    },
-    {
-        path: "/parameters",
-        name:"parameters",
         component: Parameters,
     },
     {
