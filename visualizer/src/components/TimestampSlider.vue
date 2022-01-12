@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="my-slider-wrapper" style="width:90%;margin:auto;display:flex;">
-    <button v-bind:onclick="decrementStep"> - </button>
+    <div class="my-slider-wrapper" style="width:75%;margin:auto;display:flex;">
+    <button v-bind:onclick="decrementStep" class="ts-ctrl-btn"> - </button>
     <div class="my-slider" style="width:80%;margin:auto;">
       <Slider v-model="value" :min="minStep" :max="maxStep" @update="$emit('input', newValue);" :tooltips="tooltip" />
     </div>
-    <button v-bind:onclick="incrementStep"> + </button>
+    <button v-bind:onclick="incrementStep" class="ts-ctrl-btn"> + </button>
   </div>
   </div>
 </template>
@@ -69,4 +69,20 @@
   }
 </script>
 
-<style src="@vueform/slider/themes/default.css"></style>
+<style src="@vueform/slider/themes/default.css">
+</style>
+<style>
+    .ts-ctrl-btn {
+        color: white;
+        height: 32px;
+        width: 32px;
+        font-family: "Roboto", sans-serif;
+        font-size: 18px;
+        background-color: #6200EE;
+        border-radius: 50%;
+    }
+
+    .ts-ctrl-btn:hover {
+        background-color: #3700B3;
+    }
+</style>

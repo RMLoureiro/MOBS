@@ -2,7 +2,20 @@
   <div class="outer" @click="updateData">
     <div class="top">
       <div class="l">
+        <div class="ltop">
         <canvas id="mapCanvas" ref="mapCanvas"></canvas>
+        </div>
+        <p></p>
+        <div class="lbottom">
+          <p><input type="file" @change="updateFile"/></p>
+          <p>Timestamp: {{timestamp}}</p>
+          <timestamp-slider v-model="step" :isRunning="isRunning" :maxStep="maxStep" :minStep="0"></timestamp-slider>
+          <div style="text-align:center; margin:auto; width:75%;">
+              <button v-if="!isRunning" v-bind:onclick="run" class="play-btn-ts">Play</button>
+              <button v-if="isRunning" v-bind:onclick="stop" class="play-btn-ts">Pause</button>
+              Playback Speed: <input type="number" @change="updateSpeed" :value="speed" :disabled="isRunning" min="1" max="999">
+          </div>
+        </div>
       </div>
       <div class="r">
         <hr>
@@ -14,20 +27,6 @@
           <link-data :link="selectedLink"></link-data>
         </p>
         <hr>
-      </div>
-    </div>
-    <div class="bottom">
-      <p><input type="file" @change="updateFile"/></p>
-      <p>Timestamp: {{timestamp}}</p>
-      <timestamp-slider v-model="step" :isRunning="isRunning" :maxStep="maxStep" :minStep="0"></timestamp-slider>
-      <div style="text-align:center; margin:auto; width:250px;">
-        <div style="float:left;">
-          <button v-if="!isRunning" v-bind:onclick="run">Play</button>
-          <button v-if="isRunning" v-bind:onclick="stop">Pause</button>
-        </div>
-        <div style="float:right;">
-          Playback Speed: <input type="number" @change="updateSpeed" :value="speed" :disabled="isRunning" min="1" max="999">
-        </div>
       </div>
     </div>
   </div>
@@ -134,8 +133,8 @@ export default {
   width: 100%;
 }
 
-.top {
-  height: 75vh;
+.ltop {
+    height: 75vh;
 }
 
 .l {
@@ -144,6 +143,21 @@ export default {
 
 .r {
   margin-left: 75vw;
+}
+
+.play-btn-ts {
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    /*text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);*/
+    background-color: #3700B3;
+    font-family: "Roboto", sans-serif;
+    font-size: 16px;
+    margin: auto;
+}
+
+.play-btn-ts {
+    background-color: #6200EE;
 }
 
 </style>
