@@ -30,12 +30,13 @@
                             :ref="el => pComponents.push(el)"
                         ></range-parameter>
                     </div>
-                    <input type="button" value="Store as Default Parameters" @click="storeAsDefault">
-                    <p></p>
-                    <input type="submit" value="Run Simulation" :disabled="running">                   
-                    <p>
-                        <progress :max="maxProgress" :value="progress"></progress>
-                    </p>
+                    <div class="btn-wrapper-params">
+                        <input type="button" value="Store as Default Parameters" @click="storeAsDefault" class="my-btn">
+                        <input type="submit" value="Run Simulation" :disabled="running" class="my-btn">
+                        <span style="margin:auto;">
+                            <progress :max="maxProgress" :value="progress"></progress>
+                        </span>
+                    </div>
                 </div>
             </form>
         </div>
@@ -233,6 +234,30 @@
 
     ::-webkit-scrollbar {
         display: none;
+    }
+
+    .my-btn {
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        /*text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);*/
+        background-color: #3700B3;
+        font-family: "Roboto", sans-serif;
+        font-size: 16px;
+        margin: auto;
+    }
+
+    .my-btn:hover {
+        background-color: #6200EE;
+    }
+
+    .btn-wrapper-params {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        text-align: center;
+        width: 90%;
+        margin: auto;
     }
 
 </style>

@@ -1,18 +1,18 @@
 <template>
     <header class="header">
         <nav class="nav">
-            <h2 class="nav__link">
-                <span class="header-link"><router-link to="/">Parameters</router-link></span>
-            </h2>
-            <h2 class="nav__link">
-                <span class="header-link"><router-link to="/topology">Topology</router-link></span>
-            </h2>
-            <h2 class="nav__link">
-                <span class="header-link"><router-link to="/visualizer">Visualizer</router-link></span>
-            </h2>
-            <h2 class="nav__link">
-                <span class="header-link"><router-link to="/statistics">Statistics</router-link></span>
-            </h2>
+            <h3 class="nav__link">
+                <span class="header-link"><router-link to="/"><img src="notepad.png" class="img-icon"> Parameters</router-link></span>
+            </h3>
+            <h3 class="nav__link">
+                <span class="header-link"><router-link to="/topology"><img src="top_graph.png" class="img-icon"> Topology</router-link></span>
+            </h3>
+            <h3 class="nav__link">
+                <span class="header-link"><router-link to="/visualizer"><img src="globe.png" class="img-icon"> Visualizer</router-link></span>
+            </h3>
+            <h3 class="nav__link">
+                <span class="header-link"><router-link to="/statistics"><img src="stat_graph.png" class="img-icon"> Statistics</router-link></span>
+            </h3>
         </nav>
     </header>
 </template>
@@ -40,5 +40,12 @@
     .header-link {
         font-family: "Roboto", sans-serif;
         color: #000000;
+    }
+    .header-icon {
+        background-color: black;
+    }
+    .img-icon {
+        height: 20px;
+        width: 20px;
     }
 </style>

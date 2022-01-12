@@ -1,5 +1,5 @@
 <template>
-    
+
     <section class="range-parameter">
         <div class="div-range-parameter">
             <p class="param-label">
@@ -8,7 +8,7 @@
                     <input type="text" v-bind:value="parameter.value" v-bind:id="parameter.label" v-if="!isRange">
                 </span>
                 <span class="range-data">
-                    <ul>
+                    <ul class="range-list">
                         <li>
                             Ranged Parameter: <input type="checkbox" v-bind:checked="isRange" v-on:click="isRange = !isRange">
                         </li>
@@ -48,7 +48,7 @@
             getValues() {
                 if(!this.isRange) {
                     return [document.getElementById(this.parameter.label).value];
-                } 
+                }
                 else {
                     this.step = parseFloat(this.step);
                     this.max  = parseFloat(this.max);
@@ -84,5 +84,8 @@
 
     .range-data {
         text-align: right;
+    }
+    .range-list {
+        list-style-type: none;
     }
 </style>
