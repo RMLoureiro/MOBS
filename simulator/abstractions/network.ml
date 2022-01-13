@@ -238,6 +238,11 @@ struct
   let get_neighbours node =
     links.(node)
 
+  (* send a message to a given node's neighbors *)
+  let send_to_neighbors node msg =
+    let n_neighbors = get_neighbours node in
+    Array.iter (fun neighbor_id -> send node neighbor_id msg) n_neighbors
+
   (* Floyd Warshall's Algorithm -> https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm#Algorithm *)
   let compute_shortest_paths () =
     let t = Sys.time () in

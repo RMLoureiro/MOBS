@@ -20,6 +20,9 @@ module type Network = sig
         control of message exchanges *)
     val send : int -> int -> msg -> unit
 
+    (** send a message to all neighbors of a given node *)
+    val send_to_neighbors : int -> msg -> unit
+
     (** gossip a message to every node in the network
         used for more general purpose use cases, 
         as it assumes the nodes' bandwidth is always free *)
