@@ -252,6 +252,9 @@ module Make = struct
     end
 
     let run () =
+      Simulator.Clock.reset ();
+      Timer.clear ();
+      Queue.clear ();
       Logger.init ();
       print_endline "Parsing simulation parameters...";
       Logger.log_parameters (GoodNode.parameters ());
@@ -305,7 +308,10 @@ module Make = struct
       let module FinalStatistics = Simulator.Statistics.Compose(Simulator.Statistics.Compose(ConsensusStats)(Statistics))(NetworkStats) in
       Logger.log_statistics (FinalStatistics.get ());
       Logger.log_per_node_statistics (EventsPerNode.get ());
-      Logger.terminate ()
+      Logger.terminate ();
+      NetworkStats.clear ();
+      FinalStatistics.clear ();
+      EventsPerNode.clear ()
 
   end
 
@@ -421,6 +427,7 @@ module Make = struct
       Logger.log_statistics (FinalStatistics.get ());
       Logger.log_per_node_statistics (EventsPerNode.get ());
       Logger.terminate ();
+      NetworkStats.clear ();
       FinalStatistics.clear ();
       EventsPerNode.clear ()
 
