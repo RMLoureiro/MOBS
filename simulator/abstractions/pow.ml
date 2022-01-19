@@ -46,7 +46,7 @@ module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue
     )
 
   let get_mining_power nodeID =
-    List.nth !mining_power (nodeID - 1) (* IDs start at 1 *)
+    List.nth !mining_power (nodeID)
 
   let total_mining_power () =
     let rec sum l =

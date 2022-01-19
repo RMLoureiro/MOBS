@@ -5,3 +5,4 @@
 visualizer/yarn.lock
 simulator/tmp.txt
 simulator/output*.json
+.vscode

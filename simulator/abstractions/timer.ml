@@ -28,13 +28,13 @@ module Make(Event : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue 
   let set nodeID delay label =
     let timeout_event = Event.create_timeout nodeID delay label in
     Queue.add_event (timeout_event);
-    Hashtbl.replace (next_timers.(nodeID-1)) label (Event.timestamp timeout_event)
+    Hashtbl.replace (next_timers.(nodeID)) label (Event.timestamp timeout_event)
 
   let cancel nodeID label =
-    Hashtbl.replace (next_timers.(nodeID-1)) label (-1)
+    Hashtbl.replace (next_timers.(nodeID)) label (-1)
 
   let expired nodeID timestamp label =
-    match Hashtbl.find_opt (next_timers.(nodeID-1)) label with
+    match Hashtbl.find_opt (next_timers.(nodeID)) label with
     | Some(ts) -> not (timestamp = ts)
     | None -> 
       (* in this case, the event is not expired because it 

@@ -8,7 +8,7 @@ open Implementation
 let null_cred = Abstractions.Pos.Credential(Node(-1),Block(-1),Selections(-1),Priority(-1),Params([]))
 
 let check_proposer id slot =
-   id-1 = ((slot-1) mod !Parameters.General.num_nodes)
+   id = ((slot-1) mod !Parameters.General.num_nodes)
 
 module Proposal = struct
   type message = Praos.cardano_msg

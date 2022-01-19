@@ -65,12 +65,12 @@ module Make = struct
     let process node value last_obs_value_per_node obs_values_per_node use_intervals =
       if use_intervals then
         (
-          let last_value = last_obs_value_per_node.(node-1) in
-          obs_values_per_node.(node-1) <- [value-last_value]@(obs_values_per_node.(node-1));
-          last_obs_value_per_node.(node-1) <- value
+          let last_value = last_obs_value_per_node.(node) in
+          obs_values_per_node.(node) <- [value-last_value]@(obs_values_per_node.(node));
+          last_obs_value_per_node.(node) <- value
         )
       else
-        obs_values_per_node.(node-1) <- [value]@(obs_values_per_node.(node-1))
+        obs_values_per_node.(node) <- [value]@(obs_values_per_node.(node))
   end
 
   module Average(X:Arg) : (Stats with type t = int) = struct
@@ -179,7 +179,7 @@ module Make = struct
     let c = Array.init (!Parameters.General.num_nodes) (fun _ -> 0) 
 
     let process (node:int) (num:t) =
-      c.(node-1) <- c.(node-1) + num
+      c.(node) <- c.(node) + num
 
     let get _ =
       let rec arr_to_str str arr =

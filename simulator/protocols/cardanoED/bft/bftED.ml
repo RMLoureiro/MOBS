@@ -101,7 +101,7 @@ module CardanoNode : (Protocol.BlockchainNode with type ev=CardanoEvent.t and ty
     CardanoBlock.height node.state
 
   let check_proposer id slot =
-    id-1 = ((slot-1) mod !Parameters.General.num_nodes)
+    id = ((slot-1) mod !Parameters.General.num_nodes)
   
   let valid_chain (c:value list) : bool =
     let rev_chain = List.rev c in

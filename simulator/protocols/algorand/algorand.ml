@@ -78,13 +78,13 @@ module AlgorandStatistics = struct
 
   type t = int
 
-  (* each index <i> contains the timestamp where node <i-1> last saw consensus being reached *)
+  (* each index <i> contains the timestamp where node <i> last saw consensus being reached *)
   let last_consensus_time = Array.init !Parameters.General.num_nodes (fun _ -> 0)
 
   (* each index <i> contains the list of time elapsed to finish the block_proposal step of the protocol, in each node <i> *)
   let block_proposal_time = Array.init !Parameters.General.num_nodes (fun _ -> [])
 
-  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i-1> *)
+  (* each index <i> contains the list of time elapsed between adding blocks to the chain of node <i> *)
   let node_time_between_blocks = Array.init !Parameters.General.num_nodes (fun _ -> [])
 
   (* each index <i> contains the list of time elapsed until a majority of soft-votes is observed *)
@@ -92,19 +92,19 @@ module AlgorandStatistics = struct
 
   let obs_majority_softvotes nodeID =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
-    majority_soft_vote_time.(nodeID-1) <- (majority_soft_vote_time.(nodeID-1))@[elapsed_time]
+    let elapsed_time = current_time - (last_consensus_time.(nodeID)) in
+    majority_soft_vote_time.(nodeID) <- (majority_soft_vote_time.(nodeID))@[elapsed_time]
 
   let completed_step2 nodeID =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
-    block_proposal_time.(nodeID-1) <- (block_proposal_time.(nodeID-1))@[elapsed_time]
+    let elapsed_time = current_time - (last_consensus_time.(nodeID)) in
+    block_proposal_time.(nodeID) <- (block_proposal_time.(nodeID))@[elapsed_time]
 
   let consensus_reached nodeID _ =
     let current_time = (Simulator.Clock.get_timestamp ()) in
-    let elapsed_time = current_time - (last_consensus_time.(nodeID-1)) in
-    last_consensus_time.(nodeID-1) <- current_time;
-    node_time_between_blocks.(nodeID-1) <- (node_time_between_blocks.(nodeID-1))@[elapsed_time]
+    let elapsed_time = current_time - (last_consensus_time.(nodeID)) in
+    last_consensus_time.(nodeID) <- current_time;
+    node_time_between_blocks.(nodeID) <- (node_time_between_blocks.(nodeID))@[elapsed_time]
 
   let process _ _ =
     ()

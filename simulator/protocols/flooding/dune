@@ -1,0 +1,6 @@
+(library
+ (name flooding)
+ (libraries parameters simulator abstractions implementation))
+(env
+ (dev
+   (flags (:standard -warn-error -A))))

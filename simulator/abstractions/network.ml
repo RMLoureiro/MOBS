@@ -103,7 +103,7 @@ let node_links () : network_links =
       for i = 0 to num_nodes-1 do
         select_neighbors i nodes inbound_links outbound_links 
       done;
-      Array.map (fun x -> Array.of_list (List.map (fun y -> y+1) x)) outbound_links (* node id's start at 1 *)
+      Array.map (fun x -> Array.of_list x) outbound_links
     )
   
 
@@ -176,8 +176,8 @@ struct
 
   (* get mean latency from the parameters *)
   let get_mean_latency sender receiver =
-    let region_sender   = regions.(sender-1) in     (* id's start at 1 *)
-    let region_receiver = regions.(receiver-1) in   (* id's start at 1 *)
+    let region_sender   = regions.(sender) in
+    let region_receiver = regions.(receiver) in
     let mean_latency    = (!Parameters.General.latency_table.(region_sender)).(region_receiver) in
     mean_latency
 
@@ -195,8 +195,8 @@ struct
 
   (* obtain bandwidth between two nodes *)
   let get_bandwidth sender receiver =
-    let region_sender      = regions.(sender-1) in     (* id's start at 1 *)
-    let region_receiver    = regions.(receiver-1) in   (* id's start at 1 *)
+    let region_sender      = regions.(sender) in
+    let region_receiver    = regions.(receiver) in
     let upload_bandwidth   = !Parameters.General.upload_bandwidth.(region_sender) in
     let download_bandwidth = !Parameters.General.download_bandwidth.(region_receiver) in
     min upload_bandwidth download_bandwidth
@@ -205,13 +205,13 @@ struct
   let pending_upload_time sender receiver =
     let current_time = Simulator.Clock.get_timestamp () in
     let stored_available_timestamp =
-      match OQ.find_opt (sender-1,receiver-1) !outgoing_queues with
+      match OQ.find_opt (sender,receiver) !outgoing_queues with
       | Some(ts) -> ts
       | None -> 0
     in
     let next_available_timestamp = max stored_available_timestamp current_time in
     let wait_delay   = next_available_timestamp - current_time in
-    outgoing_queues := OQ.add (sender-1,receiver-1) next_available_timestamp !outgoing_queues;
+    outgoing_queues := OQ.add (sender,receiver) next_available_timestamp !outgoing_queues;
     wait_delay
 
   (* send a message between two nodes *)
@@ -225,7 +225,7 @@ struct
         if !Parameters.General.limited_bandwidth then
           (
             let wait_delay = pending_upload_time sender receiver in
-            outgoing_queues := OQ.add (sender-1,receiver-1) ((OQ.find (sender-1,receiver-1) !outgoing_queues) + delay) !outgoing_queues;
+            outgoing_queues := OQ.add (sender,receiver) ((OQ.find (sender,receiver) !outgoing_queues) + delay) !outgoing_queues;
             ((Simulator.Clock.get_timestamp ()) + latency + delay + wait_delay)
           )
         else
@@ -260,9 +260,9 @@ struct
     for i=0 to num_nodes-1 do
       for j=0 to (Array.length links.(i)-1) do
         let neighbour = links.(i).(j) in
-        let latency = get_mean_latency (i+1) (neighbour) in
-        let bandwidth = get_bandwidth (i+1) (neighbour) in
-        shortest_paths.(i).(neighbour-1) <- (latency,[bandwidth],1,i)
+        let latency = get_mean_latency (i) (neighbour) in
+        let bandwidth = get_bandwidth (i) (neighbour) in
+        shortest_paths.(i).(neighbour) <- (latency,[bandwidth],1,i)
       done
     done;
     for k=0 to num_nodes-1 do
@@ -303,16 +303,15 @@ struct
         | Some(p) -> p
       end
     in
-    let node_index = sender-1 in
     for i=0 to num_nodes-1 do
-      if not (i = node_index) then
+      if not (i = sender) then
       (
-        let (l,b,_,last_sender) = sp.(node_index).(i) in
+        let (l,b,_,last_sender) = sp.(sender).(i) in
         let latency = extract_latency l in
         let time_elapsed_bandwidth = ref 0 in
         List.iter (fun x -> time_elapsed_bandwidth := !time_elapsed_bandwidth + (delay x)) b;
         let arrival_time = (Simulator.Clock.get_timestamp ()) + latency + !time_elapsed_bandwidth in
-        let msg_event = Events.Message(last_sender,i+1,arrival_time,msg) in
+        let msg_event = Events.Message(last_sender,i,arrival_time,msg) in
         Queue.add_event msg_event;
       )
     done;

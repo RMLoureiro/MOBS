@@ -99,7 +99,7 @@ module Make = struct
         Array.iteri (
           fun i l -> 
             (Array.iter (
-              fun j -> Logger.log_add_link (i+1) j
+              fun j -> Logger.log_add_link (i) j
             ) l)
           ) links
       in
@@ -112,12 +112,12 @@ module Make = struct
       print_endline "\t [DONE] Creating links between nodes";
       print_endline "\t Initializing nodes...";
       let nodes     = Hashtbl.create num_nodes in
-      for i = 1 to num_nodes do
-        let node_links = links.(i-1) in
-        let node_region = regions.(i-1) in
+      for i = 0 to num_nodes-1 do
+        let node_links = links.(i) in
+        let node_region = regions.(i) in
         let node = init i node_links node_region in
         Hashtbl.add nodes i node;
-        Logger.log_add_node i  node_region
+        Logger.log_add_node i node_region
       done;
       print_endline "\t [DONE] Initializing nodes";
       log_links links;
@@ -125,7 +125,7 @@ module Make = struct
 
       (** create the initial events that jumpstart the simulation loop *)
       let add_initial_events events =
-        List.iter (fun e -> Queue.add_event e) events (* TODO : instead of events it was Initializer.init nodes *)
+        List.iter (fun e -> Queue.add_event e) events
 
   end
 
@@ -153,7 +153,7 @@ module Make = struct
         let selected_nodes = ref 0 in
         let selected = ref [] in
         while !selected_nodes < num_offline_nodes do
-          let i = (Random.int !Parameters.General.num_nodes)+1 in
+          let i = (Random.int !Parameters.General.num_nodes) in
           if not (List.exists (fun x -> x=i) !selected) then
             (
               offline.(i) <- (become_offline_timestamp, become_online_timestamp);
@@ -185,7 +185,7 @@ module Make = struct
         let become_malicious_timestamp = !Parameters.General.become_bad_timestamp in
         let selected_nodes = ref 0 in
         while !selected_nodes < num_malicious_nodes do
-          let i = (Random.int !Parameters.General.num_nodes)+1 in
+          let i = (Random.int !Parameters.General.num_nodes) in
           match malicious.(i) with
           | (false,_) -> malicious.(i) <- (true, become_malicious_timestamp); selected_nodes := !selected_nodes +1
           | _ -> ()
@@ -363,7 +363,7 @@ module Make = struct
                   ConsensusStats.process i (Simulator.Clock.get_timestamp ())
                 end
             end;
-            Hashtbl.replace nodes i new_state
+            Hashtbl.replace nodes i new_state;
       end
 
     end

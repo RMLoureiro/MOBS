@@ -182,7 +182,7 @@ module Make(Logger : Logging.Logger)(BlockContent:BlockContent)(Rewards:BlockRew
       let gen_bal id =
         let r = Random.float 1.0 in
         let coins = max (r *. !Parameters.General.stdev_coins +. !Parameters.General.avg_coins) 0.0 in
-        (id+1, coins)
+        (id, coins)
       in 
       let r_state = Random.get_state () in
       let ret = List.init !Parameters.General.num_nodes gen_bal in
