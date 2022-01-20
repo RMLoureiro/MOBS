@@ -148,7 +148,7 @@ module BitcoinNode : (Protocol.BlockchainNode with type ev=BitcoinEvent.t and ty
         else
           process_block node (BitcoinBlock.create node.id node.state ())
       end
-    | BitcoinEvent.Message(_,_,_,msg) -> 
+    | BitcoinEvent.Message(_,_,_,_,msg) -> 
       begin
       match msg with
       | Block(b) -> process_block node b

@@ -90,7 +90,7 @@ module SimpleNode : (Protocol.BlockchainNode with type ev=SimpleEvent.t and type
       else
         process_block node (SimpleBlock.create node.id node.state ())
       end
-    | SimpleEvent.Message(_,_,_,block_msg) -> process_block node block_msg
+    | SimpleEvent.Message(_,_,_,_,block_msg) -> process_block node block_msg
     | _ -> node
 
   (* this function is the same in every blockchain-specific node, 

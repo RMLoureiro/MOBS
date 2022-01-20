@@ -61,7 +61,12 @@ export default {
     this.ctx = this.$refs.mapCanvas.getContext("2d");
     this.resizeCanvas();
     manager = new Manager(this.ctx);
+    this.maxStep = 1;
     this.maxStep = Math.max(manager.timestamps.length - 1,1);
+    // if(manager.timestamps.length > 0) {
+    //   this.maxStep = manager.timestamps[manager.timestamps.length];
+    // }
+    
     manager.updateTimeStep(this.step);
     manager.setLoadCallback(() => (this.step = 0));
     manager.run();
@@ -71,6 +76,11 @@ export default {
       const success = manager.loadDynamicData(dynamicData);
       if (success) {
         this.maxStep = manager.timestamps.length - 1;
+        // this.maxStep = 1;
+        // if(manager.timestamps.length > 0) {
+        //   this.maxStep = manager.timestamps[manager.timestamps.length-1];
+        // }
+        console.log(manager.timestamps);
       }
       this.showLoadStatus(success);
     };

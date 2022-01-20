@@ -26,7 +26,7 @@ module type Event = sig
 
   (** the type of the events processed during the simulation *)
   type t = 
-  Message of int * int * Clock.t * msg       (* nodeID(sender), nodeID(receiver), timestamp, msg *)
+  Message of int * int * Clock.t * Clock.t * msg       (* nodeID(sender), nodeID(receiver), send_timestamp, recept_timestamp, msg *)
   | MintBlock of int * Clock.t               (* nodeID, timestamp *)
   | Timeout of int * Clock.t * timeout_label (* nodeID, timestamp, label *)
 
@@ -36,8 +36,8 @@ module type Event = sig
   (** given an event, return the node that should process the event *)
   val target : t -> int option
 
-  (** given the sender, receiver, timestamp and message contents, create a message event *)
-  val create_message : int -> int -> Clock.t -> msg -> t
+  (** given the sender, receiver, send_timestamp, rcv_timestamp and message contents, create a message event *)
+  val create_message : int -> int -> Clock.t -> Clock.t -> msg -> t
 
   (** given the minter, timestamp and block, create a minting event *)
   val create_mint : int -> Clock.t -> t
@@ -50,24 +50,24 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
   type msg = Msg.t
 
   type t =
-  Message of int * int * Clock.t * msg
+  Message of int * int * Clock.t * Clock.t * msg
   | MintBlock of int * Clock.t
   | Timeout of int * Clock.t * timeout_label
 
   let timestamp (e:t) : Clock.t =
   match e with
-  | Message(_,_,timestamp,_) -> timestamp
+  | Message(_,_,_,timestamp,_) -> timestamp
   | MintBlock(_,timestamp) -> timestamp
   | Timeout(_,timestamp,_) -> timestamp
 
   let target (e:t) : int option =
   match e with
-  | Message(_,receiver,_,_) -> Some receiver
+  | Message(_,receiver,_,_,_) -> Some receiver
   | MintBlock(node,_) -> Some node
   | Timeout(node,_,_) -> Some node
 
-  let create_message (sender:int) (receiver:int) (timestamp:Clock.t) (m:msg) =
-    Message(sender, receiver, timestamp, m)
+  let create_message (sender:int) (receiver:int) (send_timestamp:Clock.t) (rcv_timestamp:Clock.t) (m:msg) =
+    Message(sender, receiver, send_timestamp, rcv_timestamp, m)
 
   let create_mint minter timestamp =
     MintBlock(minter, timestamp)

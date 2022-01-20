@@ -38,6 +38,9 @@ module type Logger = sig
   (** log the removal of a link *)
   val log_remove_link : int -> int -> unit
 
+  (** log wheter it is a blockchain or abstract protocol [0=abstract, 1=blockchain] *)
+  val log_protocol : int -> unit
+
 end
 
 module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t) : (Logger with type ev = Event.t) = struct
@@ -96,8 +99,8 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
     log_json data
 
   (*** operations that return the JSON for a specific event ***)
-  let message_json node_id_from node_id_to timestamp msg =
-    Printf.sprintf "{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":%d,\"reception-timestamp\":%d,\"begin-node-id\":%d,\"end-node-id\":%d,\"block-id\":%d,\"msg-data\":%s}}" (Clock.get_timestamp ()) timestamp node_id_from node_id_to (Message.identifier msg) (Message.to_json msg)
+  let message_json node_id_from node_id_to st rt msg =
+    Printf.sprintf "{\"kind\":\"flow-message\",\"content\":{\"transmission-timestamp\":%d,\"reception-timestamp\":%d,\"begin-node-id\":%d,\"end-node-id\":%d,\"block-id\":%d,\"msg-data\":%s}}" st rt node_id_from node_id_to (Message.identifier msg) (Message.to_json msg)
 
   let addnode_json node_id region_id =
     Printf.sprintf "{\"kind\":\"add-node\",\"content\":{\"timestamp\":%d,\"node-id\":%d,\"region-id\":%d}}" (Clock.get_timestamp ()) node_id region_id
@@ -127,9 +130,15 @@ module Make(Message:Events.Message) (Event:Events.Event with type msg=Message.t)
 
   let log_event (event: ev) =
     let event_json = match event with
-    | Message(node_id_from, node_id_to, timestamp, msg) -> message_json node_id_from node_id_to timestamp msg 
+    | Message(node_id_from, node_id_to, st, rt, msg) -> message_json node_id_from node_id_to st rt msg 
     | MintBlock(_,_) -> ""
     | Timeout(_, _, _) -> ""
     in log_json event_json
+
+  let log_protocol p =
+    if p = 0 then
+      log_json (Printf.sprintf "{\"kind\":\"protocol-type\",\"content\":{\"type\":\"abstract\"}}")
+    else
+      log_json (Printf.sprintf "{\"kind\":\"protocol-type\",\"content\":{\"type\":\"blockchain\"}}")
 
 end

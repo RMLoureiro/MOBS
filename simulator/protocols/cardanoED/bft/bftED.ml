@@ -181,7 +181,7 @@ module CardanoNode : (Protocol.BlockchainNode with type ev=CardanoEvent.t and ty
   let handle (node:t) (event:ev) =
     let _ = 
       match event with
-      | CardanoEvent.Message(sender,_,_,msg) -> process_msg node msg sender
+      | CardanoEvent.Message(sender,_,_,_,msg) -> process_msg node msg sender
       | CardanoEvent.Timeout(_,_,label) ->
         begin
           match label with

@@ -735,7 +735,7 @@ module AlgorandNode : (Protocol.BlockchainNode with type ev=AlgorandEvent.t and 
 
   let handle (node:t) (event:ev) : t =
     match event with
-    | AlgorandEvent.Message(_,_,_,msg) -> process_msg node msg
+    | AlgorandEvent.Message(_,_,_,_,msg) -> process_msg node msg
     | AlgorandEvent.Timeout(_,_,label) ->
         begin
           match label with

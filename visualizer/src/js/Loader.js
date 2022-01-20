@@ -64,6 +64,10 @@ export default class Loader {
     for (const value of dynamicData) {
       const content = value["content"];
       switch (value["kind"]) {
+        case "protocol-type":
+          if(content["type"]=="abstract")
+            window.PROTOCOL = "ABS";
+          break;
         case "node-committee":
           {
             // when a node is selected to be part of the committee for a certain round

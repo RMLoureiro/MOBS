@@ -99,7 +99,7 @@ module Make
 
   let handle (node:t) (e:ev) : t =
     match e with
-    | Message(_,_,_,msg) -> message_queue := !message_queue@[msg]; step node
+    | Message(_,_,_,_,msg) -> message_queue := !message_queue@[msg]; step node
     | _ -> step node
 
 end

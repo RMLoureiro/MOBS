@@ -80,6 +80,7 @@ export default class Manager {
 
   getTimestamp() {
     return this.timestamps[this.step];
+    //return this.step;
   }
 
   getSelectedNode() {

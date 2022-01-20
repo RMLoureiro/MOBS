@@ -3,12 +3,6 @@ type network_links = links array
 type region        = int
 type regions       = int array
 
-(** returns the region assigned to each node for the current simulation *)
-val node_regions : unit -> regions
-
-(** returns the links between nodes for the current simulation *)
-val node_links : unit -> network_links
-
 module type Network = sig
     type msg
 
@@ -32,6 +26,12 @@ module type Network = sig
     val get_neighbours : int -> links
 
     val clear : unit -> unit
+
+    (** obtain the links assigned to each node *)
+    val get_links : unit -> network_links
+
+    (** obtain the region assigned to each node*)
+    val get_regions : unit -> regions
 
 end
 

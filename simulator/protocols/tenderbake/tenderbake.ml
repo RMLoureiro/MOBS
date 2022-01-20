@@ -677,7 +677,7 @@ module TenderbakeNode : (Protocol.BlockchainNode with type ev=TenderbakeEvent.t 
 
     let handle (node:t) (event:TenderbakeEvent.t) =
       let _ = match event with
-        | TenderbakeEvent.Message(_,_,_,msg) -> process_msg node msg
+        | TenderbakeEvent.Message(_,_,_,_,msg) -> process_msg node msg
         | TenderbakeEvent.Timeout(_,_,label) ->
           begin
             match label with

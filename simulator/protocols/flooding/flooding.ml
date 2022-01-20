@@ -12,7 +12,7 @@ module FloodingMsg : (Simulator.Events.Message with type t = msg) = struct
     |M( vote) ->Printf.sprintf "{\"vote\":\"%d\"}" vote
 
   let get_size (_:t) =
-    Simulator.Size.Kilobyte(534)
+    Simulator.Size.Byte(8)
 
   let processing_time (_:t) = 2
 
@@ -53,7 +53,7 @@ module FloodingNode : (Protocol.AbstractNode with type ev=FloodingEvent.t and ty
 
   let handle (node:t) (event:ev) : t =
     (match event with
-      | FloodingEvent.Message(_,_,_,msg) ->
+      | FloodingEvent.Message(_,_,_,_,msg) ->
       match msg with
         |M(vote) as m ->
         if node.state = "IDLE" then
@@ -72,7 +72,7 @@ module FloodingInitializer : (Protocol.Initializer with type node=FloodingNode.t
 
   let init nodes =
     let index = (Random.int ((Hashtbl.length nodes))) in
-    [FloodingEvent.Message(index,index,0,M(index))]
+    [FloodingEvent.Message(index,index,0,0,M(index))]
 
 end
 
