@@ -288,7 +288,7 @@ module Make = struct
                 (
                   EventsPerNode.process i 1;
                   match malicious_data.(i) with
-                  | (true,t) -> if t >= ts then BadStep.step ts e nodes else GoodStep.step ts e nodes
+                  | (true,t) -> if ts >= t then BadStep.step ts e nodes else GoodStep.step ts e nodes
                   | _ -> GoodStep.step ts e nodes
                 )
           )
@@ -408,7 +408,7 @@ module Make = struct
                 (
                   EventsPerNode.process i 1;
                   match malicious_data.(i) with
-                  | (true,t) -> if t >= ts then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
+                  | (true,t) -> if ts >= t then BadStep.step ts e nodes max_height else GoodStep.step ts e nodes max_height
                   | _ -> GoodStep.step ts e nodes max_height
                 )
           )
