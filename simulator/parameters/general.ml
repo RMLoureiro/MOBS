@@ -27,7 +27,7 @@ let latency_table = ref (Array.of_list (List.map (fun x -> Array.of_list x) [
   [151; 252; 301; 58; 12; 126];
   [189; 294; 322; 198; 126; 16]]))
 let region_distribution = ref (Array.of_list [0.3316; 0.4998; 0.0090; 0.1177; 0.0224; 0.0195])
-let degree_distribution = ref (Array.of_list [0.025; 0.050; 0.075; 0.10; 0.20; 0.30; 0.40; 0.50; 0.60; 0.70; 0.80; 0.85; 0.90; 0.95; 0.97; 0.97; 0.98; 0.99; 0.995; 1.0])
+let degree_distribution = ref (Array.of_list [0.025; 0.025; 0.025; 0.025; 0.1; 0.1; 0.1; 0.1; 0.1; 0.1; 0.1; 0.05; 0.05; 0.05; 0.02; 0.0; 0.01; 0.01; 0.005; 0.005])
 (* bandwidths are in bits per second *)
 let limited_bandwidth = ref true
 let download_bandwidth = ref (Array.of_list [52000000; 40000000; 18000000; 22800000; 22800000; 29900000; 6000000])

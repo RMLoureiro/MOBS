@@ -88,29 +88,27 @@ struct
   (***** Create Links between Nodes *****)
 
   (** condition for node with <nid> to be added as an outbound neighbor to node with <id> *)
-  let can_add_neighbor id nid outbound_links inbound_links :bool =
-    let num_links        = !Parameters.General.num_links in
+  let can_add_neighbor id nid outbound_links inbound_links num_links :bool =
     let num_nodes        = !Parameters.General.num_nodes in
-    let last_node        = (id+1) = num_nodes in (* ensure last node has the requried outbound links *)
+    let last_node        = (id = num_nodes) in (* ensure last node has the requried outbound links *)
     let id_outbound      = outbound_links.(id) in
     let nid_inbound      = inbound_links.(nid) in
     let already_outbound = List.exists (fun e -> e = nid) id_outbound in
     let already_inbound  = List.exists (fun e -> e = id) nid_inbound in
-    let outbound_limit   = (List.length id_outbound) >= num_links in
-    let inbound_limit    = (List.length nid_inbound) >= num_links in
+    let outbound_limit   = (List.length id_outbound) >= (num_links.(id)+1) in
+    let inbound_limit    = (List.length nid_inbound) >= (num_links.(nid)+1) in
     let same_node        = id = nid in
     let valid_nodes      = (id >= 0) && (id < num_nodes) && (nid >= 0) && (nid < num_nodes) in
     (not same_node) && (not already_outbound) && (not already_inbound) && (not outbound_limit) && ((not inbound_limit) || last_node) && valid_nodes
 
   (** select neighbors for node with id = <id>, taking the link limitations in consideration *)
-  let select_neighbors id nodes (inbound_links:(int list array)) (outbound_links:(int list array)) =
-    let num_links = !Parameters.General.num_links in
+  let select_neighbors id nodes (inbound_links:(int list array)) (outbound_links:(int list array)) num_links =
     let candidates = shuffle_array nodes in 
     for i = 0 to (Array.length candidates)-1 do
       begin
       let candidate = (candidates.(i)) in
-      if List.length outbound_links.(id) < num_links then
-        if can_add_neighbor id candidate outbound_links inbound_links then
+      if List.length outbound_links.(id) < (num_links.(id)+1) then
+        if can_add_neighbor id candidate outbound_links inbound_links num_links then
           begin
           outbound_links.(id) <- [candidate]@outbound_links.(id);
           inbound_links.(candidate) <- [id]@inbound_links.(candidate)
@@ -138,8 +136,22 @@ struct
         let nodes = Array.init num_nodes (fun c -> c) in
         let inbound_links:(int list array) = Array.make num_nodes [] in
         let outbound_links:(int list array) = Array.make num_nodes [] in
+        let rec num_links_per_node l i acc = 
+          let num_nodes = !Parameters.General.num_nodes in
+          let dist_neighbors = !Parameters.General.degree_distribution in
+          let n = Array.length dist_neighbors in
+            if i < n then
+              let rdist = (dist_neighbors.(i)) in
+                if (List.length l) < int_of_float (Float.round ((float_of_int num_nodes) *. (rdist +. acc))) then
+                  num_links_per_node (i::l) i acc
+                else
+                  num_links_per_node (i::l) (i+1) (rdist +. acc)
+            else
+            l
+        in
+        let num_links = (Array.of_list (num_links_per_node [] 0 0.0)) in
         for i = 0 to num_nodes-1 do
-          select_neighbors i nodes inbound_links outbound_links 
+          select_neighbors i nodes inbound_links outbound_links num_links
         done;
         Array.map (fun x -> Array.of_list x) outbound_links
       )
