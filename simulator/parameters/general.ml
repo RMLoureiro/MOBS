@@ -16,7 +16,7 @@ let verbose = ref true
 
 (* network parameters and default values *)
 let num_regions = ref 6
-let num_links = ref 5
+let num_links = ref 8
 type lte = int list
 (* latency is in millisseconds *)
 let latency_table = ref (Array.of_list (List.map (fun x -> Array.of_list x) [
@@ -82,7 +82,6 @@ let () =
   base_seed := get_general_param json "seed" |> to_int;
   num_batches := get_general_param json "number-of-batches" |> to_int;
   num_regions := get_network_param json "num-regions" |> to_int;
-  num_links := get_network_param json "num-links" |> to_int;
   interval := get_general_param json "pow_target_interval" |> to_int;
   avg_mining_power := get_general_param json "avg_mining_power" |> to_int;
   stdev_mining_power := get_general_param json "stdev_mining_power" |> to_int;
