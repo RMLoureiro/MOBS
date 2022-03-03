@@ -33,6 +33,8 @@ Running the GUI can be done with ```yarn electron:serve``` in the ```/visualizer
 
 [How to use the simulator](simulator/README.md)
 
+[Documentation of the simulator](https://mce-alves.github.io/MOBS)
+
 [How to use the GUI](visualizer/README.md)
 
 
