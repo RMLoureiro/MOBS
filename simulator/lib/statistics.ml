@@ -1,15 +1,16 @@
+(** Keep track of statistics. *)
 module type Stats = sig
 
-  (** the type of values being processed *)
+  (** The type of values being processed. *)
   type t
 
-  (** node_id <int> has produced value <t>*)
+  (** A {b node_id} has produced/seen a {b value}. *)
   val process : int -> t -> unit
 
-  (** returns a JSON string containing the statistics and respective values *)
+  (** Returns a JSON string containing the statistics and respective values. *)
   val get : unit -> string
 
-  (** reset statistics *)
+  (** Reset statistics data. *)
   val clear : unit -> unit
 
 end
@@ -17,11 +18,15 @@ end
 module Make = struct
 
   module type Arg = sig
-    val label         : string (* label for the metric *)
-    val use_intervals : bool   (* true considers the values to be timestamps and computes the average interval between "process" calls *)
-    val format        : int (* the format to be used *)
-                            (* <int> format : 0 = no format *)
-                            (* <int> format : 1 = convert ms to s, when dealing with times *)
+
+    (** label for the metric *)
+    val label         : string
+
+    (** true considers the values to be timestamps and computes the average interval between "process" calls *)
+    val use_intervals : bool
+
+    (** the format to be used ({b format} : 0 = no format) ({b format} : 1 = convert ms to s, when dealing with times) *)
+    val format        : int 
   end
 
   module Aux = struct
@@ -73,6 +78,7 @@ module Make = struct
         obs_values_per_node.(node) <- [value]@(obs_values_per_node.(node))
   end
 
+  (** Create an implementation for a Statistics module that computes an Average. *)
   module Average(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -93,6 +99,7 @@ module Make = struct
 
   end
 
+  (** Create an implementation for a Statistics module that computes a Median. *)
   module Median(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -113,6 +120,7 @@ module Make = struct
     
   end
 
+  (** Create an implementation for a Statistics module that computes a 95th Percentile. *)
   module Percentile95(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -133,6 +141,7 @@ module Make = struct
     
   end
 
+  (** Create an implementation for a Statistics module that computes a Maximum. *)
   module Max(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -153,6 +162,7 @@ module Make = struct
       
   end
 
+  (** Create an implementation for a Statistics module that computes a Minimum. *)
   module Min(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -173,6 +183,7 @@ module Make = struct
 
   end
 
+  (** Create an implementation for a Statistics module that computes a Counter per Node. *)
   module CountPerNode(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -196,6 +207,7 @@ module Make = struct
 
   end
 
+  (** Create an implementation for a Statistics module that computes a Global Counter for integers. *)
   module CountAll(X:Arg) : (Stats with type t = int) = struct
     type t = int
 
@@ -213,6 +225,7 @@ module Make = struct
 
   end
 
+  (** Create an implementation for a Statistics module that computes a Global Counter for floats. *)
   module CountAllF(X:Arg) : (Stats with type t = float) = struct
     type t = float
 
@@ -232,6 +245,7 @@ module Make = struct
 
 end
 
+(** Module for gathering {b NO} statistics. *)
 module Empty = struct 
   type t = int
 
@@ -246,6 +260,7 @@ module Empty = struct
 
 end
 
+(** Functor that composes two statistic modules ({b A} and {b B}) into a single Statistics module. *)
 module Compose(A:Stats)(B:Stats) : Stats = struct
   
   type t = int

@@ -1,17 +1,21 @@
-(** the type representing a timestamp *)
+(** The type representing a timestamp. *)
 type t = int
 
-(** sets the timestamp of the simulation clock to <t> *)
+(** Sets the timestamp of the simulation clock to {b ts}.
+    @param ts the new timestamp for the simulation clock
+*)
 val set_timestamp : t -> unit
 
-(** get the current timestamp of the simulation clock *)
+(** Get the current timestamp of the simulation clock. *)
 val get_timestamp : unit -> t
 
-(** get the timestamp for clock zero *)
+(** Get the timestamp for clock zero. *)
 val zero : t
 
-(** converts a timestamp to string *)
+(** Converts a timestamp to string.
+    @param ts the timestamp in non-string form
+*)
 val to_string : t -> string
 
-(** when a new iteration begins, reset the clock *)
+(** Reset the simulation clock back to zero. *)
 val reset : unit -> unit

@@ -1,56 +1,79 @@
+(** The base type of a node. *)
 type ('a, 'b) template = {
-  id:int;
-  region : Abstractions.Network.region;
-  links  : Abstractions.Network.links;
-  mutable state:'b;
-  mutable data:'a;
+  id:int; (** The node's id *)
+  region : Abstractions.Network.region; (** The node's region *)
+  links  : Abstractions.Network.links; (** The node's neighbors *)
+  mutable state:'b; (** The latest value for which there was consensus *)
+  mutable data:'a; (** User-defined state required by the node to perform the protocol *)
 }
 
+(** Base node for a consensus protocol. *)
 module type AbstractNode = sig
+  (** The type of the values for which consensus is being reached. *)
   type value
 
-  (** the type of the events being handled *)
+  (** The type of the events being handled. *)
   type ev
 
-  (** the protocol specific data stored by the node *)
+  (** The protocol specific data stored by the node. *)
   type node_data
 
-  (** the type representing a node and its state *)
+  (** The type representing a node and its state. Consists of apllying the {b value} and {b node_data} to the {b template}. *)
   type t = (node_data, value) template
 
-  (** create the initial state of a node *)
+  (** Create the initial state of a node.
+    @param node_id the id to be assigned to the node
+    @param neighbors the node's neighbors
+    @param region the node's region
+  *)
   val init : int -> Abstractions.Network.links -> Abstractions.Network.region -> t
 
-  (** receives the state of a node and an event, returning the resulting state *)
+  (** Receives the state of a node and an event, returning the resulting state.
+    @param node the state of a node
+    @param event the event to be processed by the node
+  *)
   val handle : t -> ev -> t
 
-  (** compares two nodes *)
+  (** Compares two nodes. Returns whether they are in the same state.
+    @param node1 the state of a node
+    @param node2 the state of a node
+  *)
   val compare : t -> t -> int
 
-  (** get the state of the node *)
+  (** Get the consensus target of a node.
+    @param node the state of a node
+  *)
   val state : t -> value
 
-  (** return an integer that identifies the state of the node *)
+  (** Return an integer that identifies the state of the node.
+    @param node the state of a node
+  *)
   val state_id : t -> int
 
-  (** return a JSON string containing the relevant parameters (and values) for the Node's consensus algorithm *)
+  (** Return a JSON string containing the relevant parameters (and values) for the Node's consensus algorithm *)
   val parameters : unit -> string
 
 end
 
+(** Extension of the base node, for blockchain protocols. *)
 module type BlockchainNode = sig
   include AbstractNode
 
-  (** obtain the height of the chain stored in the node *)
+  (** Obtain the height of the chain stored in the node.
+    @param node the state of a node
+  *)
   val chain_height : t -> int
 
 end
 
+(** Wrapper for the type of values for which consensus is being reached. *)
 module type V = sig
-  type v
+  type v (** the type of the values for which consensus is being reached. *)
 end
 
-
+(** Functor that receives the wrapper V, and constructs implementation for several 
+  operations of a node, without the user having to implement them by hand.
+*)
 module MakeBaseNode(V:V) = struct
 
   module Unique:(Simulator.Unique.Unique with type v = V.v) = Simulator.Unique.Make(V)
@@ -69,32 +92,39 @@ module MakeBaseNode(V:V) = struct
 
 end
 
-
+(** Initializer module. In charge of generating the initial events to start the simulation. *)
 module type Initializer = sig
-  (** the type representing a node *)
+
+  (** The type representing a node. *)
   type node
 
-  (** the type of the events being produced *)
+  (** The type of the events being produced. *)
   type ev
 
-  (** returns a list of events that kickstart the simulation *)
+  (** Returns a list of events that kickstart the simulation.
+    @param nodes an hashtable containing the state of each node
+  *)
   val init : (int, node) Hashtbl.t -> ev list
 end
 
+(** The Protocol module contains the high-level loop of the simulation, and initialization operations. *)
 module type Protocol = sig 
-  (** the main loop of the protocol *)
+  (** The main loop of the simulation. *)
   val run : unit -> unit
 end
 
 
 module Make = struct
 
+  (** Functor to create auxiliary functions used by Abstract and Blockchain Protocols. *)
   module Auxiliary(Event : Simulator.Events.Event)
                   (Queue : Simulator.Events.EventQueue with type ev = Event.t)
                   (Logger : Simulator.Logging.Logger with type ev = Event.t)
                   (Network : Abstractions.Network.Network) = struct
 
-    (** create the nodes to be used in the simulation, and produce the node and link creation JSON logs *)
+    (** Create the nodes to be used in the simulation, and produce the node and link creation JSON logs.
+        @param init function to create the initial state of a node
+    *)
     let create_nodes init =
       let log_links links = 
         Array.iteri (
@@ -124,12 +154,15 @@ module Make = struct
       log_links links;
       nodes
 
-      (** create the initial events that jumpstart the simulation loop *)
+      (** Add the initial events that jumpstart the simulation loop to the Event Queue.
+        @param events the list of events to be added to the queue
+      *)
       let add_initial_events events =
         List.iter (fun e -> Queue.add_event e) events
 
   end
 
+  (** According to the parametrizations, initialize data structures to keep track of which nodes are offline, and when they become online/offline. *)
   let initialize_offline_node_data () =
     let offline:((int*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (0,0)) in
     if !Parameters.General.use_topology_file then
@@ -164,6 +197,7 @@ module Make = struct
         offline
       )
 
+  (** According to the parametrizations, initialize data structures to keep track of which nodes are malicous, and when they start acting maliciously. *)
   let initialize_malicious_node_data () =
     let malicious:((bool*int) array) = Array.init (!Parameters.General.num_nodes+1) (fun _ -> (false,0)) in
     if !Parameters.General.use_topology_file then
@@ -195,13 +229,14 @@ module Make = struct
       )
 
   
-
+  (** Argument for Statistics module that keeps track of the average time to reach consensus. *)
   module ConsensusArg = struct
     let label = "avg-consensus-time"
     let use_intervals = true
     let format = 1
   end
 
+  (** Argument for Statistics module that keeps track of the number of events processed per node. *)
   module EventsPerNodeArg = struct
     let label = "events-processed-per-node"
     let use_intervals = true
@@ -210,7 +245,7 @@ module Make = struct
 
   (*********************************************************************************)
 
-
+  (** Functor to create and implementation for an AbstractProtocol (protocol that simulates AbstractNodes). *)
   module Abstract(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Timer : Abstractions.Timer.Timer)
@@ -228,6 +263,11 @@ module Make = struct
 
   module MakeStep(Node: AbstractNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
 
+    (** A step in the simulation. Consists of assigning an event to a node, and given permission for that node to process the event.
+      @param timestamp the current timestamp
+      @param event the event to be processed
+      @param nodes the hashtable containing the state of all nodes being simulated
+    *)
     let step ts e nodes =
       begin
         Logger.log_event e;
@@ -252,6 +292,7 @@ module Make = struct
 
     end
 
+    (** Main loop of the simulation. Also performs initializations, logging and statistics computations. *)
     let run () =
       Simulator.Clock.reset ();
       Timer.clear ();
@@ -320,6 +361,7 @@ module Make = struct
 
   (*********************************************************************************)
 
+  (** Functor to create and implementation for a BlockchainProtocol (protocol that simulates BlockchainNodes). *)
   module Blockchain(Event : Simulator.Events.Event)
            (Queue : Simulator.Events.EventQueue with type ev = Event.t)
            (Block : Simulator.Block.BlockSig)
@@ -338,6 +380,11 @@ module Make = struct
 
   module MakeStep(Node: BlockchainNode with type ev = Event.t and type value = GoodNode.value and type node_data = GoodNode.node_data) = struct
     
+    (** A step in the simulation. Consists of assigning an event to a node, and given permission for that node to process the event.
+      @param timestamp the current timestamp
+      @param event the event to be processed
+      @param nodes the hashtable containing the state of all nodes being simulated
+    *)
     let step ts e nodes max_height =
       begin
         Logger.log_event e;
@@ -370,6 +417,7 @@ module Make = struct
 
     end
 
+    (** Main loop of the simulation. Also performs initializations, logging and statistics computations. *)
     let run () =
       Simulator.Clock.reset ();
       Timer.clear ();

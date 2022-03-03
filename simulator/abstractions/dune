@@ -1,5 +1,6 @@
 (library
  (name abstractions)
+ (public_name abstractions)
  (libraries parameters simulator yojson))
 (env
  (dev

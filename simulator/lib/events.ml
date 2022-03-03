@@ -1,51 +1,78 @@
 type timeout_label = string  (* type that identifies the kind of a timeout *)
 exception NotFound of string
 
+(** Signature required for a Message module. *)
 module type Message = sig
-  (** the type of a message *)
+  (** The type of the messages. *)
   type t
 
-  (** convert a message to JSON string *)
+  (** Convert a message to a JSON string.
+    @param msg the message to be converted
+  *)
   val to_json : t -> string
 
-  (** returns the size of a message *)
+  (** Returns the size of a message.
+    @param msg the message whose size we want
+  *)
   val get_size : t -> Size.t
 
-  (** returns the amount of time required to process a message, in millisseconds *)
+  (** Returns the amount of time required to process a message, in millisseconds.
+    @param msg the message whose processing time we want
+  *)
   val processing_time : t -> int
 
-  (** given a message, produce an integer that identifies the content contained in the message *)
-  (* for example, the id of a block *)
+  (** Returns an integer that identifies the content of a message. 
+    @param msg a message
+  *)
   val identifier : t -> int
 
 end
 
+(** Module containing required operations to handle events. *)
 module type Event = sig
-  (** the type of the message contents *)
+  (** The type of the messages. *)
   type msg
 
-  (** the type of the events processed during the simulation *)
+  (** The type of the events processed during the simulation. *)
   type t = 
-  Message of int * int * Clock.t * Clock.t * msg       (* nodeID(sender), nodeID(receiver), send_timestamp, recept_timestamp, msg *)
-  | MintBlock of int * Clock.t               (* nodeID, timestamp *)
-  | Timeout of int * Clock.t * timeout_label (* nodeID, timestamp, label *)
+  Message of int * int * Clock.t * Clock.t * msg (** Message receival event: {b sender}, {b receipient}, {b send_timestamp}, {b receive_timestamp}, {b msg} *)
+  | MintBlock of int * Clock.t               (* Block creation event: {b minter_id}, {b timestamp} *)
+  | Timeout of int * Clock.t * timeout_label (* Timeout event: {b node_id}, {b timestamp}, {b label} *)
 
-  (** given an event, returns the timestamp when it should be executed *)
+  (** Returns the timestamp when the event should be executed.
+    @param event an event
+  *)
   val timestamp : t -> Clock.t
 
-  (** given an event, return the node that should process the event *)
+  (** Return the node that should process an event.
+    @param event an event
+  *)
   val target : t -> int option
 
-  (** given the sender, receiver, send_timestamp, rcv_timestamp and message contents, create a message event *)
+  (** Create a message receival event.
+    @param sender the id of a node
+    @param recipient the id of a node
+    @param send_ts the timestamp when the message was sent
+    @param recept_ts the timestamp when the message will be received
+    @param msg the contents of the message
+  *)
   val create_message : int -> int -> Clock.t -> Clock.t -> msg -> t
 
-  (** given the minter, timestamp and block, create a minting event *)
+  (** Create a minting event.
+    @param minter the id of a node
+    @param timestamp the timestamp when the block will be created
+  *)
   val create_mint : int -> Clock.t -> t
 
-  (** given a node's id and a delay, creates a timeout event *)
+  (** Create a timeout event.
+    @param node_id the id of a node
+    @param delay the amount of time that must elapse until the timeout occurs
+    @param label the label to be associated with the timeout
+  *)
   val create_timeout : int -> Clock.t -> timeout_label -> t
 end
 
+(** Functor to create an implementation for Event, given a Message module. *)
 module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
   type msg = Msg.t
 
@@ -78,30 +105,38 @@ module MakeEvent(Msg : Message) : (Event with type msg = Msg.t) = struct
 end
 
 
+(** Contains the operations required for the Event Queue. *)
 module type EventQueue = sig
+  (** The type of events being stored. *)
   type ev
   
-  (* the type of the elements stored in the event queue *)
-  (* it is a tuple with the timestamp and the event *)
-  (* the timestamp is the key over which elements will be ordered *)
+  (** The type of the elements stored in the event queue.
+    It is a tuple with the timestamp and the event.
+    The timestamp is the key over which elements will be ordered.
+  *)
   type elem = (Clock.t * ev)
 
-  (** returns the next event in the queue (throws exception if the queue is empty) *)
+  (** Returns the next event in the queue (throws exception if the queue is empty). *)
   val get_event : unit -> elem
 
-  (** add an event to the queue, maintaining the timestamp ordering *)
+  (** Add an event to the queue, maintaining the timestamp ordering.
+    @param event the event to be added to the queue
+  *)
   val add_event : ev -> unit
 
-  (** returns whether or not there are pending events in the queue *)
+  (** Returns whether or not there are pending events in the queue. *)
   val has_event : unit -> bool
 
-  (** cancels a scheduled minting event *)
+  (** Cancels a scheduled minting event issued by the minter.
+    @param minter the id of the node that created the event
+  *)
   val cancel_minting : int -> unit
 
-  (** clear the queue *)
+  (** Clear all data from the queue. *)
   val clear : unit -> unit
 end
 
+(** Functor to create an implementation for the EventQueue, given the Event module. *)
 module MakeQueue(Event : Event) : (EventQueue with type ev = Event.t) = struct
   type ev = Event.t
   type elem = (Clock.t * ev)

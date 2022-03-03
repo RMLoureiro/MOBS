@@ -1,3 +1,4 @@
 (library
  (name parameters)
+ (public_name parameters)
  (libraries yojson))

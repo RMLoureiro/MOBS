@@ -2,20 +2,20 @@ type node_id  = int
 type block_id = int
 type balances = (node_id * float) list
 
-(** mandatory information that every block possesses *)
+(** Mandatory information that every block possesses. *)
 type block_header = 
 {
-  id               : block_id;
-  height           : int;
-  minter           : node_id;
-  parent           : node_id option;
-  timestamp        : Clock.t;
-  balances         : balances;
-  difficulty       : int;
-  total_difficulty : int;
+  id               : block_id; (** id of the block *)
+  height           : int; (** height of the block in the chain *)
+  minter           : node_id; (** id of the node who minted the block *)
+  parent           : node_id option; (** parent of the block *)
+  timestamp        : Clock.t; (** timestamp when the block was created *)
+  balances         : balances; (** the balance of each node *)
+  difficulty       : int; (** difficulty of creating the block *)
+  total_difficulty : int; (** total difficulty of creating the chain up to this block *)
 }
 
-(** type of a block: header + arbitrary information *)
+(** Type of a block: header + user-defined information *)
 type 'a t =
   {
     header   : block_header;
@@ -24,13 +24,18 @@ type 'a t =
 
 let id (block:'a t) = block.header.id
 
+(** Module that contains the reward function to be called when creating a new block. *)
 module type BlockRewards = sig
 
-  (* given the minter of the block and the balances, and produce the resulting balances *)
+  (** Given the minter of the block and the balances, and produce the resulting balances.
+    @param minter the node creating the block
+    @param balances the current balances of each node
+  *)
   val reward : int -> balances -> balances
 
 end
 
+(** Module for non-varying balances throughout the simulation. *)
 module NoRewards = struct
 
   let reward _ balances =
@@ -38,6 +43,7 @@ module NoRewards = struct
 
 end
 
+(** Base module for rewarding the minter of a block. *)
 module BaseRewards = struct
 
   let reward minter balances =
@@ -51,62 +57,100 @@ module BaseRewards = struct
 
 end
 
+(** The signature for a block module. *)
 module type BlockSig = sig
+  (** The user-defined contents of a block. *)
   type block_contents
 
+  (** The type of the block. Application of {b block_contents} to {b t}. *)
   type block = block_contents t
 
-  (** construct a new block, given the minter_id and parent block and block data *)
+  (** Create a new block.
+    @param node_id the id of the minter
+    @param block the parent block
+    @param block_contents the content for the new block
+  *)
   val create : node_id -> block -> block_contents -> block
 
-  (** returns the null block *)
+  (** Returns the null block *)
   val null : block_contents -> block
 
-  (** get the height of the block *)
+  (** Returns the height of a block.
+    @param block a block
+  *)
   val height : 'a t -> int
 
-  (** get the parent block *)
+  (** Returns the parent of a block.
+    @param block a block
+  *)
   val parent : 'a t -> node_id option
 
-  (** get the id of the node that minted the block *)
+  (** Returns the id of the node that minted the block.
+    @param block the block whose minter we want
+  *)
   val minter : 'a t -> node_id
 
-  (** get the id of the block *)
+  (** Return the id of a block given block.
+    @param block the block whose id we want
+  *)
   val id : 'a t -> block_id
 
-  (** get the id of a block option *)
+  (** Return the id of a block option. Returns -1 if NONE.
+    @param block_opt SOME({b block}) or {b NONE} 
+  *)
   val opt_id : 'a t option -> block_id
 
-  (** get the balances of the nodes *)
+  (** Return the balances contained in a block.
+    @param block a block
+  *)
   val balances : 'a t -> balances
 
-  (** get the timestamp of the block's creation *)
+  (** Return the timestamp of the block's creation.
+    @param block a block
+  *)
   val timestamp : 'a t -> Clock.t
 
-  (** get the difficulty of the block *)
+  (** Return the difficulty of the block.
+    @param block a block
+  *)
   val difficulty : 'a t -> int
 
-  (** get the total difficulty of the chain *)
+  (** Return the total difficulty of the chain.
+    @param block the head of the chain
+  *)
   val total_difficulty : 'a t -> int
 
-  (** get the total amount of coins *)
+  (** Return the total amount of coins.
+    @param block the head of the chain
+  *)
   val total_coins : 'a t -> float
 
-  (** get the genesis block, assigning a minter and a initial dificulty *)
+  (** Return the genesis block for PoW.
+    @param node_id placeholder minter
+    @param difficulty the initial difficulty
+    @param contents the contents to be included in the genesis block
+  *)
   val genesis_pow : node_id -> int -> block_contents -> block
 
-  (** get the genesis block, assigning a minter *)
+  (** Return the genesis block for PoS.
+    @param node_id placeholder minter
+    @param contents the contents to be included in the genesis block
+  *)
   val genesis_pos : node_id -> block_contents -> block
 
-  (** check if two blocks are equal *)
+  (** Check if two blocks are equal (have the same ID).
+    @param block1 a block
+    @param block2 another block  
+  *)
   val equals : 'a t -> 'a t -> bool
 end
 
+(** Wrapper for the type of a block's contents. *)
 module type BlockContent = sig
-  type t
+  type t (** The type of a block's contents. *)
 end
 
-
+(** Functor for creating the implementation for a Block, given the Logger, BlockContent and BlockRewards modules. *)
 module Make(Logger : Logging.Logger)(BlockContent:BlockContent)(Rewards:BlockRewards) : (BlockSig with type block_contents = BlockContent.t and type block = BlockContent.t t) = struct
 
   type block_contents = BlockContent.t

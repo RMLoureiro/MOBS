@@ -4,25 +4,38 @@
         a timeout occurs
 *)
 
+(** Abstraction to schedule and cancel timeout/alarm events for nodes in the simulation. *)
 module type Timer = sig
 
-  (** creates and schedules a timeout event for a node, given the nodeID, delay, and timeout label *)
+  (** Creates and schedules a timeout event for a node.
+    @param node_id the id of the node that is scheduling the timeout
+    @param timestamp the timestamp when the timeout should occur
+    @param label the label associated with the timout
+  *)
   val set : int -> Simulator.Clock.t -> string -> unit
 
-  (** cancels an existing timeout event, given a nodeiD and a label *)
+  (** Cancels an existing timeout event.
+    @param node_id the id of the node whose timeout is getting canceled
+    @param label the label of the respective timeout
+  *)
   val cancel : int -> Simulator.Events.timeout_label -> unit
 
-  (** checks if the timeout for nodeID, at timestamp, with label as expired *)
+  (** Checks if a given timeout is expired.
+    @param node_id the id of the node
+    @param timestamp the current timestamp
+    @param label the label of the timeout whose expiration is being checked
+  *)
   val expired : int -> Simulator.Clock.t -> Simulator.Events.timeout_label -> bool
 
-  (** clear existing timers *)
+  (** Clear all data associated with existing timers. *)
   val clear : unit -> unit
 
 end
 
+(** Create an implementation for Timer, given the Event and EventQueue modules. *)
 module Make(Event : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue with type ev = Event.t) : Timer = struct
 
-  (** for each node, store an hashtable with the next timer for each label *)
+  (* for each node, store an hashtable with the next timer for each label *)
   let next_timers = Array.init (!Parameters.General.num_nodes) (fun _ -> Hashtbl.create 5)
 
   let set nodeID delay label =

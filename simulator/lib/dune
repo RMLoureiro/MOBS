@@ -1,5 +1,6 @@
 (library
  (name simulator)
+ (public_name simulator)
  (libraries parameters))
  (env
  (dev

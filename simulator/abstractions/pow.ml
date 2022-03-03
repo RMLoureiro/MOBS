@@ -1,21 +1,30 @@
+(** Abstraction for common operations in proof of work protocols. *)
 module type PoW = sig
 
-  (** initialize the mining power of the nodes according to the parameters *)
+  (** Initialize the mining power of the nodes according to the parameters *)
   val init_mining_power : unit -> unit
 
-  (** given a node's ID and a block, starts the minting process by nodeID to extend that block *)
+  (** Given a node's ID and a block, starts the minting process by nodeID to extend that block
+    @param node_id the id of the node begining the minting process
+    @param block the head of the chain to be extended
+  *)
   val start_minting : int -> 'a Simulator.Block.t -> unit
 
-  (** given a node's ID, stops its minting process *)
+  (** Given a node's ID, stops its minting process
+    @param node_id the id of the node stopping the minting process
+  *)
   val stop_minting : int -> unit
 
-  (** given a node's ID obtain its mining power *)
+  (** Get the mining power of a given node.
+    @param node_id the id of the node
+  *)
   val get_mining_power : int -> int
 
-  (** get the network's total mining power *)
+  (** Get the network's total mining power. *)
   val total_mining_power : unit -> int
 end
 
+(** Creates an implementation for PoW, given the Event and EventQueue modules. *)
 module Make(Events : Simulator.Events.Event)(Queue : Simulator.Events.EventQueue with type ev = Events.t)(Block : Simulator.Block.BlockSig) : PoW = struct
 
   let mining_power : int list ref = ref []

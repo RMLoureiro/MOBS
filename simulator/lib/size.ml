@@ -1,3 +1,4 @@
+(** Type of sizes supported. *)
 type t =
   | Bit of int
   | Byte of int
@@ -5,7 +6,7 @@ type t =
   | Megabyte of int
   | Gigabyte of int
 
-
+(** Convert a given size to bits. *)
 let to_bits (s:t) : int =
   match s with
   | Bit(n) -> n
@@ -14,6 +15,7 @@ let to_bits (s:t) : int =
   | Megabyte(n) -> 8388608*n
   | Gigabyte(n) -> 8589934592*n
 
+(** Convert a given size to megabytes. *)
 let to_megabytes (s:t) : float =
   match s with
   | Bit(n) -> (float_of_int n) /. 8388608.0

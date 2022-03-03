@@ -1,60 +1,96 @@
 
+(** Proposal Component. *)
 module type Proposal = sig
-  type message (* contents of a message *)
-  type node    (* state of a node *)
+  type message (** Contents of a message *)
 
-  (* attempt to generate a block proposal message *)
+  type node    (** State of a node *)
+
+  (** Attempt to generate a block proposal message
+    @param node the state of a node
+  *)
   val create_proposal : node -> message option
 end
 
+(** Validation Component. *)
 module type Validation = sig
-  type message (* contents of a message *)
-  type node    (* state of a node *)
+  type message (** Contents of a message *)
 
-  (* check the validity of a message *)
+  type node    (** State of a node *)
+
+  (** Check the validity of a message.
+    @param node the state of a node
+    @param message the message to be validated
+  *)
   val validate : node -> message -> bool
 end
 
+(** Propagation Component. *)
 module type Propagation = sig
-  type message (* contents of a message *)
-  type node    (* state of a node *)
+  type message (** Contents of a message *)
 
-  (* gets pending messages from the node's message queue *)
-  (* we don't simply use the ones in the message queue by default,
-     to allow users to specify the behavior of some messages
-     only being processed at certain node states *)
+  type node    (** State of a node *)
+
+  (** Returns the messages that can be processed from the node's message queue.
+    We don't simply use the ones in the message queue by default,
+    to allow users to specify the behavior of some messages
+    only being processed at certain node states.
+    @param node the state of a node
+    @param messages a reference to the message queue
+  *)
   val receive : node -> message list ref -> message list
-  (* propagate a message through the network *)
+
+  (** Propagate a message through the network.
+    @param node the state of a node
+    @param message the message to be propagated
+  *)
   val propagate : node -> message -> unit
 end
 
+(** Finalization Component. *)
 module type Finalization = sig
   type message (* contents of a message *)
+  
   type node    (* state of a node *)
 
-  (* process received messages *)
-  (* reach consensus on a block to be added to the chain *)
+  (** Process a received message. Reach consensus
+    on a block to be added to the chain.
+    @param node the state of a node
+    @param message the message to be processed  
+  *)
   val process : node -> message -> node
 end
 
+(** Contains the state of a node and initialization operations. *)
 module type FCFNode = sig
-  (* the protocol specific data stored by the node *)
+  (** The protocol specific data stored by the node *)
   type node_data
-  (* the type of values for which consensus is being reached *)
+
+  (** The type of values for which consensus is being reached *)
   type value
-  (* contents of a message *)
+
+  (** Contents of a message *)
   type message 
-  (* the type representing a node and its state *)
+
+  (** The type representing a node and its state *)
   type t = (node_data, value) Protocol.template
-  (* the type of events in the simulator *)
+
+  (** The type of events in the simulator *)
   type ev
   
-  (* create the initial state of a node *)
+  (** Create the initial state of a node.
+    @param node_id the id to be assigned to the node
+    @param neighbors the node's neighbors
+    @param region the node's region
+  *)
   val init : int -> Abstractions.Network.links -> Abstractions.Network.region -> t
-  (* obtain the height of the chain stored in the node *)
+
+  (** Obtain the height of the chain stored in the node.
+    @param node the state of the node
+  *)
   val chain_height : t -> int
 end
 
+(** Functor to create a BlockchainNode implementation, given each of the individual Five-Component Framework modules.  *)
 module Make
   (Event : Simulator.Events.Event)
   (Node         : FCFNode      with type ev    = Event.t and type message = Event.msg)
