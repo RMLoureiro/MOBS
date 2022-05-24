@@ -1,5 +1,6 @@
 {
     "general": {
+        "protocol":"algorand",
         "num-nodes":100,
         "end-block-height":25,
         "timestamp-limit":0,

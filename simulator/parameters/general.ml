@@ -4,6 +4,7 @@
 let parameters_file = ref "default-parameters.json"
 
 (* general parameters and default values *)
+let protocol = ref "algorand"
 let num_nodes = ref 10
 let end_block_height = ref 5
 let base_seed = ref 123
@@ -77,6 +78,7 @@ let () =
   if Array.length Sys.argv > 2 then parameters_file := Sys.argv.(1);
   let json = Yojson.Basic.from_file !parameters_file in
   let open Yojson.Basic.Util in
+  protocol := get_general_param json "protocol" |> to_string;
   num_nodes := get_general_param json "num-nodes" |> to_int;
   end_block_height := get_general_param json "end-block-height" |> to_int;
   base_seed := get_general_param json "seed" |> to_int;
