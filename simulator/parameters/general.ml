@@ -31,6 +31,7 @@ let region_distribution = ref (Array.of_list [0.3316; 0.4998; 0.0090; 0.1177; 0.
 let degree_distribution = ref (Array.of_list [0.025; 0.025; 0.025; 0.025; 0.1; 0.1; 0.1; 0.1; 0.1; 0.1; 0.1; 0.05; 0.05; 0.05; 0.02; 0.0; 0.01; 0.01; 0.005; 0.005])
 (* bandwidths are in bits per second *)
 let limited_bandwidth = ref true
+let per_link_bandwidths = ref false
 let download_bandwidth = ref (Array.of_list [52000000; 40000000; 18000000; 22800000; 22800000; 29900000; 6000000])
 let upload_bandwidth = ref (Array.of_list [4700000; 8100000; 1800000; 5300000; 3400000; 5200000; 6000000])
 
@@ -101,6 +102,7 @@ let () =
   region_distribution := Array.of_list (get_network_param json "region-distribution" |> to_list |> filter_number);
   degree_distribution := Array.of_list (get_network_param json "degree-distribution" |> to_list |> filter_number);
   limited_bandwidth := get_network_param json "limited-bandwidth" |> to_bool;
+  per_link_bandwidths := get_network_param json "per-link-bandwidths" |> to_bool;
   download_bandwidth := Array.of_list (get_network_param json "download-bandwidth" |> to_list |> filter_int);
   upload_bandwidth := Array.of_list (get_network_param json "upload-bandwidth" |> to_list |> filter_int);
   let latency_table_tmp = get_network_param json "latency-table" |> to_list in

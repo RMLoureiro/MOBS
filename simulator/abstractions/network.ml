@@ -174,11 +174,16 @@ struct
   let shortest_paths:(paths option ref) = ref None (* shortest path from each node, to all other nodes *)
 
   (* data required to handle bandwidth limits *)
-  (* to model upload bandwidth limits, we keep track of the timestamp when the bandwidth becomes available for the next message to be sent *)
-  (* Note : we assume each message uses all available bandwidth, and therefore messages are sent in sequence, per link *)
-  (* Note : bandwidth becomes available after the message is uploaded to the link *)
-  module OQ = Map.Make(struct type t = int*int let compare = compare end);;
-  let outgoing_queues = ref OQ.empty;;
+    (* PER-LINK-BANDWIDTHS=TRUE *)
+    (* to model upload bandwidth limits, we keep track of the timestamp when the bandwidth becomes available for the next message to be sent *)
+    (* Note : we assume each message uses all available bandwidth, and therefore messages are sent in sequence, per link *)
+    (* Note : bandwidth becomes available after the message is uploaded to the link *)
+  module OQL = Map.Make(struct type t = int*int let compare = compare end);;
+  let outgoing_queues_links = ref OQL.empty;;
+    (* PER-LINK-BANDWIDTHS=FALSE *)
+    (* same as before, but instead of each message using available link bandwidth, uses available node bandwidth *)
+  module OQN = Map.Make(struct type t = int let compare = compare end);;
+  let outgoing_queues_nodes = ref OQN.empty;;
 
   let get_links () = links
 
@@ -213,17 +218,30 @@ struct
     let download_bandwidth = !Parameters.General.download_bandwidth.(region_receiver) in
     min upload_bandwidth download_bandwidth
 
-  (* get time needed to upload all pending messages to the link *)
-  let pending_upload_time sender receiver =
+  (* get time needed to upload all pending messages to a given link *)
+  let pending_upload_time_links sender receiver =
     let current_time = Simulator.Clock.get_timestamp () in
     let stored_available_timestamp =
-      match OQ.find_opt (sender,receiver) !outgoing_queues with
+      match OQL.find_opt (sender,receiver) !outgoing_queues_links with
       | Some(ts) -> ts
       | None -> 0
     in
     let next_available_timestamp = max stored_available_timestamp current_time in
     let wait_delay   = next_available_timestamp - current_time in
-    outgoing_queues := OQ.add (sender,receiver) next_available_timestamp !outgoing_queues;
+    outgoing_queues_links := OQL.add (sender,receiver) next_available_timestamp !outgoing_queues_links;
+    wait_delay
+
+  (* get time needed to upload all pending messages by the node *)
+  let pending_upload_time_node sender =
+    let current_time = Simulator.Clock.get_timestamp () in
+    let stored_available_timestamp =
+      match OQN.find_opt sender !outgoing_queues_nodes with
+      | Some(ts) -> ts
+      | None -> 0
+    in
+    let next_available_timestamp = max stored_available_timestamp current_time in
+    let wait_delay   = next_available_timestamp - current_time in
+    outgoing_queues_nodes := OQN.add sender next_available_timestamp !outgoing_queues_nodes;
     wait_delay
 
   (* send a message between two nodes *)
@@ -236,9 +254,18 @@ struct
       begin
         if !Parameters.General.limited_bandwidth then
           (
-            let wait_delay = pending_upload_time sender receiver in
-            outgoing_queues := OQ.add (sender,receiver) ((OQ.find (sender,receiver) !outgoing_queues) + delay) !outgoing_queues;
-            ((Simulator.Clock.get_timestamp ()) + latency + delay + wait_delay)
+            if !Parameters.General.per_link_bandwidths then
+              ( (* bandwidth limits are interpreted as per-link *)
+                let wait_delay = pending_upload_time_links sender receiver in
+                outgoing_queues_links := OQL.add (sender,receiver) ((OQL.find (sender,receiver) !outgoing_queues_links) + delay) !outgoing_queues_links;
+                ((Simulator.Clock.get_timestamp ()) + latency + delay + wait_delay)
+              )
+            else
+              ( (* bandwidth limits are interpreted as per-node *)
+                let wait_delay = pending_upload_time_node sender in
+                outgoing_queues_nodes := OQN.add sender ((OQN.find sender !outgoing_queues_nodes) + delay) !outgoing_queues_nodes;
+                ((Simulator.Clock.get_timestamp ()) + latency + delay + wait_delay)
+              )
           )
         else
           ((Simulator.Clock.get_timestamp ()) + latency + delay)
@@ -336,6 +363,7 @@ struct
     ()
 
     let clear () =
-      outgoing_queues := OQ.empty;;
+      outgoing_queues_links := OQL.empty;
+      outgoing_queues_nodes := OQN.empty;;
 
 end
