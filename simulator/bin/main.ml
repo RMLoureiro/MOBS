@@ -16,6 +16,7 @@ let () =
       | "ouroboros-bft" -> BftED.CardanoProtocol.run()
       | "ouroboros-praos" -> PraosED.CardanoProtocol.run()
       | "tenderbake" -> Tenderbake.TenderbakeProtocol.run()
+      | "chord" -> Chord.ChordProtocol.run()
       | _ -> (print_endline (Printf.sprintf "Unrecognized protocol <%s>" !Parameters.General.protocol); exit 0)
     );
     Parameters.General.current_batch := cur_batch + 1;
