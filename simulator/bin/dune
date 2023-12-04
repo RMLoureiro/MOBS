@@ -1,4 +1,16 @@
 (executable
  (name main)
- (libraries algorand bitcoin tenderbake simplepow cardano cardanoED praos praosED bft bftED flooding)
+ (libraries
+  algorand
+  bitcoin
+  tenderbake
+  simplepow
+  cardano
+  cardanoED
+  praos
+  praosED
+  bft
+  bftED
+  flooding
+  paxos)
  (modes byte exe))
