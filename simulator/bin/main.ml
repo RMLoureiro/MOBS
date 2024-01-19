@@ -18,6 +18,7 @@ let () =
       | "tenderbake" -> Tenderbake.TenderbakeProtocol.run()
       | "paxos" -> Paxos.PaxosProtocol.run()
       | "pbft" -> Pbft.PbftProtocol.run()
+      | "chandra-toueg" -> ChandraToueg.CTProtocol.run()
       | _ -> (print_endline (Printf.sprintf "Unrecognized protocol <%s>" !Parameters.General.protocol); exit 0)
     );
     Parameters.General.current_batch := cur_batch + 1;
