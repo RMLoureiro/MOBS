@@ -1,0 +1,4 @@
+(executable
+ (public_name mobs)
+ (name main)
+ (libraries mobs))

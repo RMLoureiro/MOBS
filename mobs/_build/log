@@ -1,0 +1,7 @@
+# dune init project mobs
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Workspace root:
+# "/Users/loureiro/Library/CloudStorage/OneDrive-FCTNOVA/Thesis-
+# RL/Simulators/Simulador-MOBS/MOBS/mobs"
+# Auto-detected concurrency: 8
