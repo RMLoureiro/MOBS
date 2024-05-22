@@ -1,11 +1,12 @@
 import json
 
 results = {}
+approvals = {}
 
 def read_json_file(file_path):
     try:
         with open(file_path, 'r') as file:
-            total_nodes = 10
+            total_nodes = 100
             consensus = 0
             runtime = 0
             average_approval = []
@@ -16,7 +17,7 @@ def read_json_file(file_path):
             
             # Print detailed data
             for key in results:
-                    if key != None:
+                    if key != None and results[key]["timestamp"] > 0:
                         consensus += + 1
                         if results[key]["timestamp"] > runtime:
                             runtime = results[key]["timestamp"]
@@ -28,6 +29,13 @@ def read_json_file(file_path):
 
 
             # Print global data
+            print()
+            print('================================APPROVAL DATA=====================================')
+            print()
+            
+            for value in approvals:
+                print('Node: ' + str(value) + ' approved ' + str(len(approvals[value])))
+
             print()
             print('================================GLOBAL DATA=====================================')
             print()
@@ -45,10 +53,13 @@ def read_json_object(json_object):
         message_type = json_object.get('content').get('msg-data').get('type')
         value = json_object.get('content').get('msg-data').get('Value')
         if message_type == 'Consensus Reached':
-            initialize_value(value)
+            receiver = json_object.get('content').get('end-node-id')
+            initialize_value(value, receiver)
+            if not value in approvals[receiver]:
+                approvals[receiver].add(value)
             results[value]["timestamp"] = json_object.get('content').get('reception-timestamp')
         elif message_type == 'Accepted':
-            initialize_value(value)
+            initialize_value(value, -1)
             if results[value]["timestamp"] == -1:
                 results[value]["agreed_before"].add(json_object.get('content').get('begin-node-id'))
             else:
@@ -57,10 +68,11 @@ def read_json_object(json_object):
                     results[value]["agreed_after"].add(node_id)
                 
             
-def initialize_value(value):
+def initialize_value(value, node_id):
     if not value in results:
         results[value] = {"timestamp": -1, "agreed_before": set(), "agreed_after": set()}
-
+    if not node_id in approvals and not node_id == -1:
+        approvals[node_id] = set()
 # Replace 'your_file_path.json' with the actual path to your JSON file
 file_path = '/Users/loureiro/Desktop/FCT/Thesis RL/Simulators/Simulador-MOBS/MOBS/output_files/out0-1.json'
 read_json_file(file_path)
