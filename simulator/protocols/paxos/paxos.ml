@@ -6,6 +6,7 @@ end
 
 type msg = 
   Init of int (*sender*)
+  | Propose of int * int (*sender value*)
   | Prepare of int * int (*sender n*)
   | Promise of int * int * int (*sender n previous_accept*)
   | Accept of int * int * int (*sender n value*)
@@ -18,6 +19,7 @@ module PaxosMsg : (Simulator.Events.Message with type t = msg) = struct
   let to_json (msg:t) : string = 
     match msg with
     | Init(receiver) ->  Printf.sprintf "{\"type\":\"Init\", \"node\":\"%d\"}" receiver
+    | Propose(receiver, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" receiver value
     | Prepare(receiver, n) -> Printf.sprintf "{\"type\":\"Prepare\",\"receiver\":\"%d\", \"N\": \"%d\"}" receiver n
     | Promise(receiver, n, previous_accept) -> Printf.sprintf "{\"type\":\"Promise\",\"receiver\":\"%d\", \"N\": \"%d\", \"PreviousAccept\": \"%d\"}" receiver n previous_accept
     | Accept(receiver, n, value) -> Printf.sprintf "{\"type\":\"Accept\",\"receiver\":\"%d\", \"N\": \"%d\", \"Value\": \"%d\"}" receiver n value
@@ -28,6 +30,7 @@ module PaxosMsg : (Simulator.Events.Message with type t = msg) = struct
   let get_size (msg:t) =
     match msg with
     | Init (_) -> Simulator.Size.Bit(32)
+    | Propose (_,_) -> Simulator.Size.Bit(32)
     | Prepare (_) -> Simulator.Size.Bit(32)
     | Promise (_,_,_) -> Simulator.Size.Bit(32)
     | Accept (_,_,_) -> Simulator.Size.Bit(32)
@@ -42,6 +45,7 @@ module PaxosMsg : (Simulator.Events.Message with type t = msg) = struct
   let identifier (msg:t) =
     match msg with
     | Init(receiver) -> receiver
+    | Propose(receiver, value) -> receiver * value
     | Prepare(receiver, n) -> receiver * n
     | Promise(receiver, n, previous_accept) -> receiver * n * previous_accept
     | Accept(receiver, n, value) -> receiver * n * value
@@ -110,8 +114,12 @@ module PaxosNode : (Protocol.BlockchainNode with type ev=PaxosEvent.t and type v
       node.data.accepting <- 0;
       node.data.value <- Random.int(100000);
       node.data.n <- node.data.n + 1 + Random.int(100);
+      PaxosNetwork.send node.id node.id (Propose(node.id, node.data.value));
       PaxosNetwork.send_to_neighbors node.id (Prepare(node.id, node.data.n));
       node
+
+      let receive_propose (node:t) _ _=
+        node
 
     let receive_prepare (node:t) sender n =
       if (node.data.n < n) then
@@ -186,6 +194,7 @@ module PaxosNode : (Protocol.BlockchainNode with type ev=PaxosEvent.t and type v
           begin
           match msg with
           | Init(_) -> receive_init node
+          | Propose(sender, value) -> receive_propose node sender value
           | Prepare(sender, n) -> receive_prepare node sender n
           | Promise(sender, n, previous_accept) -> receive_promise node sender n previous_accept
           | Accept(sender, n, value) -> receive_accept node sender n  value

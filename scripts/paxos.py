@@ -25,7 +25,17 @@ def read_json_file(file_path):
                         agreed_after = len(results[key]["agreed_after"])
                         total_agreement = agreed_before + agreed_after + 1
                         average_approval.append(total_agreement/ total_nodes)
-                        print('Value: ' + str(key) + ' Reached at: ' + str(results[key]["timestamp"]) + 'ms nodes agreed before: ' + str(agreed_before) + ' nodes agreed after: ' + str(agreed_after) + ' total agreement: ' + str(total_agreement))
+                        proposed_at = ""
+
+                        if results[key]["proposed"] == -1:
+                            proposed_at = " THIS VALUE WAS NOT PROPOSED"
+                        elif results[key]["proposed"] >= results[key]["timestamp"]:
+                            proposed_at = " THIS VALUE PROPOSE TIME IS INCONSISTENT"
+                        else:
+                            proposed_at = " This value was proposed at: " + str(results[key]["proposed"])
+
+                        print('Value: ' + str(key) + ' Reached at: ' + str(results[key]["timestamp"]) + 'ms nodes agreed before: ' + str(agreed_before) +
+                              ' nodes agreed after: ' + str(agreed_after) + ' total agreement: ' + str(total_agreement) + proposed_at)
 
 
             # Print global data
@@ -52,7 +62,10 @@ def read_json_object(json_object):
     if json_object.get('kind') == 'flow-message':
         message_type = json_object.get('content').get('msg-data').get('type')
         value = json_object.get('content').get('msg-data').get('Value')
-        if message_type == 'Consensus Reached':
+        if message_type == 'Proposing':
+            initialize_value(value, -1)
+            results[value]["proposed"] = json_object.get('content').get('reception-timestamp')
+        elif message_type == 'Consensus Reached':
             receiver = json_object.get('content').get('end-node-id')
             initialize_value(value, receiver)
             if not value in approvals[receiver]:
@@ -70,7 +83,7 @@ def read_json_object(json_object):
             
 def initialize_value(value, node_id):
     if not value in results:
-        results[value] = {"timestamp": -1, "agreed_before": set(), "agreed_after": set()}
+        results[value] = {"timestamp": -1, "agreed_before": set(), "agreed_after": set(), "proposed": -1}
     if not node_id in approvals and not node_id == -1:
         approvals[node_id] = set()
 # Replace 'your_file_path.json' with the actual path to your JSON file
