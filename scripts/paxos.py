@@ -2,6 +2,8 @@ import json
 
 results = {}
 approvals = {}
+errors = []
+rounds = {}
 
 def read_json_file(file_path):
     try:
@@ -29,6 +31,7 @@ def read_json_file(file_path):
 
                         if results[key]["proposed"] == -1:
                             proposed_at = " THIS VALUE WAS NOT PROPOSED"
+                            errors.append("VALUE: " + str(key) + " was accepted but not proposed")
                         elif results[key]["proposed"] >= results[key]["timestamp"]:
                             proposed_at = " THIS VALUE PROPOSE TIME IS INCONSISTENT"
                         else:
@@ -53,6 +56,15 @@ def read_json_file(file_path):
             print('Runtime: ' + str(runtime) + 'ms')
             print('Average time per consensus: ' + str(runtime/consensus) + 'ms')
             print('Average acceptance percentage: ' + str(sum(average_approval)/consensus * 100) + '%')
+
+            if(any(errors)):
+                print()
+                print('================================ERRORS=====================================')
+                print()
+                for error in errors:
+                    print(error)
+                print()
+
     except FileNotFoundError:
         print(f"File not found: {file_path}")
     except json.JSONDecodeError as e:
@@ -62,17 +74,16 @@ def read_json_object(json_object):
     if json_object.get('kind') == 'flow-message':
         message_type = json_object.get('content').get('msg-data').get('type')
         value = json_object.get('content').get('msg-data').get('Value')
+        receiver = json_object.get('content').get('end-node-id')
+        round = json_object.get('content').get('N')
+        initialize_and_validate(value, receiver, message_type, round)
         if message_type == 'Proposing':
-            initialize_value(value, -1)
             results[value]["proposed"] = json_object.get('content').get('reception-timestamp')
         elif message_type == 'Consensus Reached':
-            receiver = json_object.get('content').get('end-node-id')
-            initialize_value(value, receiver)
             if not value in approvals[receiver]:
                 approvals[receiver].add(value)
             results[value]["timestamp"] = json_object.get('content').get('reception-timestamp')
         elif message_type == 'Accepted':
-            initialize_value(value, -1)
             if results[value]["timestamp"] == -1:
                 results[value]["agreed_before"].add(json_object.get('content').get('begin-node-id'))
             else:
@@ -81,11 +92,18 @@ def read_json_object(json_object):
                     results[value]["agreed_after"].add(node_id)
                 
             
-def initialize_value(value, node_id):
+def initialize_and_validate(value, node_id, message_type, round):
     if not value in results:
         results[value] = {"timestamp": -1, "agreed_before": set(), "agreed_after": set(), "proposed": -1}
-    if not node_id in approvals and not node_id == -1:
-        approvals[node_id] = set()
+    if message_type == 'Consensus Reached':
+        if not node_id in approvals and not node_id == -1:
+            approvals[node_id] = set()
+        if not round is None:
+            if rounds[round] is None:
+                rounds[round] = value
+            elif not rounds[round] == value:
+                errors.append('In round N there were two different values accepted, ' + str(value) + ' and ' + str(rounds[round]))
+                
 # Replace 'your_file_path.json' with the actual path to your JSON file
 file_path = '/Users/loureiro/Desktop/FCT/Thesis RL/Simulators/Simulador-MOBS/MOBS/output_files/out0-1.json'
 read_json_file(file_path)
