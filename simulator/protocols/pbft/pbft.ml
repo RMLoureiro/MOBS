@@ -20,11 +20,11 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     match msg with
     | InitClient(receiver) ->  Printf.sprintf "{\"type\":\"InitClient\", \"node\":\"%d\"}" receiver
     | Request(receiver) ->  Printf.sprintf "{\"type\":\"Request\", \"node\":\"%d\"}" receiver
-    | PrePrepare(sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" sender view
-    | Prepare(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" sender view
-    | Commit(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" sender view
-    | Reply(receiver, n, view, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" sender view
-    | Accept(sender, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\": \"%d\"}" sender view
+    | PrePrepare(client, n, view, value) ->  Printf.sprintf "{\"type\":\"PrePrepare\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client n view value
+    | Prepare(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Prepare\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
+    | Commit(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Commit\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
+    | Reply(sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Reply\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" sender n view value
+    | Accept(sender, value) ->  Printf.sprintf "{\"type\":\"Accept\", \"node\":\"%d\", \"Value\": \"%d\"}" sender value
 
   let get_size (msg:t) =
     match msg with
