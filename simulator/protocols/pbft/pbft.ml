@@ -6,7 +6,7 @@ end
 
 type msg = 
   InitClient of int (*sender*)
-  | Request of int (*sender*)
+  | Request of int * int(*sender value*)
   | PrePrepare of int * int * int * int (*sender n value*)
   | Prepare of int * int * int * int * int
   | Commit of int * int * int * int * int
@@ -19,7 +19,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
   let to_json (msg:t) : string = 
     match msg with
     | InitClient(receiver) ->  Printf.sprintf "{\"type\":\"InitClient\", \"node\":\"%d\"}" receiver
-    | Request(receiver) ->  Printf.sprintf "{\"type\":\"Request\", \"node\":\"%d\"}" receiver
+    | Request(receiver, value) ->  Printf.sprintf "{\"type\":\"Request\", \"node\":\"%d\", \"Value\":\"%d\" }" receiver value
     | PrePrepare(client, n, view, value) ->  Printf.sprintf "{\"type\":\"PrePrepare\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client n view value
     | Prepare(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Prepare\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
     | Commit(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Commit\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
@@ -29,7 +29,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
   let get_size (msg:t) =
     match msg with
     | InitClient (_) -> Simulator.Size.Bit(32)
-    | Request (_) -> Simulator.Size.Bit(32)
+    | Request (_,_) -> Simulator.Size.Bit(32)
     | PrePrepare (_,_,_,_) -> Simulator.Size.Bit(32)
     | Prepare (_,_,_,_,_) -> Simulator.Size.Bit(32)
     | Commit (_,_,_,_,_) -> Simulator.Size.Bit(32)
@@ -42,7 +42,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
   let identifier (msg:t) =
     match msg with
     | InitClient(sender) -> sender
-    | Request(sender) -> sender
+    | Request(sender, value) -> sender * value
     | PrePrepare(sender, n, view,_) -> sender * n * view
     | Prepare(client, sender, n, view, value) -> client * sender * n * view * value
     | Commit(client, sender, n, view, value) -> client * sender * n * view * value + 1
@@ -87,6 +87,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
     mutable network_size : int;
     mutable client : int;
     mutable n : int;
+    mutable accepting : bool;
   }
 
   type t = (node_data, value) Protocol.template
@@ -106,63 +107,82 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
         network_size = !Parameters.General.num_nodes;
         client = 0;
         n = 0;
+        accepting = false;
       }
     }
 
     let receive_init_client (node:t) =
       node.data.client <- 1;
       node.data.view <- node.data.view + 1;
-      PbftNetwork.send node.id node.id (Request(node.id));
+      node.data.value <- Random.int(100000);
+      PbftNetwork.send node.id node.id (Request(node.id, node.data.value));
       node
 
     let receive_request (node:t) =
       node.data.n <- node.data.n + 1 + Random.int(10);
-      node.data.value <- Random.int(100000);
       node.data.quorum_accept <- [];
+      node.data.accepting <- true;
       PbftNetwork.gossip node.id (PrePrepare(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
       node
 
     let receive_reply (node:t) sender n view value =
       if (node.data.n = n && node.data.view = view && node.data.value = value) then
-        node.data.quorum_accept <- node.data.quorum_accept @ [sender];
-      if ((List.length node.data.quorum_accept) > (node.data.network_size / 3)) then
         begin
-          PbftNetwork.send node.id node.id (Accept(node.id, value)); (* add crypto value *)
+        if (not (List.mem sender node.data.quorum_accept)) then
+          begin
+            node.data.quorum_accept <- node.data.quorum_accept @ [sender];
+            if ((List.length node.data.quorum_accept) > (node.data.network_size / 3) && node.data.accepting) then
+              begin
+                node.data.accepting <- false;
+                PbftNetwork.send node.id node.id (Accept(node.id, value)); (* add crypto value *)
+              end;
+          end;
         end;
       node
 
     let receive_accept (node:t) sender value =
-      PbftNetwork.send node.id node.id (Request(node.id));
+      node.data.value <- Random.int(100000);
+      PbftNetwork.send node.id node.id (Request(node.id, node.data.value));
       node
 
     let receive_pre_prepare (node:t) sender n view value =
       if ((node.data.n < n && node.data.view <= view) ||
           not(node.data.n = n && node.data.view = view && node.data.value <> value)) then
             begin
-              node.data.quorum_prepare <- [node.id];
               node.data.n <- n;
               node.data.value <- value;
               node.data.view <- view;
+              node.data.quorum_prepare <- [];
+              node.data.quorum_accept <- [];
+              node.data.quorum_commit <- [];
               PbftNetwork.gossip node.id (Prepare(sender, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
             end;
       node
 
       let receive_prepare (node:t) sender client n view value =
         if (node.data.n = n && node.data.view = view && node.data.value = value) then
-          node.data.quorum_prepare <- node.data.quorum_prepare @ [sender];
-        if ((List.length node.data.quorum_prepare) > (node.data.network_size / 3)) then
           begin
-            node.data.quorum_commit <- [node.id];
-            PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+              if(not (List.mem sender node.data.quorum_prepare)) then
+              begin
+                node.data.quorum_prepare <- node.data.quorum_prepare @ [sender];
+                if ((List.length node.data.quorum_prepare) > (node.data.network_size / 3)) then
+                  begin
+                    node.data.quorum_commit <- [node.id];
+                    PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+                  end;
+              end;
           end;
         node
 
       let receive_commit (node:t) sender client n view value =
         if (node.data.n = n && node.data.view = view && node.data.value = value) then
-          node.data.quorum_prepare <- node.data.quorum_commit @ [sender];
-        if ((List.length node.data.quorum_commit) > (node.data.network_size / 3)) then
-          begin
-            PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+          if(not (List.mem sender node.data.quorum_commit)) then
+            begin
+              node.data.quorum_commit <- node.data.quorum_commit @ [sender];
+              if ((List.length node.data.quorum_commit) > (node.data.network_size / 3)) then
+                begin
+                  PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+                end;
           end;
         node
 
@@ -172,7 +192,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
           begin
           match msg with
           | InitClient(_) -> receive_init_client node
-          | Request(_) -> receive_request node
+          | Request(_,_) -> receive_request node
           | PrePrepare(sender, n, view, value) -> receive_pre_prepare node sender n view value
           | Prepare(client, sender, n, view, value) -> receive_prepare node sender client n view value
           | Commit(client, sender, n, view, value) -> receive_commit node sender client n view value
@@ -195,7 +215,6 @@ module PbftInitializer : (Protocol.Initializer with type node=PbftNode.t and typ
   let init _ =  
     Random.self_init ();
     [PbftEvent.Message(0, 1, 0, 0, InitClient(1));]
-    (* [PbftEvent.Message(0, 2, 0, 0, InitClient(2))] *)
 
 end
 
