@@ -1,5 +1,7 @@
 open Implementation
 
+let slot_duration = 3000;
+
 module BlockContents = struct
   type t = unit
 end
@@ -12,6 +14,8 @@ type msg =
   | Commit of int * int * int * int * int
   | Reply of int * int * int * int
   | Accept of int * int
+  | ViewChange of int * int * int
+  | NewView of int * int
 
 module PbftMsg : (Simulator.Events.Message with type t = msg) = struct 
   type t = msg
@@ -25,6 +29,8 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Commit\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
     | Reply(sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Reply\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" sender n view value
     | Accept(sender, value) ->  Printf.sprintf "{\"type\":\"Accept\", \"node\":\"%d\", \"Value\": \"%d\"}" sender value
+    | ViewChange(sender, client, view) ->  Printf.sprintf "{\"type\":\"ViewChange\", \"node\":\"%d\", \"Client\": \"%d\", \"View\": \"%d\"}" sender client view
+    | NewView(sender, view) ->  Printf.sprintf "{\"type\":\"NewView\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
 
   let get_size (msg:t) =
     match msg with
@@ -35,6 +41,8 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit (_,_,_,_,_) -> Simulator.Size.Bit(32)
     | Reply (_,_,_,_) -> Simulator.Size.Bit(32)
     | Accept (_,_) -> Simulator.Size.Bit(32)
+    | ViewChange (_,_,_) -> Simulator.Size.Bit(32)
+    | NewView (_,_) -> Simulator.Size.Bit(32)
 
   let processing_time (_:t) =
     0
@@ -48,6 +56,8 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit(client, sender, n, view, value) -> client * sender * n * view * value + 1
     | Reply(sender, n, view, value) ->  sender * n * view * value
     | Accept(sender, value) -> sender * value + 1
+    | ViewChange(sender, client, _) -> sender * client * client + 3
+    | NewView(sender, view) -> sender * view + 5
 end
 
 
@@ -81,11 +91,13 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
   type node_data = {
     mutable view : int;
     mutable value : int;
+    mutable view_change : int;
     mutable quorum_prepare : int list;
     mutable quorum_commit : int list;
     mutable quorum_accept : int list;
+    mutable quorum_view_change : int list;
     mutable network_size : int;
-    mutable client : int;
+    mutable client : bool;
     mutable n : int;
     mutable accepting : bool;
   }
@@ -100,21 +112,24 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
       state = PbftBlock.null ();
       data  = {
         view = 0;
+        view_change = 0;
         value = 0;
         quorum_prepare = [];
         quorum_commit = [];
         quorum_accept = [];
+        quorum_view_change = [];
         network_size = !Parameters.General.num_nodes;
-        client = 0;
+        client = false;
         n = 0;
         accepting = false;
       }
     }
 
     let receive_init_client (node:t) =
-      node.data.client <- 1;
+      node.data.client <- true;
       node.data.view <- node.data.view + 1;
       node.data.value <- Random.int(100000);
+      PbftTimer.set node.id slot_duration "new_view";
       PbftNetwork.send node.id node.id (Request(node.id, node.data.value));
       node
 
@@ -128,20 +143,22 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
     let receive_reply (node:t) sender n view value =
       if (node.data.n = n && node.data.view = view && node.data.value = value) then
         begin
-        if (not (List.mem sender node.data.quorum_accept)) then
-          begin
-            node.data.quorum_accept <- node.data.quorum_accept @ [sender];
-            if ((List.length node.data.quorum_accept) > (node.data.network_size / 3) && node.data.accepting) then
-              begin
-                node.data.accepting <- false;
-                PbftNetwork.send node.id node.id (Accept(node.id, value)); (* add crypto value *)
-              end;
-          end;
+          PbftTimer.cancel node.id "new_view";
+          if (not (List.mem sender node.data.quorum_accept)) then
+            begin
+              node.data.quorum_accept <- node.data.quorum_accept @ [sender];
+              if ((List.length node.data.quorum_accept) > (node.data.network_size / 3) && node.data.accepting) then
+                begin
+                  node.data.accepting <- false;
+                  PbftNetwork.send node.id node.id (Accept(node.id, value)); (* add crypto value *)
+                end;
+            end;
         end;
       node
 
-    let receive_accept (node:t) sender value =
+    let receive_accept (node:t) _ _ =
       node.data.value <- Random.int(100000);
+      PbftTimer.set node.id slot_duration "new_view";
       PbftNetwork.send node.id node.id (Request(node.id, node.data.value));
       node
 
@@ -159,46 +176,83 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
             end;
       node
 
-      let receive_prepare (node:t) sender client n view value =
-        if (node.data.n = n && node.data.view = view && node.data.value = value) then
-          begin
-              if(not (List.mem sender node.data.quorum_prepare)) then
-              begin
-                node.data.quorum_prepare <- node.data.quorum_prepare @ [sender];
-                if ((List.length node.data.quorum_prepare) > (node.data.network_size / 3)) then
-                  begin
-                    node.data.quorum_commit <- [node.id];
-                    PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
-                  end;
-              end;
-          end;
-        node
-
-      let receive_commit (node:t) sender client n view value =
-        if (node.data.n = n && node.data.view = view && node.data.value = value) then
-          if(not (List.mem sender node.data.quorum_commit)) then
+    let receive_prepare (node:t) sender client n view value =
+      if (node.data.n = n && node.data.view = view && node.data.value = value) then
+        begin
+            if(not (List.mem sender node.data.quorum_prepare)) then
             begin
-              node.data.quorum_commit <- node.data.quorum_commit @ [sender];
-              if ((List.length node.data.quorum_commit) > (node.data.network_size / 3)) then
+              node.data.quorum_prepare <- node.data.quorum_prepare @ [sender];
+              if ((List.length node.data.quorum_prepare) > (node.data.network_size / 3)) then
                 begin
-                  PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+                  node.data.quorum_commit <- [node.id];
+                  PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
                 end;
-          end;
-        node
+            end;
+        end;
+      node
+
+    let receive_commit (node:t) sender client n view value =
+      if (node.data.n = n && node.data.view = view && node.data.value = value) then
+        if(not (List.mem sender node.data.quorum_commit)) then
+          begin
+            node.data.quorum_commit <- node.data.quorum_commit @ [sender];
+            if ((List.length node.data.quorum_commit) > (node.data.network_size / 3)) then
+              begin
+                PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+              end;
+        end;
+      node
+
+    let receive_view_change_trigger (node:t) =
+      PbftNetwork.send node.id node.id (ViewChange(node.id, node.id, node.data.view + 1));
+      node
+
+    let receive_view_change (node:t) _ client view =
+      if (node.data.view < view && node.data.view_change <> view) then
+        begin
+          node.data.view_change <- view;
+          PbftNetwork.send node.id client (NewView(node.id, node.data.view));
+        end;
+      node
+
+    let receive_new_view (node:t) sender view =
+      if (node.data.client) then
+        (
+          if (node.data.view_change = view && not (List.mem sender node.data.quorum_view_change)) then
+            begin
+              node.data.quorum_view_change <- node.data.quorum_view_change @ [sender];
+              if ((List.length node.data.quorum_view_change) > (node.data.network_size / 3)) then
+                begin
+                  node.data.view <- view;
+                  PbftNetwork.gossip node.id (NewView(node.id, node.data.view));
+                end;
+            end;
+        )
+      else
+        node.data.view <- view;
+      node
 
     let handle (node:t) (event:ev) : t =
       match event with
         | PbftEvent.Message(_,_,_,_,msg) -> 
           begin
-          match msg with
-          | InitClient(_) -> receive_init_client node
-          | Request(_,_) -> receive_request node
-          | PrePrepare(sender, n, view, value) -> receive_pre_prepare node sender n view value
-          | Prepare(client, sender, n, view, value) -> receive_prepare node sender client n view value
-          | Commit(client, sender, n, view, value) -> receive_commit node sender client n view value
-          | Reply(sender, n, view, value) -> receive_reply node sender n view value
-          | Accept(sender, value) -> receive_accept node sender value
+            match msg with
+              | InitClient(_) -> receive_init_client node
+              | Request(_,_) -> receive_request node
+              | PrePrepare(sender, n, view, value) -> receive_pre_prepare node sender n view value
+              | Prepare(client, sender, n, view, value) -> receive_prepare node sender client n view value
+              | Commit(client, sender, n, view, value) -> receive_commit node sender client n view value
+              | Reply(sender, n, view, value) -> receive_reply node sender n view value
+              | Accept(sender, value) -> receive_accept node sender value
+              | ViewChange(sender, client, view) -> receive_view_change node sender client view
+              | NewView(sender, view) -> receive_new_view node sender view
           end
+        | PbftEvent.Timeout(_,_,label) ->
+          begin
+            match label with
+            | "new_view" -> receive_view_change_trigger node
+            | _ -> node
+            end
         | _ -> node
 
   let chain_height (node:t) = 
