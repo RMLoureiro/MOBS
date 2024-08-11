@@ -4,11 +4,12 @@ results = {}
 approvals = {}
 errors = []
 rounds = {}
+view_changes = []
 
 def read_json_file(file_path):
     try:
         with open(file_path, 'r') as file:
-            total_nodes = 10
+            total_nodes = 20
             consensus = 0
             runtime = 0
             average_approval = []
@@ -81,6 +82,7 @@ def read_json_object(json_object):
             results[value]["proposed"] = json_object.get('content').get('reception-timestamp')
         elif message_type == 'Accept':
             if not value in approvals[receiver]:
+                view_changes = []
                 approvals[receiver].add(value)
             results[value]["timestamp"] = json_object.get('content').get('reception-timestamp')
         elif message_type == 'Reply':
@@ -90,6 +92,13 @@ def read_json_object(json_object):
                 node_id = json_object.get('content').get('begin-node-id')
                 if not node_id in results[value]["agreed_before"]:
                     results[value]["agreed_after"].add(node_id)
+        elif message_type == 'ApplyNewView':
+            view = json_object.get('content').get('msg-data').get('View')
+            if not view in view_changes:
+                view_changes.append(view)
+                if len(view_changes) >= 5:
+                    view_changes = []
+                    errors.append('View changed 5 or more times without deciding a new value')
                 
             
 def initialize_and_validate(value, node_id, message_type, round):

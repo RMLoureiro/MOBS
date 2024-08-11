@@ -16,6 +16,7 @@ type msg =
   | Accept of int * int
   | ViewChange of int * int * int
   | NewView of int * int
+  | ApplyNewView of int * int
 
 module PbftMsg : (Simulator.Events.Message with type t = msg) = struct 
   type t = msg
@@ -31,6 +32,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Accept(sender, value) ->  Printf.sprintf "{\"type\":\"Accept\", \"node\":\"%d\", \"Value\": \"%d\"}" sender value
     | ViewChange(sender, client, view) ->  Printf.sprintf "{\"type\":\"ViewChange\", \"node\":\"%d\", \"Client\": \"%d\", \"View\": \"%d\"}" sender client view
     | NewView(sender, view) ->  Printf.sprintf "{\"type\":\"NewView\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
+    | ApplyNewView(sender, view) ->  Printf.sprintf "{\"type\":\"ApplyNewView\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
 
   let get_size (msg:t) =
     match msg with
@@ -43,6 +45,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Accept (_,_) -> Simulator.Size.Bit(32)
     | ViewChange (_,_,_) -> Simulator.Size.Bit(32)
     | NewView (_,_) -> Simulator.Size.Bit(32)
+    | ApplyNewView (_,_) -> Simulator.Size.Bit(32)
 
   let processing_time (_:t) =
     0
@@ -58,6 +61,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Accept(sender, value) -> sender * value + 1
     | ViewChange(sender, client, _) -> sender * client * client + 3
     | NewView(sender, view) -> sender * view + 5
+    | ApplyNewView(sender, view) -> sender * view + 11
 end
 
 
@@ -204,7 +208,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
       node
 
     let receive_view_change_trigger (node:t) =
-      PbftNetwork.send node.id node.id (ViewChange(node.id, node.id, node.data.view + 1));
+      PbftNetwork.gossip node.id (ViewChange(node.id, node.id, node.data.view + 1));
       node
 
     let receive_view_change (node:t) _ client view =
@@ -216,20 +220,24 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
       node
 
     let receive_new_view (node:t) sender view =
-      if (node.data.client) then
-        (
-          if (node.data.view_change = view && not (List.mem sender node.data.quorum_view_change)) then
+      if (node.data.view_change = view && not (List.mem sender node.data.quorum_view_change)) then
+        begin
+          node.data.quorum_view_change <- node.data.quorum_view_change @ [sender];
+          if ((List.length node.data.quorum_view_change) > (node.data.network_size / 3)) then
             begin
-              node.data.quorum_view_change <- node.data.quorum_view_change @ [sender];
-              if ((List.length node.data.quorum_view_change) > (node.data.network_size / 3)) then
-                begin
-                  node.data.view <- view;
-                  PbftNetwork.gossip node.id (NewView(node.id, node.data.view));
-                end;
+              node.data.view_change <- 0;
+              node.data.view <- view;
+              PbftNetwork.gossip node.id (ApplyNewView(node.id, node.data.view));
             end;
-        )
-      else
-        node.data.view <- view;
+        end;
+      node
+
+    let receive_apply_new_view (node:t) _ view =
+      if (node.data.view_change = node.data.view) then
+        begin
+          node.data.view_change <- 0;
+          node.data.view <- view;
+        end;
       node
 
     let handle (node:t) (event:ev) : t =
@@ -246,6 +254,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               | Accept(sender, value) -> receive_accept node sender value
               | ViewChange(sender, client, view) -> receive_view_change node sender client view
               | NewView(sender, view) -> receive_new_view node sender view
+              | ApplyNewView(sender, view) -> receive_apply_new_view node sender view
           end
         | PbftEvent.Timeout(_,_,label) ->
           begin
