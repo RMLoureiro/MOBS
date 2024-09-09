@@ -4,7 +4,8 @@ results = {}
 approvals = {}
 errors = []
 rounds = {}
-view_changes = []
+recent_view_changes = set()
+view_changes = {}
 
 def read_json_file(file_path):
     try:
@@ -18,29 +19,45 @@ def read_json_file(file_path):
             for json_object in json_array:
                 read_json_object(json_object)
             
-            # Print detailed data
-            for key in results:
-                    if key != None and results[key]["timestamp"] > 0:
+            while len(view_changes) > 0 or len(results) > 0:
+                if len(view_changes) > 0:
+                    view_changes_key = list(view_changes.keys())[0]
+                    view_changes_timestamp = view_changes[view_changes_key]["timestamp"]
+                else:
+                    view_changes_timestamp = 9223372036854775807
+
+                if len(results) > 0:
+                    results_key = list(results.keys())[0]
+                    results_timestamp = results[results_key]["timestamp"]
+                else:
+                    results_timestamp = 9223372036854775807
+
+
+                if view_changes_timestamp < results_timestamp:
+                    print('View changed to ' + str(view_changes_key) + ' at ' + str(view_changes[view_changes_key]["timestamp"]) + 'ms')
+                    del view_changes[view_changes_key]
+                else:
+                    if results_key != None and results_timestamp > 0:
                         consensus += + 1
-                        if results[key]["timestamp"] > runtime:
-                            runtime = results[key]["timestamp"]
-                        agreed_before = len(results[key]["agreed_before"])
-                        agreed_after = len(results[key]["agreed_after"])
+                        if results[results_key]["timestamp"] > runtime:
+                            runtime = results[results_key]["timestamp"]
+                        agreed_before = len(results[results_key]["agreed_before"])
+                        agreed_after = len(results[results_key]["agreed_after"])
                         total_agreement = agreed_before + agreed_after
                         average_approval.append(total_agreement/ total_nodes)
                         proposed_at = ""
 
-                        if results[key]["proposed"] == -1:
+                        if results[results_key]["proposed"] == -1:
                             proposed_at = " THIS VALUE WAS NOT PROPOSED"
-                            errors.append("VALUE: " + str(key) + " was accepted but not proposed")
-                        elif results[key]["proposed"] >= results[key]["timestamp"]:
+                            errors.append("VALUE: " + str(results_key) + " was accepted but not proposed")
+                        elif results[results_key]["proposed"] >= results[results_key]["timestamp"]:
                             proposed_at = " THIS VALUE PROPOSE TIME IS INCONSISTENT"
                         else:
-                            proposed_at = " This value was proposed at: " + str(results[key]["proposed"])
+                            proposed_at = " This value was proposed at: " + str(results[results_key]["proposed"])
 
-                        print('Value: ' + str(key) + ' Reached at: ' + str(results[key]["timestamp"]) + 'ms nodes agreed before: ' + str(agreed_before) +
-                              ' nodes agreed after: ' + str(agreed_after) + ' total agreement: ' + str(total_agreement) + proposed_at)
-
+                        print('Value: ' + str(results_key) + ' Reached at: ' + str(results[results_key]["timestamp"]) + 'ms nodes agreed before: ' + str(agreed_before) +
+                                ' nodes agreed after: ' + str(agreed_after) + ' total agreement: ' + str(total_agreement) + proposed_at)
+                    del results[results_key]
 
             # Print global data
             print()
@@ -55,8 +72,8 @@ def read_json_file(file_path):
             print()
             print('No of consensus reached: ' + str(consensus))
             print('Runtime: ' + str(runtime) + 'ms')
-            print('Average time per consensus: ' + str(runtime/consensus) + 'ms')
-            print('Average acceptance percentage: ' + str(sum(average_approval)/consensus * 100) + '%')
+            if consensus != 0 : print('Average time per consensus: ' + str(runtime/consensus) + 'ms')
+            if consensus != 0 : print('Average acceptance percentage: ' + str(sum(average_approval)/consensus * 100) + '%')
 
             if(any(errors)):
                 print()
@@ -77,14 +94,15 @@ def read_json_object(json_object):
         value = json_object.get('content').get('msg-data').get('Value')
         receiver = json_object.get('content').get('end-node-id')
         round = json_object.get('content').get('N')
+        timestamp = json_object.get('content').get('reception-timestamp')
         initialize_and_validate(value, receiver, message_type, round)
         if message_type == 'Request':
-            results[value]["proposed"] = json_object.get('content').get('reception-timestamp')
+            results[value]["proposed"] = timestamp
         elif message_type == 'Accept':
             if not value in approvals[receiver]:
-                view_changes = []
+                recent_view_changes.clear()
                 approvals[receiver].add(value)
-            results[value]["timestamp"] = json_object.get('content').get('reception-timestamp')
+            results[value]["timestamp"] = timestamp
         elif message_type == 'Reply':
             if results[value]["timestamp"] == -1:
                 results[value]["agreed_before"].add(json_object.get('content').get('begin-node-id'))
@@ -94,10 +112,11 @@ def read_json_object(json_object):
                     results[value]["agreed_after"].add(node_id)
         elif message_type == 'ApplyNewView':
             view = json_object.get('content').get('msg-data').get('View')
-            if not view in view_changes:
-                view_changes.append(view)
-                if len(view_changes) >= 5:
-                    view_changes = []
+            if not view in recent_view_changes:
+                initialize_and_validate_view_change(view, timestamp)
+                recent_view_changes.add(view)
+                if len(recent_view_changes) >= 5:
+                    recent_view_changes.clear()
                     errors.append('View changed 5 or more times without deciding a new value')
                 
             
@@ -113,6 +132,10 @@ def initialize_and_validate(value, node_id, message_type, round):
             elif not rounds[round] == value:
                 errors.append('In round N there were two different values accepted, ' + str(value) + ' and ' + str(rounds[round]))
                 
+def initialize_and_validate_view_change(view, timestamp):
+    if not view in view_changes:
+        view_changes[view] = {"timestamp": timestamp}
+
 # Replace 'your_file_path.json' with the actual path to your JSON file
 file_path = '/Users/loureiro/Desktop/FCT/Thesis RL/Simulators/Simulador-MOBS/MOBS/output_files/out0-1.json'
 read_json_file(file_path)

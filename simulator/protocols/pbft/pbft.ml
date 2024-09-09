@@ -14,7 +14,7 @@ type msg =
   | Commit of int * int * int * int * int
   | Reply of int * int * int * int
   | Accept of int * int
-  | ViewChange of int * int * int
+  | ViewChange of int * int
   | NewView of int * int
   | ApplyNewView of int * int
 
@@ -30,7 +30,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit(client, sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Commit\", \"Client\":\"%d\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" client sender n view value
     | Reply(sender, n, view, value) ->  Printf.sprintf "{\"type\":\"Reply\", \"Client\":\"%d\", \"N\": \"%d\", \"View\":\"%d\", \"Value\": \"%d\"}" sender n view value
     | Accept(sender, value) ->  Printf.sprintf "{\"type\":\"Accept\", \"node\":\"%d\", \"Value\": \"%d\"}" sender value
-    | ViewChange(sender, client, view) ->  Printf.sprintf "{\"type\":\"ViewChange\", \"node\":\"%d\", \"Client\": \"%d\", \"View\": \"%d\"}" sender client view
+    | ViewChange(sender, view) ->  Printf.sprintf "{\"type\":\"ViewChange\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
     | NewView(sender, view) ->  Printf.sprintf "{\"type\":\"NewView\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
     | ApplyNewView(sender, view) ->  Printf.sprintf "{\"type\":\"ApplyNewView\", \"node\":\"%d\", \"View\": \"%d\"}" sender view
 
@@ -43,7 +43,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit (_,_,_,_,_) -> Simulator.Size.Bit(32)
     | Reply (_,_,_,_) -> Simulator.Size.Bit(32)
     | Accept (_,_) -> Simulator.Size.Bit(32)
-    | ViewChange (_,_,_) -> Simulator.Size.Bit(32)
+    | ViewChange (_,_) -> Simulator.Size.Bit(32)
     | NewView (_,_) -> Simulator.Size.Bit(32)
     | ApplyNewView (_,_) -> Simulator.Size.Bit(32)
 
@@ -59,7 +59,7 @@ module PbftMsg : (Simulator.Events.Message with type t = msg) = struct
     | Commit(client, sender, n, view, value) -> client * sender * n * view * value + 1
     | Reply(sender, n, view, value) ->  sender * n * view * value
     | Accept(sender, value) -> sender * value + 1
-    | ViewChange(sender, client, _) -> sender * client * client + 3
+    | ViewChange(sender, value) -> sender * value + 3
     | NewView(sender, view) -> sender * view + 5
     | ApplyNewView(sender, view) -> sender * view + 11
 end
@@ -141,7 +141,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
       node.data.n <- node.data.n + 1 + Random.int(10);
       node.data.quorum_accept <- [];
       node.data.accepting <- true;
-      PbftNetwork.gossip node.id (PrePrepare(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+      PbftNetwork.gossip node.id (PrePrepare(node.id, node.data.n, node.data.view, node.data.value));
       node
 
     let receive_reply (node:t) sender n view value =
@@ -154,7 +154,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               if ((List.length node.data.quorum_accept) > (node.data.network_size / 3) && node.data.accepting) then
                 begin
                   node.data.accepting <- false;
-                  PbftNetwork.send node.id node.id (Accept(node.id, value)); (* add crypto value *)
+                  PbftNetwork.send node.id node.id (Accept(node.id, value));
                 end;
             end;
         end;
@@ -176,7 +176,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               node.data.quorum_prepare <- [];
               node.data.quorum_accept <- [];
               node.data.quorum_commit <- [];
-              PbftNetwork.gossip node.id (Prepare(sender, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+              PbftNetwork.gossip node.id (Prepare(sender, node.id, node.data.n, node.data.view, node.data.value));
             end;
       node
 
@@ -189,7 +189,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               if ((List.length node.data.quorum_prepare) > (node.data.network_size / 3)) then
                 begin
                   node.data.quorum_commit <- [node.id];
-                  PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+                  PbftNetwork.gossip node.id (Commit(client, node.id, node.data.n, node.data.view, node.data.value));
                 end;
             end;
         end;
@@ -202,20 +202,21 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
             node.data.quorum_commit <- node.data.quorum_commit @ [sender];
             if ((List.length node.data.quorum_commit) > (node.data.network_size / 3)) then
               begin
-                PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value)); (* add crypto value *)
+                PbftNetwork.send node.id client (Reply(node.id, node.data.n, node.data.view, node.data.value));
               end;
         end;
       node
 
     let receive_view_change_trigger (node:t) =
-      PbftNetwork.gossip node.id (ViewChange(node.id, node.id, node.data.view + 1));
+      node.data.view_change <- node.data.view + 1;
+      PbftNetwork.gossip node.id (ViewChange(node.id, node.data.view_change));
       node
 
-    let receive_view_change (node:t) _ client view =
+    let receive_view_change (node:t) client view =
       if (node.data.view < view && node.data.view_change <> view) then
         begin
           node.data.view_change <- view;
-          PbftNetwork.send node.id client (NewView(node.id, node.data.view));
+          PbftNetwork.send node.id client (NewView(node.id, node.data.view_change));
         end;
       node
 
@@ -227,13 +228,15 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
             begin
               node.data.view_change <- 0;
               node.data.view <- view;
+              node.data.quorum_view_change <- [];
+              PbftTimer.set node.id slot_duration "new_view";
               PbftNetwork.gossip node.id (ApplyNewView(node.id, node.data.view));
             end;
         end;
       node
 
     let receive_apply_new_view (node:t) _ view =
-      if (node.data.view_change = node.data.view) then
+      if (node.data.view_change = node.data.view || node.data.view < view) then
         begin
           node.data.view_change <- 0;
           node.data.view <- view;
@@ -252,7 +255,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               | Commit(client, sender, n, view, value) -> receive_commit node sender client n view value
               | Reply(sender, n, view, value) -> receive_reply node sender n view value
               | Accept(sender, value) -> receive_accept node sender value
-              | ViewChange(sender, client, view) -> receive_view_change node sender client view
+              | ViewChange(sender, view) -> receive_view_change node sender view
               | NewView(sender, view) -> receive_new_view node sender view
               | ApplyNewView(sender, view) -> receive_apply_new_view node sender view
           end
