@@ -12,5 +12,6 @@
   bft
   bftED
   flooding
-  paxos)
+  paxos
+  pbft)
  (modes byte exe))
