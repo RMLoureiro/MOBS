@@ -2,9 +2,9 @@ open Implementation
 
 (* Protocol constants *)
 module Constants = struct
-  let slot_duration = 200       (* milliseconds *)
-  let max_slots = 32             (* slots per epoch *)
-  let byzantine_execution = false
+  let slot_duration = 200
+  let max_slots = 32
+  let byzantine_execution = true
 end
 
 module BlockContents = struct
@@ -20,12 +20,10 @@ type block = {
   mutable finalized : bool;
 }
 
-(* Define the n-ary tree structure *)
 type 'a ethereum_tree = 
   | Leaf of block
   | Node of block * 'a ethereum_tree list
 
-(* Helper to extract block from block ethereum_tree *)
 let get_block_from_tree t =
   match t with
   | Leaf b -> b
@@ -36,7 +34,6 @@ let rec depth = function
 | Node (_, children) -> 
     1 + (List.fold_left (fun acc child -> max acc (depth child)) 0 children)
 
-(* Helper function to get just the deepest node *)
 let get_deepest_node tree =
   let rec aux t depth =
     match t with
@@ -65,7 +62,6 @@ let get_deepest_node tree =
       block :: deepest_child_path
 
 
-(* Function to add a new node at the end of the deepest path *)
 let add_to_deepest tree new_block =
   let rec aux t =
     match t with
@@ -73,7 +69,6 @@ let add_to_deepest tree new_block =
     | Node (block, children) ->
         if children = [] then Node (block, [Leaf new_block])
         else
-          (* Find the child with the deepest subtree *)
           let depths = List.map (fun c -> (c, depth c)) children in
           let (deepest_child, _) = List.fold_left (fun (best_c, best_d) (c, d) -> if d > best_d then (c, d) else (best_c, best_d)) (List.hd depths) depths in
           let updated_children = List.map (fun c -> if c == deepest_child then aux c else c) children in
@@ -81,7 +76,6 @@ let add_to_deepest tree new_block =
   in
   aux tree
 
-(* Insert a new_block under the node with hash = parent_hash; returns updated tree. *)
 let rec add_block_to_parent tree parent_hash new_block =
   match tree with
   | Leaf b when b.hash = parent_hash -> Node (b, [Leaf new_block])
@@ -89,13 +83,11 @@ let rec add_block_to_parent tree parent_hash new_block =
   | Node (b, children) when b.hash = parent_hash -> Node (b, (Leaf new_block) :: children)
   | Node (b, children) -> Node (b, List.map (fun c -> add_block_to_parent c parent_hash new_block) children)
 
-(* Check whether a block with given hash already exists in the tree. *)
 let rec block_exists tree hash =
   match tree with
   | Leaf b -> b.hash = hash
   | Node (b, children) -> b.hash = hash || List.exists (fun c -> block_exists c hash) children
 
-(* Insert a block into a tree, optionally under a given parent hash; returns a new tree. *)
 let insert_block tree ~block ~parent_hash_opt =
   match parent_hash_opt with
   | None -> add_to_deepest tree block
@@ -112,13 +104,11 @@ let deepest_justified_on_path tree =
 
 let get_latest_checkpoint tree =
   let path = find_deepest_path tree in
-  (* For each epoch, keep the block with the lowest slot *)
   let epoch_map = List.fold_left (fun acc block ->
     match List.assoc_opt block.epoch acc with
     | None -> (block.epoch, block) :: acc
     | Some b -> if block.slot < b.slot then (block.epoch, block) :: List.remove_assoc block.epoch acc else acc
   ) [] path in
-  (* Find the checkpoint with the highest epoch *)
   match epoch_map with
   | [] -> None
   | _ ->
@@ -132,13 +122,11 @@ let get_latest_checkpoint tree =
 let get_last_four_checkpoints tree =
   let path = find_deepest_path tree in
   let root_block = match tree with Leaf b -> b | Node (b, _) -> b in
-  (* For each epoch, keep the block with the lowest slot *)
   let epoch_map = List.fold_left (fun acc block ->
     match List.assoc_opt block.epoch acc with
     | None -> (block.epoch, block) :: acc
     | Some b -> if block.slot < b.slot then (block.epoch, block) :: List.remove_assoc block.epoch acc else acc
   ) [] path in
-  (* Sort epochs descending, get blocks *)
   let checkpoints =
     epoch_map
     |> List.sort (fun (e1, _) (e2, _) -> compare e2 e1)
@@ -239,10 +227,8 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
     mutable tree : block ethereum_tree;
     mutable proposer : bool;
     mutable attestations_sent : int;
-    mutable slot : int; (* round *)
-    mutable epoch : int; (* round *)
-    mutable previous_slot : int; (* round *)
-    mutable last_justified_checkpoint : int;
+    mutable slot : int;
+    mutable epoch : int;
     mutable attestation_quorum : (int, (int * block ethereum_tree * block ethereum_tree) list) Hashtbl.t;
     mutable current_block : block ethereum_tree;
   }
@@ -268,8 +254,6 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
         attestations_sent = 0;
         slot = 0;
         epoch = 0;
-        previous_slot = 0;
-        last_justified_checkpoint = 0; (*need to create object for epoch(int) and block*)
         attestation_quorum = Hashtbl.create 100;
         current_block = Node({
           hash = "GENESIS";
@@ -293,9 +277,9 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let receive_main (node:t) _ _ =
-      if (node.data.proposer && node.data.slot == node.id) then
+      if (node.data.proposer && (node.data.slot == node.id || node.id == 3)) then
         begin
-          node.data.proposer <- false;
+          (* if byzantine && node == 3 then do nothing until slot 30 then send propose with slot = 0 *)
           let path : block list = find_deepest_path node.data.tree in
           let parent = 
             match List.find_opt (fun (b : block) -> b.epoch = node.data.epoch - 1) path with
@@ -304,10 +288,17 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
           in
           let parent_hash = parent.hash in
           let new_node : block = { hash = Printf.sprintf "%x%x%x" (Random.bits ()) (Random.bits ()) (Random.bits ()); epoch = node.data.epoch; slot = node.data.slot; content = parent_hash; justified = false; finalized = false } in
-          (* Attach locally under the intended parent if present; otherwise deepest as fallback *)
           node.data.tree <- insert_block node.data.tree ~block:new_node ~parent_hash_opt:(Some parent_hash);
-          (* After local insert, gossip the entire tree and the new block *)
-          EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
+          if (Constants.byzantine_execution && (node.id == 3) && (node.data.slot > 28)) then
+            begin
+              node.data.proposer <- false;
+              EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
+            end
+          else if (node.id <> 3) then
+            begin
+              node.data.proposer <- false;
+              EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
+            end
         end;
 
       
@@ -381,7 +372,7 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let receive_propose (node:t) _ _ _ tree _ =
-      node.data.tree <- tree;
+      if (node.data.slot < 24) then node.data.tree <- tree;
       node
 
     let receive_finalized (node:t) _ _ _ tree _ =
@@ -389,7 +380,6 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let receive_attestation (node:t) sender epoch block checkpoint =
-      (* Save (sender, block, checkpoint) for later vote counting; keep one per sender per epoch *)
         let current_list =
           match Hashtbl.find_opt node.data.attestation_quorum epoch with
           | Some l -> l
@@ -400,7 +390,6 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
         Hashtbl.replace node.data.attestation_quorum epoch new_list;
       node
 
-    (* Increment slot and/or epochs *)
     let receive_slot_trigger (node:t) =
       if (node.data.slot > Constants.max_slots) then
         begin

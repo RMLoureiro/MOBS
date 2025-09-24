@@ -45,7 +45,7 @@ def read_json_file(file_path):
 			max_epoch = max(epochs_observed)
 
 			print()
-			print('======================== FinalizedNode per epoch ========================')
+			print('======================== Finalized Block per epoch ========================')
 			print()
 			missing_epochs = []
 			for e in range(min_epoch, max_epoch + 1):
@@ -53,7 +53,7 @@ def read_json_file(file_path):
 				if hashes:
 					# Print deterministic order
 					hashes_list = sorted(list(hashes))
-					print(f'Epoch {e}: Finalized hashes: {", ".join(hashes_list)}')
+					print(f'Epoch {e}: Finalized block hash: {", ".join(hashes_list)}')
 				else:
 					print(f'Epoch {e}: No FinalizedNode messages')
 					missing_epochs.append(e)
@@ -71,7 +71,7 @@ def read_json_file(file_path):
 
 			if longest_run > 5 and missing_epochs:
 				print()
-				print('================ Epochs without FinalizedNode (run > 5 detected) ================')
+				print('================ Epochs without Finalized Blocks (run > 5 detected) ================')
 				print()
 				print(', '.join(str(e) for e in missing_epochs))
 
