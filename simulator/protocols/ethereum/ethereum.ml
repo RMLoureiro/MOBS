@@ -160,7 +160,7 @@ type msg =
   Init of int (*sender*)
   | Main of int * int * int (*sender, epoch, slot*)
   | Propose of int * int * int * block ethereum_tree * block (*sender, epoch, slot, full tree, new block*)
-  | Attestation of int * block ethereum_tree * block ethereum_tree (*sender, block, checkpoint as trees*)
+  | Attestation of int * int * block ethereum_tree * block ethereum_tree (*sender, epoch, block, checkpoint as trees*)
   | JustificationFinalization of int (*sender*)
   | FinalizedNode of int * int * int * block ethereum_tree * block (*sender, epoch, slot, tree, finalized block*)
 
@@ -175,10 +175,10 @@ module EthereumMsg : (Simulator.Events.Message with type t = msg) = struct
         let head_hash = (get_block_from_tree tree).hash in
         Printf.sprintf "{\"type\":\"Propose\", \"node\":\"%d\", \"epoch\":\"%d\", \"slot\":\"%d\", \"head_hash\":\"%s\", \"block_hash\":\"%s\"}"
           sender epoch slot head_hash new_block.hash
-    | Attestation(sender, block_tree, checkpoint_tree) ->
+    | Attestation(sender, epoch, block_tree, checkpoint_tree) ->
       let block_hash = (get_block_from_tree block_tree).hash in
       let checkpoint_hash = (get_block_from_tree checkpoint_tree).hash in
-      Printf.sprintf "{\"type\":\"Attestation\", \"node\":\"%d\", \"block_hash\":\"%s\", \"checkpoint_hash\":\"%s\"}" sender block_hash checkpoint_hash
+      Printf.sprintf "{\"type\":\"Attestation\", \"node\":\"%d\", \"epoch\":\"%d\", \"block_hash\":\"%s\", \"checkpoint_hash\":\"%s\"}" sender epoch block_hash checkpoint_hash
     | JustificationFinalization(sender) -> Printf.sprintf "{\"type\":\"JustificationFinalization\", \"node\":\"%d\"}" sender
     | FinalizedNode(sender, epoch, slot, _, finalized_block) ->
       Printf.sprintf "{\"type\":\"FinalizedNode\", \"node\":\"%d\", \"epoch\":\"%d\", \"slot\":\"%d\", \"finalized_hash\":\"%s\"}"
@@ -190,7 +190,7 @@ module EthereumMsg : (Simulator.Events.Message with type t = msg) = struct
     | Init (_) -> Simulator.Size.Bit(32)
     | Main (_,_,_) -> Simulator.Size.Bit(32)
   | Propose(_,_,_,_,_) -> Simulator.Size.Bit(32)
-    | Attestation(_,_,_) -> Simulator.Size.Bit(32)
+    | Attestation(_,_,_,_) -> Simulator.Size.Bit(32)
     | JustificationFinalization(_) -> Simulator.Size.Bit(32)
   | FinalizedNode(_,_,_,_,_) -> Simulator.Size.Bit(32)
 
@@ -202,7 +202,7 @@ module EthereumMsg : (Simulator.Events.Message with type t = msg) = struct
     | Init(sender) -> sender * 3
     | Main(sender, _, slot) -> sender * slot * 7
   | Propose(sender, _, slot, _, _) -> sender * slot
-    | Attestation(sender, _, _) -> sender * 11
+    | Attestation(sender, epoch, _, _) -> sender * epoch * 11
     | JustificationFinalization(sender) -> sender * 5
   | FinalizedNode(sender, _, _, _, _) -> sender * 13
 end
@@ -238,14 +238,13 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
   type node_data = {
     mutable tree : block ethereum_tree;
     mutable proposer : bool;
-    mutable attester : bool;
+    mutable attestations_sent : int;
     mutable slot : int; (* round *)
     mutable epoch : int; (* round *)
     mutable previous_slot : int; (* round *)
     mutable last_justified_checkpoint : int;
     mutable attestation_quorum : (int, (int * block ethereum_tree * block ethereum_tree) list) Hashtbl.t;
     mutable current_block : block ethereum_tree;
-    mutable proposals_sent : int;
   }
 
   type t = (node_data, value) Protocol.template
@@ -266,7 +265,7 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
           finalized = true;
         }, []);
         proposer = false;
-        attester = false;
+        attestations_sent = 0;
         slot = 0;
         epoch = 0;
         previous_slot = 0;
@@ -280,60 +279,55 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
           justified = true;
           finalized = true;
         }, []);
-        proposals_sent = 0;
       }
     }
 
     let receive_init (node:t) =
-      node.data.attester <- true;
+      node.data.attestations_sent <- 0;
       if (node.id == 1 || node.id == 2 || node.id == 3) then
         begin
           node.data.proposer <- true;
-          node.data.proposals_sent <- 0;
         end;
       EthereumNetwork.send node.id node.id (Main(node.id, node.data.epoch, node.data.slot));
       EthereumTimer.set node.id Constants.slot_duration "increment_slot";
       node
 
     let receive_main (node:t) _ _ =
-      if (node.data.proposer) then
+      if (node.data.proposer && node.data.slot == node.id) then
         begin
-        if node.data.proposals_sent < 3 then
-          begin
-            let path : block list = find_deepest_path node.data.tree in
-            let parent = 
-              match List.find_opt (fun (b : block) -> b.epoch = node.data.epoch - 1) path with
-              | Some p -> p
-              | None -> get_block_from_tree node.data.tree
-            in
-            let parent_hash = parent.hash in
-            let new_node : block = { hash = Printf.sprintf "%x%x%x" (Random.bits ()) (Random.bits ()) (Random.bits ()); epoch = node.data.epoch; slot = node.data.slot; content = parent_hash; justified = false; finalized = false } in
-            (* Attach locally under the intended parent if present; otherwise deepest as fallback *)
-            node.data.tree <- insert_block node.data.tree ~block:new_node ~parent_hash_opt:(Some parent_hash);
-            (* After local insert, gossip the entire tree and the new block *)
-            EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
-            node.data.proposals_sent <- node.data.proposals_sent + 1;
-          end;
+          node.data.proposer <- false;
+          let path : block list = find_deepest_path node.data.tree in
+          let parent = 
+            match List.find_opt (fun (b : block) -> b.epoch = node.data.epoch - 1) path with
+            | Some p -> p
+            | None -> get_block_from_tree node.data.tree
+          in
+          let parent_hash = parent.hash in
+          let new_node : block = { hash = Printf.sprintf "%x%x%x" (Random.bits ()) (Random.bits ()) (Random.bits ()); epoch = node.data.epoch; slot = node.data.slot; content = parent_hash; justified = false; finalized = false } in
+          (* Attach locally under the intended parent if present; otherwise deepest as fallback *)
+          node.data.tree <- insert_block node.data.tree ~block:new_node ~parent_hash_opt:(Some parent_hash);
+          (* After local insert, gossip the entire tree and the new block *)
+          EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
         end;
 
       
       
       if (node.data.slot == 32 && node.id == 1) then EthereumNetwork.send node.id node.id (JustificationFinalization(node.id));
 
-      let () = if (node.data.attester) then
-        node.data.attester <- false;
-        let root_block = get_block_from_tree node.data.tree in
-        let last_justified_checkpoint = 
-            match deepest_justified_on_path node.data.tree with 
-            | Some b -> Leaf b
-            | None -> Leaf root_block in
-          let current_checkpoint =
-            match get_latest_checkpoint node.data.tree with
-            | Some b -> Leaf b
-            | None -> Leaf root_block in
-          if (node.data.slot >= 11) then
-            EthereumNetwork.gossip node.id (Attestation(node.id, current_checkpoint, last_justified_checkpoint))
-      in      
+      if (node.data.attestations_sent < 3 && node.data.slot >= 11) then
+        begin
+          node.data.attestations_sent <- node.data.attestations_sent + 1;
+          let root_block = get_block_from_tree node.data.tree in
+          let last_justified_checkpoint = 
+              match deepest_justified_on_path node.data.tree with 
+              | Some b -> Leaf b
+              | None -> Leaf root_block in
+            let current_checkpoint =
+              match get_latest_checkpoint node.data.tree with
+              | Some b -> Leaf b
+              | None -> Leaf root_block in
+            EthereumNetwork.gossip node.id (Attestation(node.id, node.data.epoch, current_checkpoint, last_justified_checkpoint));
+          end;
       node
 
     let count_matching_checkpoint_vote (node : t) (source : block) (target : block) : int =
@@ -394,15 +388,16 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node.data.tree <- tree;
       node
 
-    let receive_attestation (node:t) sender block checkpoint =
-      (* Save (sender, block, checkpoint) for later vote counting *)
-      let epoch = (get_block_from_tree block).epoch in
+    let receive_attestation (node:t) sender epoch block checkpoint =
+      (* Save (sender, block, checkpoint) for later vote counting; keep one per sender per epoch *)
         let current_list =
           match Hashtbl.find_opt node.data.attestation_quorum epoch with
           | Some l -> l
           | None -> []
         in
-          Hashtbl.replace node.data.attestation_quorum epoch ((sender, block, checkpoint) :: current_list);
+        let filtered_list = List.filter (fun (s, _, _) -> s <> sender) current_list in
+        let new_list = (sender, block, checkpoint) :: filtered_list in
+        Hashtbl.replace node.data.attestation_quorum epoch new_list;
       node
 
     (* Increment slot and/or epochs *)
@@ -422,14 +417,14 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let handle (node:t) (event:ev) : t =
-      match event with
+      match event with  
         | EthereumEvent.Message(_,_,_,_,msg) -> 
           begin
           match msg with
           | Init(_) -> receive_init node
           | Main(_, epoch, slot) -> receive_main node epoch slot
           | Propose(sender, epoch, slot, tree, new_block) -> receive_propose node sender epoch slot tree new_block
-          | Attestation(sender, block, checkpoint) -> receive_attestation node sender block checkpoint
+          | Attestation(sender, epoch, block, checkpoint) -> receive_attestation node sender epoch block checkpoint
           | JustificationFinalization(_) -> receive_justification_finalization node
           | FinalizedNode(sender, epoch, slot, tree, finalized_block) -> receive_finalized node sender epoch slot tree finalized_block
           end
