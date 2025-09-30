@@ -151,16 +151,16 @@ module CTNode : (Protocol.BlockchainNode with type ev=CTEvent.t and type value=C
         end;
       node
 
-      let receive_accept (node:t) coordinator round value =
-        if (node.data.accepted = 0 && node.data.round <= round) then
-          begin
-            node.data.accepted <- 1;
-            node.data.round<- round;
-            node.data.value <- value;
-            CTNetwork.send_to_neighbors node.id (Accept(node.id, coordinator, round, value));
-            CTNetwork.send node.id coordinator (Ack(node.id, round, node.data.value));
-          end;
-        node
+    let receive_accept (node:t) coordinator round value =
+      if (node.data.accepted = 0 && node.data.round <= round) then
+        begin
+          node.data.accepted <- 1;
+          node.data.round<- round;
+          node.data.value <- value;
+          CTNetwork.send_to_neighbors node.id (Accept(node.id, coordinator, round, value));
+          CTNetwork.send node.id coordinator (Ack(node.id, round, node.data.value));
+        end;
+      node
 
     let handle (node:t) (event:ev) : t =
       match event with
