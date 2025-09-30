@@ -14,5 +14,6 @@
   flooding
   paxos
   pbft
-  chandraToueg)
+  chandraToueg
+  ethereum)
  (modes byte exe))
