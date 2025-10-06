@@ -154,7 +154,7 @@ module PbftNode : (Protocol.BlockchainNode with type ev=PbftEvent.t and type val
               if ((List.length node.data.quorum_accept) > (node.data.network_size / 3) && node.data.accepting) then
                 begin
                   node.data.accepting <- false;
-                  PbftNetwork.send node.id node.id (Accept(node.id, value));
+                  PbftNetwork.send node.id (Random.int node.data.network_size) (Accept(node.id, value));
                 end;
             end;
         end;

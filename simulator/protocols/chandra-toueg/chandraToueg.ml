@@ -19,7 +19,7 @@ module CTMsg : (Simulator.Events.Message with type t = msg) = struct
     match msg with
     | Init(sender) ->  Printf.sprintf "{\"type\":\"Init\", \"node\":\"%d\"}" sender
     | Start(sender, _,round) ->  Printf.sprintf "{\"type\":\"Start\", \"node\":\"%d\", \"Round\":\"%d\"}" sender round
-    | Preference(sender, _, value) ->  Printf.sprintf "{\"type\":\"ReceivePreference\", \"node\":\"%d\", \"Value\":\"%d\"}" sender value
+    | Preference(sender, _, value) ->  Printf.sprintf "{\"type\":\"Proposing\", \"node\":\"%d\", \"Value\":\"%d\"}" sender value
     | Accept(sender, _, _,value) ->  Printf.sprintf "{\"type\":\"Accept\", \"node\":\"%d\", \"Value\":\"%d\"}" sender value
     | Ack(sender, _, value) ->  Printf.sprintf"{\"type\":\"Accepted\",\"receiver\":\"%d\", \"Value\": \"%d\"}" sender value
     | Consensus(sender, value) ->  Printf.sprintf "{\"type\":\"Consensus Reached\",\"N\":\"%d\", \"Value\": \"%d\"}" sender value
@@ -98,7 +98,7 @@ module CTNode : (Protocol.BlockchainNode with type ev=CTEvent.t and type value=C
         round = 0;
         quorum_preference = [];
         quorum_accept = [];
-        network_size = 10;
+        network_size = 20;
         accepted = 0;
       }
     }

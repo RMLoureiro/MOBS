@@ -289,7 +289,7 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
           let parent_hash = parent.hash in
           let new_node : block = { hash = Printf.sprintf "%x%x%x" (Random.bits ()) (Random.bits ()) (Random.bits ()); epoch = node.data.epoch; slot = node.data.slot; content = parent_hash; justified = false; finalized = false } in
           node.data.tree <- insert_block node.data.tree ~block:new_node ~parent_hash_opt:(Some parent_hash);
-          if (Constants.byzantine_execution && (node.id == 3) && (node.data.slot > 28)) then
+          if (Constants.byzantine_execution && (node.id == 3) && (node.data.slot > 28) && node.data.epoch > 100) then
             begin
               node.data.proposer <- false;
               EthereumNetwork.gossip node.id (Propose(node.id, node.data.epoch, node.data.slot, node.data.tree, new_node));
@@ -372,7 +372,8 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let receive_propose (node:t) _ _ _ tree _ =
-      if (node.data.slot < 24) then node.data.tree <- tree;
+      (* if (node.data.slot < 24) then *) (* PATCH *)
+      node.data.tree <- tree;
       node
 
     let receive_finalized (node:t) _ _ _ tree _ =

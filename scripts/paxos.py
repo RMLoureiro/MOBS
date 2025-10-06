@@ -8,7 +8,7 @@ rounds = {}
 def read_json_file(file_path):
     try:
         with open(file_path, 'r') as file:
-            total_nodes = 100
+            total_nodes = 20
             consensus = 0
             runtime = 0
             average_approval = []

@@ -185,7 +185,7 @@ module PaxosNode : (Protocol.BlockchainNode with type ev=PaxosEvent.t and type v
       node.data.value <- Random.int(100000);
       node.data.n <- node.data.n + 1 + Random.int(100);
       PaxosNetwork.send node.id node.id (Init(node.id));
-      (* PaxosNetwork.send_to_neighbors node.id (Init(2)); *)
+      PaxosNetwork.send_to_neighbors node.id (Init(2));
       node
 
     let handle (node:t) (event:ev) : t =
@@ -216,8 +216,8 @@ module PaxosInitializer : (Protocol.Initializer with type node=PaxosNode.t and t
 
   let init _ =  
     Random.self_init ();
-    [PaxosEvent.Message(0, 1, 0, 0, Init(1));]
-    (* [PaxosEvent.Message(0, 2, 0, 0, Init(2))] *)
+    [PaxosEvent.Message(0, 1, 0, 0, Init(1));
+    PaxosEvent.Message(0, 2, 0, 0, Init(2))]
 
 end
 
