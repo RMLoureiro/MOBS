@@ -16,12 +16,14 @@ The simulator has the following requirements:
 	- ```opam install yojson.1.7.0```
 
 The GUI has the following requirements:
-- an installation of NodeJS (version >= 14)
+- an installation of NodeJS (version == 16)
 - an installation of npm, along with yarn, electron and vue
 	- ```npm install --global yarn```
 ---
 
 ## Usage
+
+Testes and executions of the protocol should be done in the master branch, small tweaks and patches have been done to the added protocols since their pull requests were merged.
 
 To build the simulator, run ```dune build``` in the ```/simulator``` directory. This will produce a ```_build``` directory.
 
