@@ -40,6 +40,12 @@ Running the GUI can be done with ```yarn electron:serve``` in the ```/visualizer
 [How to use the GUI](visualizer/README.md)
 
 
+## Validation scripts
+
+Before running the validations scripts the user need to:
+ - open the ```output_files/out0-1.json``` file and add a ```]``` to end of it.
+ - replace the ```<file_path>``` in the validation script with a string representing the absolute file path to the ```output_files/out0-1.json``` file
+
 
 
 
