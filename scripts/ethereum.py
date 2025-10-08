@@ -82,7 +82,7 @@ def read_json_file(file_path):
 
 
 if __name__ == '__main__':
-	# Path to the simulator output JSON file
-	file_path = '/Users/loureiro/Desktop/FCT/Thesis RL/Simulators/Simulador-MOBS/MOBS/output_files/out0-1.json'
+	# Replace 'your_file_path.json' with the actual path to your JSON file
+	file_path = '<your_file_path.json>'
 	read_json_file(file_path)
 

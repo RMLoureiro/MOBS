@@ -105,5 +105,5 @@ def initialize_and_validate(value, node_id, message_type, round):
                 errors.append('In round N there were two different values accepted, ' + str(value) + ' and ' + str(rounds[round]))
                 
 # Replace 'your_file_path.json' with the actual path to your JSON file
-file_path = '/Users/loureiro/Desktop/FCT/Thesis RL/Simulators/Simulador-MOBS/MOBS/output_files/out0-1.json'
+file_path = '<your_file_path.json>'
 read_json_file(file_path)
