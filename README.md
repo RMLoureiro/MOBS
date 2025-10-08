@@ -25,6 +25,21 @@ The GUI has the following requirements:
 
 Testes and executions of the protocol should be done in the master branch, small tweaks and patches have been done to the added protocols since their pull requests were merged.
 
+### Protocols implemented
+- Membership protocols:
+ 	- Chord: https://github.com/RMLoureiro/MOBS/pull/1 - Chord has no validation script unlike the other protocols.
+
+- Consensus protocols:
+	- Paxos: https://github.com/RMLoureiro/MOBS/pull/2
+	- Chandra-toueg: https://github.com/RMLoureiro/MOBS/pull/4
+	- pBFT: https://github.com/RMLoureiro/MOBS/pull/6
+	- Ethereum: https://github.com/RMLoureiro/MOBS/pull/7
+
+
+---
+
+## Build
+
 To build the simulator, run ```dune build``` in the ```/simulator``` directory. This will produce a ```_build``` directory.
 
 To build the GUI, run ```yarn install``` in the ```/visualizer``` directory.
@@ -39,6 +54,7 @@ Running the GUI can be done with ```yarn electron:serve``` in the ```/visualizer
 
 [How to use the GUI](visualizer/README.md)
 
+---
 
 ## Validation scripts
 
