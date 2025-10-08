@@ -372,7 +372,8 @@ module EthereumNode : (Protocol.BlockchainNode with type ev=EthereumEvent.t and 
       node
 
     let receive_propose (node:t) _ _ _ tree _ =
-      (* if (node.data.slot < 24) then *) (* PATCH *)
+      (* PATCH *)
+      (* if (node.data.slot < 24) then *)
       node.data.tree <- tree;
       node
 
