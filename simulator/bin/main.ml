@@ -20,6 +20,7 @@ let () =
       | "pbft" -> Pbft.PbftProtocol.run()
       | "chandra-toueg" -> ChandraToueg.CTProtocol.run()
       | "ethereum" -> Ethereum.EthereumProtocol.run()
+      | "chord" -> Chord.ChordProtocol.run()
       | _ -> (print_endline (Printf.sprintf "Unrecognized protocol <%s>" !Parameters.General.protocol); exit 0)
     );
     Parameters.General.current_batch := cur_batch + 1;

@@ -15,5 +15,6 @@
   paxos
   pbft
   chandraToueg
-  ethereum)
+  ethereum
+  chord)
  (modes byte exe))
